@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>アンケート自由記述 潜在因子分析ツール</title>
+    <link rel="stylesheet" href="css/style.css">
+    <!-- 外部・自前ライブラリ群 -->
+    <script src="lib/papaparse.min.js"></script>
+    <script src="lib/kuromoji/kuromoji.js"></script>
+    <script src="lib/plotly.min.js"></script>
+    <script src="lib/html2canvas/html2canvas.min.js"></script>
+</head>
+<body>
+
+    <!-- ヘッダー -->
+    <header class="header">
+        <div class="container header-content">
+            <div class="logo-area">
+                <span class="logo-icon">📊</span>
+                <div>
+                    <h1 class="logo-title">アンケート自由記述 潜在因子分析ツール</h1>
+                </div>
+                <span class="logo-tag">🔒 オフライン・ブラウザ完結</span>
+            </div>
+            <div class="header-actions">
+                <button id="btnDemoData" class="btn" title="すぐに試せるサンプルデータをロード">
+                    💡 デモデータで試す
+                </button>
+                <button id="btnExportReport" class="btn" title="分析結果画面を高画質PNGで保存">
+                    📷 レポート画像を保存
+                </button>
+                <button id="btnHelp" class="btn" title="ツールの使い方を表示">
+                    ❓ 使い方
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- アップロード・設定セクション -->
+        <section class="config-section">
+            <div class="card">
+                <!-- ドロップゾーン -->
+                <div id="dropZone" class="drop-zone" onclick="document.getElementById('csvFileInput').click();">
+                    <div class="drop-icon">📁</div>
+                    <div class="drop-text">ここにアンケートのCSV/TSVファイルをドラッグ＆ドロップ</div>
+                    <div class="drop-subtext">またはクリックしてファイルを選択（UTF-8 / Shift_JIS対応）</div>
+                    <input type="file" id="csvFileInput" accept=".csv, .tsv, .txt" style="display: none;">
+                </div>
+
+                <div id="fileNameDisplay" style="font-size: 13px; font-weight: 600; color: #2563EB; margin-top: 12px;"></div>
+
+                <!-- 解析パラメータ設定（CSV読込後に表示） -->
+                <div id="configGrid" class="config-grid" style="display: none;">
+                    <div class="form-group">
+                        <label class="form-label" for="selectTextCol">
+                            自由記述の列（分析対象）
+                            <span class="badge-rec">自動判定</span>
+                        </label>
+                        <select id="selectTextCol" class="form-select"></select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="selectAttrCol">
+                            属性の列（年代・満足度など・任意）
+                        </label>
+                        <select id="selectAttrCol" class="form-select">
+                            <option value="">（指定しない）</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            見つけるテーマの数
+                            <span class="badge-rec" title="データ規模に応じた推奨値">おすすめ</span>
+                        </label>
+                        <div class="stepper">
+                            <button type="button" id="btnDecK" class="stepper-btn" style="border-radius: 6px 0 0 6px;">−</button>
+                            <input type="text" id="inputK" class="stepper-val" value="3" readonly>
+                            <button type="button" id="btnIncK" class="stepper-btn" style="border-radius: 0 6px 6px 0;">＋</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="justify-content: flex-end;">
+                        <button id="btnRunAnalysis" class="btn btn-primary" style="height: 38px; padding: 0 24px;">
+                            🚀 分析スタート
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 分析結果コンテナ（初期非表示） -->
+        <section id="resultsContainer" style="display: none;">
+            <!-- サマリーバー -->
+            <div class="summary-bar">
+                <div class="summary-stats">
+                    <span class="stat-item">総アンケート件数: <b id="statTotalRows" class="stat-val">0</b> 件</span>
+                    <span class="stat-item">有効回答（テキスト有）: <b id="statValidRows" class="stat-val">0</b> 件</span>
+                    <span class="stat-item">除外（定型「なし」等）: <b id="statJunkRows" class="stat-val" style="color:#64748B;">0</b> 件</span>
+                    <span class="stat-item">抽出された主要テーマ: <b id="statThemesCount" class="stat-val">0</b> つ</span>
+                </div>
+                <div style="font-size: 12px; color: var(--text-muted);">
+                    ※テーマ名はクリックして編集できます
+                </div>
+            </div>
+
+            <!-- チャートグリッド（図1 & 図2） -->
+            <div class="charts-grid">
+                <!-- 図1: テーマ構成比ドーナツチャート -->
+                <div class="chart-card">
+                    <div id="chartDonut"></div>
+                </div>
+                <!-- 図2: 意見ポジショニングマップ -->
+                <div class="chart-card">
+                    <div id="chartPositioning"></div>
+                </div>
+            </div>
+
+            <!-- 図4: 属性別クロス集計（属性列がある場合のみ表示） -->
+            <div id="crossTabCard" class="chart-card" style="display: none; margin-bottom: 24px;">
+                <div id="chartCrossTab"></div>
+            </div>
+
+            <!-- テーマ詳細セクション（図3 & 代表回答） -->
+            <div class="themes-section">
+                <h2 class="themes-section-title">
+                    📋 発見された意見テーマの詳細（重要単語 ＆ 生の声）
+                </h2>
+                <div id="themeCardsList" class="theme-cards-list"></div>
+            </div>
+        </section>
+    </main>
+
+    <!-- モーダルダイアログ（回答詳細・一覧・ヘルプ用） -->
+    <div id="detailModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle" class="modal-title">詳細</h3>
+                <button id="modalClose" class="modal-close">&times;</button>
+            </div>
+            <div id="modalBody" class="modal-body"></div>
+            <div class="modal-footer">
+                <button class="btn" onclick="document.getElementById('detailModal').style.display='none';">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ローディング表示 -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <div id="loadingText" class="loading-text">読み込み中...</div>
+    </div>
+
+    <!-- アプリケーションロジック -->
+    <script src="js/demo_data.js"></script>
+    <script src="js/csv_parser.js"></script>
+    <script src="js/text_preprocessor.js"></script>
+    <script src="js/factor_engine.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
