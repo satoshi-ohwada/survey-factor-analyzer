@@ -61,6 +61,7 @@ const TextPreprocessor = {
 
     /**
      * テキストが無意味回答かどうかを判定
+     * （「特になし」、空白、アンケート用コード数値「999」や記号のみの行を除外）
      * @param {string} text 
      * @returns {boolean}
      */
@@ -68,7 +69,20 @@ const TextPreprocessor = {
         if (!text) return true;
         const cleaned = text.trim().replace(/[\s\r\n\t。、・]/g, '');
         if (cleaned.length === 0) return true;
-        return this.JUNK_RESPONSES.has(cleaned);
+
+        // 定型スキップ単語に合致する場合
+        if (this.JUNK_RESPONSES.has(cleaned)) return true;
+
+        // 数字のみ（例: 999, 0, 99 などコード番号）
+        if (/^[0-9０-９]+$/.test(cleaned)) return true;
+
+        // 記号・ハイフンのみ（例: ---, ***, /// など）
+        if (/^[^\p{L}\p{N}]+$/u.test(cleaned)) return true;
+
+        // 文字数が極端に短い（1文字のみ）
+        if (cleaned.length <= 1) return true;
+
+        return false;
     },
 
     /**
