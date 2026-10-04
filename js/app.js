@@ -165,6 +165,20 @@ function setupEventListeners() {
         });
     }
 
+    // 印刷前後のPlotlyグラフ自動リサイズ
+    window.addEventListener('beforeprint', () => {
+        updatePrintMetaInfo();
+        document.querySelectorAll('.js-plotly-plot').forEach(el => {
+            try { Plotly.Plots.resize(el); } catch (e) {}
+        });
+    });
+
+    window.addEventListener('afterprint', () => {
+        document.querySelectorAll('.js-plotly-plot').forEach(el => {
+            try { Plotly.Plots.resize(el); } catch (e) {}
+        });
+    });
+
     // ヘルプ
     btnHelp.addEventListener('click', () => {
         showHelpModal();
@@ -1199,16 +1213,9 @@ window.exportThemeCsv = function(themeId) {
 };
 
 /**
- * A4レポート出力 (印刷 / PDF保存)
+ * 印刷用ヘッダーメタ情報の更新
  */
-function printA4Report() {
-    const resultsContainer = document.getElementById('resultsContainer');
-    if (!resultsContainer || resultsContainer.style.display === 'none') {
-        alert('分析を実行してからレポート出力を行ってください');
-        return;
-    }
-
-    // 印刷用メタ情報の設定
+function updatePrintMetaInfo() {
     const fileName = AppState.loadedFileName || 'アンケートデータ';
     const nowStr = new Date().toLocaleString('ja-JP', {
         year: 'numeric', month: 'long', day: 'numeric',
@@ -1225,11 +1232,28 @@ function printA4Report() {
     if (printDate) printDate.textContent = nowStr;
     if (printDate2) printDate2.textContent = `出力日時: ${nowStr}`;
     if (printValidCount) printValidCount.textContent = validCount.toLocaleString();
+}
 
-    // ブラウザの印刷ダイアログを起動
+/**
+ * A4レポート出力 (印刷 / PDF保存)
+ */
+function printA4Report() {
+    const resultsContainer = document.getElementById('resultsContainer');
+    if (!resultsContainer || resultsContainer.style.display === 'none') {
+        alert('分析を実行してからレポート出力を行ってください');
+        return;
+    }
+
+    updatePrintMetaInfo();
+
+    // グラフのリサイズを実行してから印刷ダイアログを起動
+    document.querySelectorAll('.js-plotly-plot').forEach(el => {
+        try { Plotly.Plots.resize(el); } catch (e) {}
+    });
+
     setTimeout(() => {
         window.print();
-    }, 120);
+    }, 150);
 }
 
 /**

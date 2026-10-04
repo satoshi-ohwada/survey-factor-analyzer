@@ -467,20 +467,22 @@ const ChartRenderer = {
         }];
 
         const layout = {
-            margin: { l: 80, r: 20, t: 10, b: 30 },
-            height: 180,
+            margin: { l: 65, r: 15, t: 8, b: 24 },
+            height: 145,
             paper_bgcolor: 'rgba(0,0,0,0)',
             plot_bgcolor: 'rgba(0,0,0,0)',
             xaxis: {
                 showgrid: true,
                 gridcolor: '#F1F5F9',
                 zeroline: false,
-                title: '因子負荷量（関連度）'
+                title: { text: '負荷量', font: { size: 9.5, color: '#64748B' } },
+                tickfont: { size: 9 }
             },
             yaxis: {
-                autorange: true
+                autorange: true,
+                tickfont: { size: 10.5 }
             },
-            font: { size: 12 }
+            font: { size: 10.5, family: 'sans-serif' }
         };
 
         const config = {
