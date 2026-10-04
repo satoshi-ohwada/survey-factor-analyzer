@@ -14,7 +14,14 @@ const AppState = {
     analysisResult: null,
     mapMode: 'responses', // 'responses' (因子得点) または 'words' (因子負荷量)
     mapAxisX: 0,
-    mapAxisY: 1
+    mapAxisY: 1,
+    loadedFileName: '',
+
+    // プレビュー＆データ編集状態
+    previewMode: 'limit', // 'limit' (先頭5行) または 'all' (全行表示)
+    previewPage: 1,
+    previewPageSize: 50,
+    previewFilterWarning: false // true: 問題のある行のみ絞り込み
 };
 
 // 初期化
@@ -76,9 +83,11 @@ function setupEventListeners() {
     // 列選択の変更
     selectTextCol.addEventListener('change', (e) => {
         AppState.textColumn = e.target.value;
+        renderDataPreview();
     });
     selectAttrCol.addEventListener('change', (e) => {
         AppState.attributeColumn = e.target.value || null;
+        renderDataPreview();
     });
 
     // テーマ数の増減
@@ -148,6 +157,103 @@ function setupEventListeners() {
             detailModal.style.display = 'none';
         }
     });
+
+    // データプレビュー操作コントロール
+    const btnPreviewLimit = document.getElementById('btnPreviewLimit');
+    const btnPreviewAll = document.getElementById('btnPreviewAll');
+    const btnFilterWarnings = document.getElementById('btnFilterWarnings');
+    const btnAddRow = document.getElementById('btnAddRow');
+    const btnPrevPage = document.getElementById('btnPrevPage');
+    const btnNextPage = document.getElementById('btnNextPage');
+    const previewTableTbody = document.getElementById('previewTableTbody');
+
+    if (btnPreviewLimit) {
+        btnPreviewLimit.addEventListener('click', () => {
+            AppState.previewMode = 'limit';
+            btnPreviewLimit.classList.add('active');
+            btnPreviewAll.classList.remove('active');
+            renderDataPreview();
+        });
+    }
+
+    if (btnPreviewAll) {
+        btnPreviewAll.addEventListener('click', () => {
+            AppState.previewMode = 'all';
+            btnPreviewLimit.classList.remove('active');
+            btnPreviewAll.classList.add('active');
+            renderDataPreview();
+        });
+    }
+
+    if (btnFilterWarnings) {
+        btnFilterWarnings.addEventListener('click', () => {
+            AppState.previewFilterWarning = !AppState.previewFilterWarning;
+            btnFilterWarnings.classList.toggle('active', AppState.previewFilterWarning);
+            AppState.previewPage = 1;
+            renderDataPreview();
+        });
+    }
+
+    if (btnAddRow) {
+        btnAddRow.addEventListener('click', () => {
+            addNewRow();
+        });
+    }
+
+    if (btnPrevPage) {
+        btnPrevPage.addEventListener('click', () => {
+            if (AppState.previewPage > 1) {
+                AppState.previewPage--;
+                renderDataPreview();
+            }
+        });
+    }
+
+    if (btnNextPage) {
+        btnNextPage.addEventListener('click', () => {
+            AppState.previewPage++;
+            renderDataPreview();
+        });
+    }
+
+    // プレビューテーブル内セルの直接編集と行削除
+    if (previewTableTbody) {
+        previewTableTbody.addEventListener('focusout', (e) => {
+            const cell = e.target.closest('.cell-editable');
+            if (cell) {
+                const rowIdx = parseInt(cell.getAttribute('data-row-idx'), 10);
+                const col = cell.getAttribute('data-col');
+                const newVal = cell.innerText.trim();
+                if (AppState.rawRows[rowIdx]) {
+                    AppState.rawRows[rowIdx][col] = newVal;
+                    updateRowAndAlertsAfterEdit(rowIdx);
+                }
+            }
+        });
+
+        previewTableTbody.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                const cell = e.target.closest('.cell-editable');
+                if (cell) {
+                    e.preventDefault();
+                    cell.blur();
+                }
+            }
+        });
+
+        previewTableTbody.addEventListener('click', (e) => {
+            const delBtn = e.target.closest('.btn-row-del');
+            if (delBtn) {
+                const rowIdx = parseInt(delBtn.getAttribute('data-row-idx'), 10);
+                if (confirm(`行 ${rowIdx + 1} を削除しますか？`)) {
+                    AppState.rawRows.splice(rowIdx, 1);
+                    document.getElementById('fileNameDisplay').textContent = 
+                        `📄 ${AppState.loadedFileName} (${AppState.rawRows.length}件のデータ)`;
+                    renderDataPreview();
+                }
+            }
+        });
+    }
 }
 
 /**
@@ -250,6 +356,276 @@ function processParsedData(parsed, fileName) {
 
     configGrid.style.display = 'grid';
     btnRun.disabled = false;
+
+    // プレビューの初期化と描画
+    AppState.previewMode = 'limit';
+    AppState.previewPage = 1;
+    AppState.previewFilterWarning = false;
+    const btnPreviewLimit = document.getElementById('btnPreviewLimit');
+    const btnPreviewAll = document.getElementById('btnPreviewAll');
+    const btnFilterWarnings = document.getElementById('btnFilterWarnings');
+    if (btnPreviewLimit) btnPreviewLimit.classList.add('active');
+    if (btnPreviewAll) btnPreviewAll.classList.remove('active');
+    if (btnFilterWarnings) btnFilterWarnings.classList.remove('active');
+
+    renderDataPreview();
+}
+
+/**
+ * データプレビュー＆品質チェックの描画
+ */
+function renderDataPreview() {
+    const previewSection = document.getElementById('previewSection');
+    if (!previewSection || AppState.rawRows.length === 0) return;
+
+    previewSection.style.display = 'block';
+
+    const thead = document.getElementById('previewTableThead');
+    const tbody = document.getElementById('previewTableTbody');
+    const warningAlert = document.getElementById('previewWarningAlert');
+    const successAlert = document.getElementById('previewSuccessAlert');
+    const warningDesc = document.getElementById('previewWarningDesc');
+    const warningRowCount = document.getElementById('warningRowCount');
+    const previewStatsBadge = document.getElementById('previewStatsBadge');
+    const previewShowingInfo = document.getElementById('previewShowingInfo');
+    const previewPagination = document.getElementById('previewPagination');
+    const pageInfo = document.getElementById('pageInfo');
+    const btnPrevPage = document.getElementById('btnPrevPage');
+    const btnNextPage = document.getElementById('btnNextPage');
+    const btnFilterWarnings = document.getElementById('btnFilterWarnings');
+
+    // 1. 全行の入力品質判定
+    const allAssessed = AppState.rawRows.map((row, idx) => {
+        const quality = TextPreprocessor.checkQuality(row[AppState.textColumn]);
+        return { row, idx, quality };
+    });
+
+    const totalCount = allAssessed.length;
+    const problemItems = allAssessed.filter(item => item.quality.isProblem);
+    const problemCount = problemItems.length;
+    const emptyCount = allAssessed.filter(item => item.quality.status === 'empty').length;
+    const junkCount = problemCount - emptyCount;
+
+    // バッジとアラートの更新
+    if (previewStatsBadge) previewStatsBadge.textContent = `全 ${totalCount} 件`;
+    if (warningRowCount) warningRowCount.textContent = problemCount;
+
+    if (problemCount > 0) {
+        if (warningAlert) warningAlert.style.display = 'flex';
+        if (successAlert) successAlert.style.display = 'none';
+        if (warningDesc) {
+            warningDesc.innerHTML = `選択中の自由記述列に、空欄または分析対象外となる回答が <b>${problemCount}件</b> あります（空欄: ${emptyCount}件, 定型無効・極短文等: ${junkCount}件）。<br><span style="color:#B45309;">※ このままでも分析実行時に自動除外されますが、下の表でクリックして直接テキストを修正・補完するか、不要な行は右端の 🗑️ で削除できます。</span>`;
+        }
+        if (btnFilterWarnings) btnFilterWarnings.style.display = 'inline-flex';
+    } else {
+        if (warningAlert) warningAlert.style.display = 'none';
+        if (successAlert) successAlert.style.display = 'flex';
+        if (btnFilterWarnings) {
+            btnFilterWarnings.style.display = 'none';
+            AppState.previewFilterWarning = false;
+            btnFilterWarnings.classList.remove('active');
+        }
+    }
+
+    // 2. 表示対象リストの決定（フィルター反映）
+    let itemsToDisplay = AppState.previewFilterWarning ? problemItems : allAssessed;
+
+    // 3. 表示モード（先頭5件 vs 全件・ページネーション）
+    let pageItems = [];
+    if (AppState.previewMode === 'limit') {
+        pageItems = itemsToDisplay.slice(0, 5);
+        if (previewPagination) previewPagination.style.display = 'none';
+        if (previewShowingInfo) {
+            previewShowingInfo.textContent = `先頭 ${pageItems.length} 件を表示中 (全 ${totalCount} 件)`;
+        }
+    } else {
+        // 全行表示モード（50件/ページ）
+        const totalPages = Math.max(1, Math.ceil(itemsToDisplay.length / AppState.previewPageSize));
+        if (AppState.previewPage > totalPages) AppState.previewPage = totalPages;
+        if (AppState.previewPage < 1) AppState.previewPage = 1;
+
+        const startIdx = (AppState.previewPage - 1) * AppState.previewPageSize;
+        const endIdx = Math.min(itemsToDisplay.length, startIdx + AppState.previewPageSize);
+        pageItems = itemsToDisplay.slice(startIdx, endIdx);
+
+        if (itemsToDisplay.length > AppState.previewPageSize) {
+            if (previewPagination) previewPagination.style.display = 'flex';
+            if (pageInfo) pageInfo.textContent = `${AppState.previewPage} / ${totalPages} ページ`;
+            if (btnPrevPage) btnPrevPage.disabled = (AppState.previewPage <= 1);
+            if (btnNextPage) btnNextPage.disabled = (AppState.previewPage >= totalPages);
+        } else {
+            if (previewPagination) previewPagination.style.display = 'none';
+        }
+
+        const showStart = itemsToDisplay.length > 0 ? (startIdx + 1) : 0;
+        if (previewShowingInfo) {
+            previewShowingInfo.textContent = `${showStart}〜${endIdx} 件を表示中 (対象: ${itemsToDisplay.length} 件 / 全 ${totalCount} 件)`;
+        }
+    }
+
+    // 4. テーブルヘッダーの描画
+    if (thead) {
+        let theadHtml = '<th style="width: 45px; text-align: center;">#</th>';
+        AppState.headers.forEach(h => {
+            if (h === AppState.textColumn) {
+                theadHtml += `<th class="col-target">${escapeHtml(h)} <span class="badge-col-target">自由記述</span></th>`;
+            } else if (h === AppState.attributeColumn) {
+                theadHtml += `<th class="col-attr">${escapeHtml(h)} <span class="badge-col-attr">属性</span></th>`;
+            } else {
+                theadHtml += `<th>${escapeHtml(h)}</th>`;
+            }
+        });
+        theadHtml += '<th style="width: 90px; text-align: center;">入力状態</th>';
+        theadHtml += '<th style="width: 45px; text-align: center;">削除</th>';
+        thead.innerHTML = theadHtml;
+    }
+
+    // 5. テーブルボディの描画
+    if (tbody) {
+        if (pageItems.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="${AppState.headers.length + 3}" style="text-align: center; color: #94A3B8; padding: 24px;">該当するデータはありません</td></tr>`;
+            return;
+        }
+
+        let tbodyHtml = '';
+        pageItems.forEach(item => {
+            const isProblem = item.quality.isProblem;
+            const rowClass = isProblem ? 'row-problem' : '';
+            const badgeClass = isProblem 
+                ? (item.quality.status === 'empty' ? 'badge-status-empty' : 'badge-status-junk')
+                : 'badge-status-valid';
+
+            tbodyHtml += `<tr class="${rowClass}" id="previewRow_${item.idx}">`;
+            tbodyHtml += `<td style="color:#64748B; font-weight:600; text-align:center;">${item.idx + 1}</td>`;
+
+            AppState.headers.forEach(h => {
+                const rawVal = item.row[h];
+                const textVal = (rawVal !== undefined && rawVal !== null) ? String(rawVal) : '';
+                const isTargetCol = (h === AppState.textColumn);
+                const colClass = isTargetCol ? 'col-target-cell' : '';
+
+                tbodyHtml += `<td class="cell-editable ${colClass}" contenteditable="true" data-row-idx="${item.idx}" data-col="${escapeHtml(h)}" title="クリックして編集">${escapeHtml(textVal)}</td>`;
+            });
+
+            tbodyHtml += `<td style="text-align:center;"><span class="badge-status ${badgeClass}" id="badgeStatus_${item.idx}" title="${escapeHtml(item.quality.detail)}">${item.quality.label}</span></td>`;
+            tbodyHtml += `<td style="text-align:center;"><button type="button" class="btn-row-del" data-row-idx="${item.idx}" title="この行を削除">🗑️</button></td>`;
+            tbodyHtml += '</tr>';
+        });
+
+        tbody.innerHTML = tbodyHtml;
+    }
+}
+
+/**
+ * セル編集後の単一行および全体アラートの差分更新
+ */
+function updateRowAndAlertsAfterEdit(rowIdx) {
+    const row = AppState.rawRows[rowIdx];
+    if (!row) return;
+
+    const quality = TextPreprocessor.checkQuality(row[AppState.textColumn]);
+    const tr = document.getElementById(`previewRow_${rowIdx}`);
+    const badge = document.getElementById(`badgeStatus_${rowIdx}`);
+
+    if (tr) {
+        if (quality.isProblem) {
+            tr.classList.add('row-problem');
+        } else {
+            tr.classList.remove('row-problem');
+        }
+    }
+
+    if (badge) {
+        const badgeClass = quality.isProblem 
+            ? (quality.status === 'empty' ? 'badge-status-empty' : 'badge-status-junk')
+            : 'badge-status-valid';
+        badge.className = `badge-status ${badgeClass}`;
+        badge.textContent = quality.label;
+        badge.title = quality.detail;
+    }
+
+    // 全体の問題件数を再集計
+    let problemCount = 0;
+    let emptyCount = 0;
+    AppState.rawRows.forEach(r => {
+        const q = TextPreprocessor.checkQuality(r[AppState.textColumn]);
+        if (q.isProblem) {
+            problemCount++;
+            if (q.status === 'empty') emptyCount++;
+        }
+    });
+    const junkCount = problemCount - emptyCount;
+
+    const warningAlert = document.getElementById('previewWarningAlert');
+    const successAlert = document.getElementById('previewSuccessAlert');
+    const warningDesc = document.getElementById('previewWarningDesc');
+    const warningRowCount = document.getElementById('warningRowCount');
+    const btnFilterWarnings = document.getElementById('btnFilterWarnings');
+
+    if (warningRowCount) warningRowCount.textContent = problemCount;
+
+    if (problemCount > 0) {
+        if (warningAlert) warningAlert.style.display = 'flex';
+        if (successAlert) successAlert.style.display = 'none';
+        if (warningDesc) {
+            warningDesc.innerHTML = `選択中の自由記述列に、空欄または分析対象外となる回答が <b>${problemCount}件</b> あります（空欄: ${emptyCount}件, 定型無効・極短文等: ${junkCount}件）。<br><span style="color:#B45309;">※ このままでも分析実行時に自動除外されますが、下の表でクリックして直接テキストを修正・補完するか、不要な行は右端の 🗑️ で削除できます。</span>`;
+        }
+        if (btnFilterWarnings) btnFilterWarnings.style.display = 'inline-flex';
+    } else {
+        if (warningAlert) warningAlert.style.display = 'none';
+        if (successAlert) successAlert.style.display = 'flex';
+        if (btnFilterWarnings) {
+            btnFilterWarnings.style.display = 'none';
+            AppState.previewFilterWarning = false;
+            btnFilterWarnings.classList.remove('active');
+        }
+    }
+
+    // 問題のみフィルター表示中に修正して問題がなくなった場合は、リスト更新を行う
+    if (AppState.previewFilterWarning && !quality.isProblem) {
+        renderDataPreview();
+    }
+}
+
+/**
+ * 新しい空行の追加
+ */
+function addNewRow() {
+    const newRow = {};
+    AppState.headers.forEach(h => {
+        newRow[h] = '';
+    });
+    if (AppState.headers.includes('ID')) {
+        newRow['ID'] = AppState.rawRows.length + 1;
+    } else if (AppState.headers.includes('No')) {
+        newRow['No'] = AppState.rawRows.length + 1;
+    }
+    AppState.rawRows.push(newRow);
+
+    document.getElementById('fileNameDisplay').textContent = 
+        `📄 ${AppState.loadedFileName} (${AppState.rawRows.length}件のデータ)`;
+
+    // 全行表示モードにして最後のページへ移動
+    AppState.previewMode = 'all';
+    const btnPreviewLimit = document.getElementById('btnPreviewLimit');
+    const btnPreviewAll = document.getElementById('btnPreviewAll');
+    if (btnPreviewLimit) btnPreviewLimit.classList.remove('active');
+    if (btnPreviewAll) btnPreviewAll.classList.add('active');
+
+    const totalPages = Math.ceil(AppState.rawRows.length / AppState.previewPageSize);
+    AppState.previewPage = totalPages;
+
+    renderDataPreview();
+
+    // 追加された行へスクロールしてフォーカス
+    setTimeout(() => {
+        const lastRowTr = document.getElementById(`previewRow_${AppState.rawRows.length - 1}`);
+        if (lastRowTr) {
+            lastRowTr.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            const firstEditable = lastRowTr.querySelector('.cell-editable');
+            if (firstEditable) firstEditable.focus();
+        }
+    }, 50);
 }
 
 /**

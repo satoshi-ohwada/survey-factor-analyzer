@@ -87,6 +87,73 @@
                         </button>
                     </div>
                 </div>
+
+                <!-- データプレビュー＆検証セクション（データ読込後に表示） -->
+                <div id="previewSection" class="preview-section" style="display: none;">
+                    <div class="preview-toolbar">
+                        <div class="preview-title-area">
+                            <span style="font-size: 16px;">👁️</span>
+                            <span class="preview-title">データプレビュー ＆ 入力チェック</span>
+                            <span id="previewStatsBadge" class="preview-badge">全0件</span>
+                        </div>
+                        <div class="preview-controls">
+                            <!-- 表示モード切替 -->
+                            <div class="btn-toggle-group">
+                                <button type="button" id="btnPreviewLimit" class="active">先頭5行</button>
+                                <button type="button" id="btnPreviewAll">全行表示</button>
+                            </div>
+                            <!-- 問題のある行フィルター -->
+                            <button type="button" id="btnFilterWarnings" class="btn btn-xs btn-outline-warning" title="空欄・定型無効回答のみを抽出表示">
+                                ⚠️ 問題のある行のみ (<span id="warningRowCount">0</span>)
+                            </button>
+                            <button type="button" id="btnAddRow" class="btn btn-xs" title="新しい行を追加">
+                                ＋ 行を追加
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 警告・注意アラートバー (空欄や無効回答がある場合に表示) -->
+                    <div id="previewWarningAlert" class="preview-alert preview-alert-warning" style="display: none;">
+                        <span style="font-size: 18px; margin-top: 2px;">⚠️</span>
+                        <div class="alert-body">
+                            <div style="font-weight: 700; margin-bottom: 2px;">分析に影響する可能性のある入力が含まれています</div>
+                            <div id="previewWarningDesc">
+                                選択中の自由記述列に、空欄または分析対象外となる回答が <b>0件</b> あります。
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 良好アラートバー (問題がない場合) -->
+                    <div id="previewSuccessAlert" class="preview-alert preview-alert-success" style="display: none;">
+                        <span style="font-size: 18px; margin-top: 1px;">✅</span>
+                        <div class="alert-body">
+                            <div style="font-weight: 600;">すべての行に有効な自由記述テキストが入力されています。</div>
+                        </div>
+                    </div>
+
+                    <!-- プレビューテーブルラッパー -->
+                    <div class="preview-table-wrapper">
+                        <table class="preview-table">
+                            <thead>
+                                <tr id="previewTableThead"></tr>
+                            </thead>
+                            <tbody id="previewTableTbody"></tbody>
+                        </table>
+                    </div>
+
+                    <!-- フッター情報・ページネーション -->
+                    <div class="preview-footer-bar">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span id="previewShowingInfo">1〜5件を表示中 (全0件)</span>
+                            <span style="color: #64748B; font-size: 11px;">💡 表のセルをクリックすると直接編集できます / 🗑️で不要行を削除</span>
+                        </div>
+                        <div id="previewPagination" class="pagination-controls" style="display: none; align-items: center; gap: 6px;">
+                            <button type="button" id="btnPrevPage" class="btn btn-xs">◀ 前へ</button>
+                            <span id="pageInfo" style="font-size: 12px; font-weight: 600;">1 / 1</span>
+                            <button type="button" id="btnNextPage" class="btn btn-xs">次へ ▶</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
 
