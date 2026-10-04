@@ -308,7 +308,7 @@ async function runFullPipeline() {
 
         showLoading('図とパス図を描画中...');
         // 5. 結果のレンダリング
-        renderResults(validResponses.length, junkCount, result);
+        renderResults(validResponses, junkCount, result, tfidfData);
 
     } catch (err) {
         console.error(err);
@@ -321,15 +321,20 @@ async function runFullPipeline() {
 /**
  * 分析結果のUI描画
  */
-function renderResults(validCount, junkCount, result) {
+function renderResults(validResponses, junkCount, result, tfidfData) {
     const resultsContainer = document.getElementById('resultsContainer');
     resultsContainer.style.display = 'block';
+
+    const validCount = validResponses.length;
 
     // サマリー表示
     document.getElementById('statTotalRows').textContent = AppState.rawRows.length;
     document.getElementById('statValidRows').textContent = validCount;
     document.getElementById('statJunkRows').textContent = junkCount;
     document.getElementById('statThemesCount').textContent = result.themes.length;
+
+    // 【表】テキスト全体の基本統計・特性プロファイルの描画
+    renderTextStatsProfile(validResponses, junkCount, tfidfData);
 
     // 【図1】潜在因子の全体構成比（ドーナツチャート）
     ChartRenderer.renderDonutChart('chartDonut', result.themes, (themeIndex) => {
@@ -361,6 +366,49 @@ function renderResults(validCount, junkCount, result) {
 
     // スムーズスクロール
     resultsContainer.scrollIntoView({ behavior: 'smooth' });
+}
+
+/**
+ * テキスト全体の基本統計・特性プロファイルの描画
+ */
+function renderTextStatsProfile(validResponses, junkCount, tfidfData) {
+    const totalRows = AppState.rawRows.length;
+    const validRows = validResponses.length;
+    const validRate = totalRows > 0 ? Math.round((validRows / totalRows) * 100) : 100;
+
+    const charLengths = validResponses.map(r => r.text.length);
+    const totalChars = charLengths.reduce((s, l) => s + l, 0);
+    const avgChars = validRows > 0 ? (totalChars / validRows).toFixed(1) : 0;
+    const maxChars = charLengths.length > 0 ? Math.max(...charLengths) : 0;
+
+    const uniqueWords = Object.keys(tfidfData.wordDocCounts || {}).length;
+    const analyzedWords = (tfidfData.vocabulary || []).length;
+
+    // DOMへのセット
+    document.getElementById('statAvgChars').textContent = avgChars;
+    document.getElementById('statMaxChars').textContent = maxChars;
+    document.getElementById('statUniqueWords').textContent = uniqueWords.toLocaleString();
+    document.getElementById('statAnalyzedWords').textContent = analyzedWords.toLocaleString();
+
+    document.getElementById('tblTotalRows').textContent = totalRows.toLocaleString();
+    document.getElementById('tblValidRate').textContent = `${validRate}%`;
+    document.getElementById('tblValidRows').textContent = validRows.toLocaleString();
+    document.getElementById('tblJunkRows').textContent = junkCount.toLocaleString();
+    document.getElementById('tblTotalChars').textContent = totalChars.toLocaleString();
+
+    // 最頻出単語 TOP 5
+    const topKeywordsContainer = document.getElementById('topKeywordsPills');
+    topKeywordsContainer.innerHTML = '';
+    const sortedWords = Object.entries(tfidfData.wordDocCounts || {})
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+
+    sortedWords.forEach(([word, count], i) => {
+        const pill = document.createElement('span');
+        pill.style.cssText = 'font-size: 11px; background: #F1F5F9; border: 1px solid #CBD5E1; color: #1E293B; padding: 3px 8px; border-radius: 12px; font-weight: 500;';
+        pill.innerHTML = `<b>${i + 1}.</b> ${escapeHtml(word)} <span style="color:#64748B;">(${count}件)</span>`;
+        topKeywordsContainer.appendChild(pill);
+    });
 }
 
 /**

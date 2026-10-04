@@ -88,8 +88,8 @@ const ChartRenderer = {
 
         const K = themes.length;
         // 高さの動的計算（因子数に応じて調整）
-        const height = Math.max(350, K * 85 + 40);
-        const width = 540;
+        const height = Math.max(380, K * 75 + 40);
+        const width = 520;
 
         // SVG要素の作成
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -109,12 +109,12 @@ const ChartRenderer = {
 
         // タイトル
         const titleText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        titleText.setAttribute('x', '20');
-        titleText.setAttribute('y', '24');
-        titleText.setAttribute('font-size', '14');
+        titleText.setAttribute('x', '15');
+        titleText.setAttribute('y', '22');
+        titleText.setAttribute('font-size', '13');
         titleText.setAttribute('font-weight', '700');
         titleText.setAttribute('fill', '#1E293B');
-        titleText.textContent = '【図2】因子パス図（潜在因子 → 観測単語への負荷構造）';
+        titleText.textContent = '【図2】因子パス図（潜在因子 → 観測単語）';
         svg.appendChild(titleText);
 
         // 各因子の描画（左列：潜在因子、右列：観測単語）
@@ -374,33 +374,31 @@ const ChartRenderer = {
         }
 
         const layout = {
-            title: {
-                text: `<b>【図3】因子空間ポジショニングマップ（${mode === 'responses' ? '回答者の因子得点' : '単語の因子負荷量'}）</b>`,
-                font: { size: 15, color: '#1E293B' }
-            },
+            showlegend: mode === 'responses',
             xaxis: {
-                title: xTitle,
+                title: { text: xTitle, font: { size: 11, color: '#475569' } },
                 showgrid: true,
                 zeroline: true,
                 zerolinecolor: '#CBD5E1',
                 gridcolor: '#F1F5F9'
             },
             yaxis: {
-                title: yTitle,
+                title: { text: yTitle, font: { size: 11, color: '#475569' } },
                 showgrid: true,
                 zeroline: true,
                 zerolinecolor: '#CBD5E1',
                 gridcolor: '#F1F5F9'
             },
-            margin: { l: 60, r: 30, t: 50, b: 60 },
-            height: 380,
+            margin: { l: 55, r: 20, t: 15, b: 50 },
+            height: 340,
             paper_bgcolor: 'rgba(0,0,0,0)',
             plot_bgcolor: '#FAFAFC',
             legend: {
                 orientation: 'h',
                 y: -0.22,
                 x: 0.5,
-                xanchor: 'center'
+                xanchor: 'center',
+                font: { size: 10 }
             },
             hoverlabel: {
                 bgcolor: '#1E293B',
