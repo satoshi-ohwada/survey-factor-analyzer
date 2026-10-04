@@ -27,8 +27,11 @@
                 <button id="btnDemoData" class="btn" title="すぐに試せるサンプルデータをロード">
                     💡 デモデータで試す
                 </button>
+                <button id="btnPrintReport" class="btn btn-primary" title="全体をA4用紙1〜2枚にまとめて印刷・PDF保存">
+                    🖨️ A4レポート出力 (印刷/PDF)
+                </button>
                 <button id="btnExportReport" class="btn" title="分析結果画面を高画質PNGで保存">
-                    📷 レポート画像を保存
+                    📷 画像保存
                 </button>
                 <button id="btnHelp" class="btn" title="ツールの使い方を表示">
                     ❓ 使い方
@@ -93,6 +96,22 @@
 
         <!-- 分析結果コンテナ（初期非表示） -->
         <section id="resultsContainer" style="display: none;">
+            <!-- 印刷用ヘッダー (1ページ目用 / 画面表示時は非表示) -->
+            <div class="print-only" style="margin-bottom: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1E293B; padding-bottom: 6px; margin-bottom: 10px;">
+                    <div>
+                        <h1 style="font-size: 16pt; font-weight: 800; color: #1E293B; margin: 0; line-height: 1.2;">アンケート自由記述 潜在因子分析レポート</h1>
+                        <div style="font-size: 9pt; color: #64748B; margin-top: 3px;">
+                            分析対象: <b id="printFileName" style="color:#1E293B;">-</b> │ 出力日時: <span id="printDate">-</span> │ 有効回答: <b id="printValidCount">-</b> 件
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 9.5pt; font-weight: 700; color: #2563EB;">Survey Factor Analyzer</div>
+                        <div style="font-size: 8pt; color: #64748B;">1 / 2 ページ (サマリー)</div>
+                    </div>
+                </div>
+            </div>
+
             <!-- サマリーバー -->
             <div class="summary-bar">
                 <div class="summary-stats">
@@ -202,10 +221,19 @@
                 <div id="chartCrossTab"></div>
             </div>
 
-            <!-- テーマ詳細セクション（図3 & 代表回答） -->
+            <!-- 印刷用改ページ (A4 2ページ目へ) -->
+            <div class="print-page-break"></div>
+            <div class="print-only" style="margin-bottom: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #CBD5E1; padding-bottom: 4px;">
+                    <span style="font-size: 8.5pt; color: #64748B;">アンケート自由記述 潜在因子分析レポート - 2 / 2 ページ（各因子の詳細 ＆ 生の声）</span>
+                    <span id="printDate2" style="font-size: 8.5pt; color: #64748B;"></span>
+                </div>
+            </div>
+
+            <!-- テーマ詳細セクション（各因子の重要単語 ＆ 代表回答） -->
             <div class="themes-section">
                 <h2 class="themes-section-title">
-                    📋 発見された意見テーマの詳細（重要単語 ＆ 生の声）
+                    📋【図4】発見された潜在因子の詳細（重要単語 ＆ 生の声）
                 </h2>
                 <div id="themeCardsList" class="theme-cards-list"></div>
             </div>

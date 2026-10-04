@@ -127,6 +127,14 @@ function setupEventListeners() {
         runFullPipeline();
     });
 
+    // A4レポート出力 (印刷 / PDF)
+    const btnPrintReport = document.getElementById('btnPrintReport');
+    if (btnPrintReport) {
+        btnPrintReport.addEventListener('click', () => {
+            printA4Report();
+        });
+    }
+
     // レポート画像保存
     btnExportReport.addEventListener('click', () => {
         exportReportImage();
@@ -200,6 +208,7 @@ async function handleDemoData() {
 function processParsedData(parsed, fileName) {
     AppState.headers = parsed.headers;
     AppState.rawRows = parsed.rows;
+    AppState.loadedFileName = fileName;
 
     const selectTextCol = document.getElementById('selectTextCol');
     const selectAttrCol = document.getElementById('selectAttrCol');
@@ -664,6 +673,40 @@ window.exportThemeCsv = function(themeId) {
     link.download = `因子_${theme.label.replace(/[【】]/g, '')}_回答一覧.csv`;
     link.click();
 };
+
+/**
+ * A4レポート出力 (印刷 / PDF保存)
+ */
+function printA4Report() {
+    const resultsContainer = document.getElementById('resultsContainer');
+    if (!resultsContainer || resultsContainer.style.display === 'none') {
+        alert('分析を実行してからレポート出力を行ってください');
+        return;
+    }
+
+    // 印刷用メタ情報の設定
+    const fileName = AppState.loadedFileName || 'アンケートデータ';
+    const nowStr = new Date().toLocaleString('ja-JP', {
+        year: 'numeric', month: 'long', day: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+    });
+    const validCount = (AppState.validResponses || []).length;
+
+    const printFileName = document.getElementById('printFileName');
+    const printDate = document.getElementById('printDate');
+    const printDate2 = document.getElementById('printDate2');
+    const printValidCount = document.getElementById('printValidCount');
+
+    if (printFileName) printFileName.textContent = fileName;
+    if (printDate) printDate.textContent = nowStr;
+    if (printDate2) printDate2.textContent = `出力日時: ${nowStr}`;
+    if (printValidCount) printValidCount.textContent = validCount.toLocaleString();
+
+    // ブラウザの印刷ダイアログを起動
+    setTimeout(() => {
+        window.print();
+    }, 120);
+}
 
 /**
  * レポート画像の保存 (html2canvas)
