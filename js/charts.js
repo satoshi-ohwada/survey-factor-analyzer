@@ -373,7 +373,15 @@ const ChartRenderer = {
             }];
         }
 
+        const modeLabel = mode === 'responses' ? '回答者得点' : '語の負荷量';
         const layout = {
+            title: {
+                text: `<b>【図3】因子空間ポジショニングマップ（${modeLabel}）</b>`,
+                font: { size: 13, color: '#1E293B' },
+                x: 0.02,
+                xanchor: 'left',
+                y: 0.98
+            },
             showlegend: mode === 'responses',
             xaxis: {
                 title: { text: xTitle, font: { size: 11, color: '#475569' } },
@@ -389,8 +397,8 @@ const ChartRenderer = {
                 zerolinecolor: '#CBD5E1',
                 gridcolor: '#F1F5F9'
             },
-            margin: { l: 55, r: 20, t: 15, b: 50 },
-            height: 340,
+            margin: { l: 55, r: 20, t: 40, b: 50 },
+            height: 350,
             paper_bgcolor: 'rgba(0,0,0,0)',
             plot_bgcolor: '#FAFAFC',
             legend: {
@@ -410,6 +418,13 @@ const ChartRenderer = {
         const config = {
             responsive: true,
             displaylogo: false,
+            toImageButtonOptions: {
+                format: 'png',
+                filename: `【図3】因子空間ポジショニングマップ（${modeLabel}）`,
+                height: 550,
+                width: 750,
+                scale: 2
+            },
             modeBarButtonsToRemove: ['lasso2d', 'select2d']
         };
 
