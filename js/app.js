@@ -11,7 +11,10 @@ const AppState = {
     textColumn: null,
     attributeColumn: null,
     kCount: 3,
-    analysisResult: null
+    analysisResult: null,
+    mapMode: 'responses', // 'responses' (因子得点) または 'words' (因子負荷量)
+    mapAxisX: 0,
+    mapAxisY: 1
 };
 
 // 初期化
@@ -36,6 +39,12 @@ function setupEventListeners() {
     const btnHelp = document.getElementById('btnHelp');
     const modalClose = document.getElementById('modalClose');
     const detailModal = document.getElementById('detailModal');
+
+    // 因子空間マップのコントロール
+    const selectMapAxisX = document.getElementById('selectMapAxisX');
+    const selectMapAxisY = document.getElementById('selectMapAxisY');
+    const btnMapModeResponses = document.getElementById('btnMapModeResponses');
+    const btnMapModeWords = document.getElementById('btnMapModeWords');
 
     // ファイル選択
     fileInput.addEventListener('change', (e) => {
@@ -89,6 +98,30 @@ function setupEventListeners() {
         }
     });
 
+    // 因子空間マップの軸変更
+    selectMapAxisX.addEventListener('change', (e) => {
+        AppState.mapAxisX = parseInt(e.target.value, 10);
+        updateFactorSpaceMap();
+    });
+    selectMapAxisY.addEventListener('change', (e) => {
+        AppState.mapAxisY = parseInt(e.target.value, 10);
+        updateFactorSpaceMap();
+    });
+
+    // 因子空間マップのモード切替（回答者得点 vs 語の負荷量）
+    btnMapModeResponses.addEventListener('click', () => {
+        AppState.mapMode = 'responses';
+        btnMapModeResponses.className = 'btn btn-sm btn-primary';
+        btnMapModeWords.className = 'btn btn-sm';
+        updateFactorSpaceMap();
+    });
+    btnMapModeWords.addEventListener('click', () => {
+        AppState.mapMode = 'words';
+        btnMapModeWords.className = 'btn btn-sm btn-primary';
+        btnMapModeResponses.className = 'btn btn-sm';
+        updateFactorSpaceMap();
+    });
+
     // 分析実行
     btnRun.addEventListener('click', () => {
         runFullPipeline();
@@ -133,12 +166,12 @@ function hideLoading() {
  * ファイルアップロードの処理
  */
 async function handleFileUpload(file) {
-    showLoading('CSVファイルを読み込み中...');
+    showLoading('ファイルを読み込み中...');
     try {
         const parsed = await CsvParser.parse(file);
         processParsedData(parsed, file.name);
     } catch (err) {
-        alert('CSVの読み込みに失敗しました: ' + err.message);
+        alert('ファイルの読み込みに失敗しました: ' + err.message);
     } finally {
         hideLoading();
     }
@@ -266,14 +299,14 @@ async function runFullPipeline() {
             return;
         }
 
-        // 4. 潜在因子・テーマ分析の実行 (NMF + PCA)
+        // 4. 潜在因子・テーマ分析の実行 (NMF + 因子負荷量・得点)
         const K = parseInt(document.getElementById('inputK').value, 10) || 3;
         AppState.kCount = K;
 
         const result = FactorEngine.analyze(validResponses, tfidfData.vocabulary, tfidfData.matrix, K);
         AppState.analysisResult = result;
 
-        showLoading('各種グラフを描画中...');
+        showLoading('図とパス図を描画中...');
         // 5. 結果のレンダリング
         renderResults(validResponses.length, junkCount, result);
 
@@ -298,15 +331,21 @@ function renderResults(validCount, junkCount, result) {
     document.getElementById('statJunkRows').textContent = junkCount;
     document.getElementById('statThemesCount').textContent = result.themes.length;
 
-    // 【図1】テーマ構成比ドーナツチャート
+    // 【図1】潜在因子の全体構成比（ドーナツチャート）
     ChartRenderer.renderDonutChart('chartDonut', result.themes, (themeIndex) => {
         scrollToThemeCard(themeIndex);
     });
 
-    // 【図2】意見ポジショニングマップ
-    ChartRenderer.renderPositioningMap('chartPositioning', result.positioning2D, result.themes, (pointData) => {
-        showResponseModal(pointData);
+    // 【図2】因子パス図（潜在因子 → 観測単語）
+    ChartRenderer.renderPathDiagram('chartPathDiagram', result.themes, (themeIndex) => {
+        scrollToThemeCard(themeIndex);
     });
+
+    // 軸セレクタのオプション生成
+    setupAxisSelectors(result.themes);
+
+    // 【図3】因子空間ポジショニングマップ
+    updateFactorSpaceMap();
 
     // 【図4】属性別クロス集計チャート（属性列が指定されている場合）
     const crossTabCard = document.getElementById('crossTabCard');
@@ -317,11 +356,65 @@ function renderResults(validCount, junkCount, result) {
         crossTabCard.style.display = 'none';
     }
 
-    // 【図3 & 詳細】テーマカードのレンダリング
+    // 【各因子の詳細カード】
     renderThemeCards(result.themes);
 
-    // 結果領域へスムーズスクロール
+    // スムーズスクロール
     resultsContainer.scrollIntoView({ behavior: 'smooth' });
+}
+
+/**
+ * 因子空間マップの軸セレクタの更新
+ */
+function setupAxisSelectors(themes) {
+    const selectX = document.getElementById('selectMapAxisX');
+    const selectY = document.getElementById('selectMapAxisY');
+
+    selectX.innerHTML = '';
+    selectY.innerHTML = '';
+
+    themes.forEach((theme, idx) => {
+        const cleanTitle = theme.label.replace(/^【|】$/g, '');
+        const labelText = `因子${idx + 1}: ${cleanTitle}`;
+
+        const optX = document.createElement('option');
+        optX.value = idx;
+        optX.textContent = labelText;
+        if (idx === AppState.mapAxisX) optX.selected = true;
+        selectX.appendChild(optX);
+
+        const optY = document.createElement('option');
+        optY.value = idx;
+        optY.textContent = labelText;
+        // Y軸はデフォルトで「因子2」または「因子1以外」
+        const defaultY = themes.length > 1 ? 1 : 0;
+        if (idx === (AppState.mapAxisY < themes.length ? AppState.mapAxisY : defaultY)) {
+            optY.selected = true;
+            AppState.mapAxisY = idx;
+        }
+        selectY.appendChild(optY);
+    });
+}
+
+/**
+ * 因子空間ポジショニングマップの更新描画
+ */
+function updateFactorSpaceMap() {
+    if (!AppState.analysisResult) return;
+
+    const { themes, responsesWithTheme, W, H, vocabulary } = AppState.analysisResult;
+
+    ChartRenderer.renderFactorSpaceMap('chartFactorSpace', {
+        mode: AppState.mapMode,
+        xFactorIdx: AppState.mapAxisX,
+        yFactorIdx: AppState.mapAxisY,
+        themes,
+        responsesWithTheme,
+        W,
+        H,
+        vocabulary,
+        onPointClick: (pointData) => showResponseModal(pointData)
+    });
 }
 
 /**
@@ -348,7 +441,7 @@ function renderThemeCards(themes) {
         card.innerHTML = `
             <div class="theme-card-header">
                 <div class="theme-title-area">
-                    <span class="theme-index-badge" style="background:${color};">テーマ ${idx + 1}</span>
+                    <span class="theme-index-badge" style="background:${color};">因子 ${idx + 1}</span>
                     <span class="theme-title" id="theme-title-${theme.id}" title="クリックして名前を変更">
                         ${escapeHtml(theme.label)} ✏️
                     </span>
@@ -357,17 +450,17 @@ function renderThemeCards(themes) {
             </div>
             <div class="theme-body-grid">
                 <div class="theme-chart-col">
-                    <div class="theme-chart-title">【特徴キーワードと影響度】</div>
+                    <div class="theme-chart-title">【因子負荷量（上位キーワード）】</div>
                     <div id="chart-kw-${theme.id}"></div>
                 </div>
                 <div class="theme-responses-col">
                     <div>
-                        <div class="responses-list-title">【このテーマの代表的な回答（抜粋）】</div>
+                        <div class="responses-list-title">【この因子を強く反映している代表的な回答（抜粋）】</div>
                         ${responsesHtml}
                     </div>
                     <div class="theme-card-footer">
                         <button class="btn btn-sm" onclick="showAllThemeResponses(${theme.id})">
-                            🔍 このテーマの全回答を見る (${theme.count}件)
+                            🔍 この因子の全回答を見る (${theme.count}件)
                         </button>
                     </div>
                 </div>
@@ -380,20 +473,24 @@ function renderThemeCards(themes) {
         const titleEl = card.querySelector(`#theme-title-${theme.id}`);
         titleEl.addEventListener('click', () => {
             const currentText = theme.label.replace(/^【|】$/g, '');
-            const newName = prompt('テーマの名称を編集してください:', currentText);
+            const newName = prompt('因子の名称を編集してください:', currentText);
             if (newName && newName.trim() !== '') {
                 theme.label = `【${newName.trim()}】`;
                 titleEl.innerHTML = `${escapeHtml(theme.label)} ✏️`;
-                // ドーナツや散布図も再描画
+
+                // すべての図（ドーナツ、パス図、因子空間マップ、クロス集計）を連動再描画
                 ChartRenderer.renderDonutChart('chartDonut', themes, scrollToThemeCard);
-                ChartRenderer.renderPositioningMap('chartPositioning', AppState.analysisResult.positioning2D, themes, showResponseModal);
+                ChartRenderer.renderPathDiagram('chartPathDiagram', themes, scrollToThemeCard);
+                setupAxisSelectors(themes);
+                updateFactorSpaceMap();
+
                 if (AppState.attributeColumn) {
                     ChartRenderer.renderCrossTabChart('chartCrossTab', AppState.analysisResult.responsesWithTheme, themes, AppState.attributeColumn);
                 }
             }
         });
 
-        // 【図3】重要キーワード横棒グラフの描画
+        // 重要キーワード横棒グラフの描画
         setTimeout(() => {
             ChartRenderer.renderKeywordBarChart(`chart-kw-${theme.id}`, theme.keywords, color);
         }, 50);
@@ -408,7 +505,7 @@ function scrollToThemeCard(themeIndex) {
     if (card) {
         card.scrollIntoView({ behavior: 'smooth', block: 'center' });
         card.style.transition = 'box-shadow 0.3s ease';
-        card.style.boxShadow = '0 0 0 3px #3B82F6';
+        card.style.boxShadow = '0 0 0 3px #2563EB';
         setTimeout(() => {
             card.style.boxShadow = '';
         }, 1500);
@@ -427,7 +524,7 @@ function showResponseModal(pointData) {
     modalBody.innerHTML = `
         <div style="margin-bottom: 12px;">
             <span class="badge-rec" style="font-size:12px; padding:4px 8px;">
-                所属テーマ: ${escapeHtml(pointData.themeLabel)}
+                主所属因子: ${escapeHtml(pointData.themeLabel)}
             </span>
         </div>
         <div style="background:#F8FAFC; border:1px solid #E2E8F0; padding:16px; border-radius:8px; font-size:14px; line-height:1.6;">
@@ -466,7 +563,7 @@ window.showAllThemeResponses = function(themeId) {
 
     modalBody.innerHTML = `
         <div style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
-            <span style="color:#64748B;">テーマへの適合度順に並んでいます</span>
+            <span style="color:#64748B;">因子への適合度（因子得点割合）順に並んでいます</span>
             <button class="btn btn-sm" onclick="exportThemeCsv(${themeId})">📥 CSVダウンロード</button>
         </div>
         <div style="max-height: 50vh; overflow-y:auto; border:1px solid #E2E8F0; border-radius:6px;">
@@ -499,7 +596,7 @@ window.exportThemeCsv = function(themeId) {
         .sort((a, b) => b.confidence - a.confidence);
 
     const csvData = [
-        ['No', 'ID', 'テーマ名', '適合度(%)', '回答本文']
+        ['No', 'ID', '因子名', '適合度(%)', '回答本文']
     ];
 
     matchedResponses.forEach((r, idx) => {
@@ -516,7 +613,7 @@ window.exportThemeCsv = function(themeId) {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `テーマ_${theme.label.replace(/[【】]/g, '')}_回答一覧.csv`;
+    link.download = `因子_${theme.label.replace(/[【】]/g, '')}_回答一覧.csv`;
     link.click();
 };
 
@@ -562,25 +659,23 @@ function showHelpModal() {
     const modalTitle = document.getElementById('modalTitle');
     const modalBody = document.getElementById('modalBody');
 
-    modalTitle.textContent = '📖 アンケート自由記述 潜在因子分析ツールの使い方';
+    modalTitle.textContent = '📖 アンケート自由記述 潜在因子分析ツールの見方と使い方';
     modalBody.innerHTML = `
         <div style="line-height:1.7;">
             <h4 style="margin-bottom:6px; color:#1E293B;">■ このツールについて</h4>
-            <p style="margin-bottom:12px;">アンケートの自由記述テキストから、統計の難しい知識がなくてもワンクリックで背後にある「潜在的な意見テーマ（因子）」を見つけ出すツールです。データは外部サーバーに送信されず、すべてブラウザ内で安全に解析されます。</p>
+            <p style="margin-bottom:12px;">アンケートの自由記述テキストから、統計の難しい知識がなくてもワンクリックで背後にある「潜在的な因子（意見テーマ）」を発見し、パス図や因子空間マップで可視化するツールです。</p>
             
-            <h4 style="margin-bottom:6px; color:#1E293B;">■ 使い方（かんたん3ステップ）</h4>
-            <ol style="margin-left:20px; margin-bottom:14px;">
-                <li><b>CSVファイルをドロップ</b>するか、「デモデータで試す」をクリックします。</li>
-                <li><b>自由記述の列</b>と、必要に応じて年代などの<b>属性列</b>を選択します。</li>
-                <li><b>「分析スタート」</b>を押すと、数秒で図とレポートが自動生成されます。</li>
-            </ol>
-
-            <h4 style="margin-bottom:6px; color:#1E293B;">■ 図の活用方法</h4>
-            <ul style="margin-left:20px;">
-                <li><b>全体構成比ドーナツ:</b> どのテーマが全体の何％を占めているか一目で分かります。クリックで各テーマにジャンプします。</li>
-                <li><b>ポジショニングマップ:</b> 点にマウスを乗せると実際の回答文が読めます。似た意見が近くに集まります。</li>
-                <li><b>テーマ名編集:</b> テーマのタイトルをクリックすると、好きな名前に自由に書き直せます。</li>
-                <li><b>レポート画像保存:</b> 右上のボタンで、そのまま社内報告に貼れる高画質PNGを保存できます。</li>
+            <h4 style="margin-bottom:6px; color:#1E293B;">■ 各図の見方</h4>
+            <ul style="margin-left:20px; margin-bottom:14px;">
+                <li><b>【図1】因子構成比ドーナツ:</b> 各潜在因子が回答全体の何％を占めているかをひと目で把握できます。</li>
+                <li><b>【図2】因子パス図:</b> 因子分析の象徴である構造図です。「潜在因子（楕円）」から「観測単語（四角）」へ伸びる矢印の太さと数値が<b>因子負荷量（関連の強さ）</b>を表します。</li>
+                <li><b>【図3】因子空間ポジショニングマップ:</b>
+                    <ul>
+                        <li><b>回答者の因子得点:</b> 各回答者が2つの因子をどれくらい強く持っているかをプロット。ホバーで回答文が読めます。</li>
+                        <li><b>語の因子負荷量:</b> 単語ごとの布置図。各語がどの因子軸に引っ張られているか（語同士の関係性）が分かります。</li>
+                    </ul>
+                </li>
+                <li><b>【図4】属性別クロス集計:</b> 年代や満足度ごとの因子比率を比較できます。</li>
             </ul>
         </div>
     `;

@@ -272,7 +272,10 @@ const FactorEngine = {
         return {
             themes,
             responsesWithTheme,
-            positioning2D
+            positioning2D,
+            W,
+            H,
+            vocabulary
         };
     },
 

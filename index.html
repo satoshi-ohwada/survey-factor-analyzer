@@ -112,10 +112,32 @@
                 <div class="chart-card">
                     <div id="chartDonut"></div>
                 </div>
-                <!-- 図2: 意見ポジショニングマップ -->
-                <div class="chart-card">
-                    <div id="chartPositioning"></div>
+                <!-- 図2: 因子分析パス図（潜在因子 → 観測単語） -->
+                <div class="chart-card" style="overflow-x: auto;">
+                    <div id="chartPathDiagram"></div>
                 </div>
+            </div>
+
+            <!-- 図3: 因子空間ポジショニングマップ（独立カード） -->
+            <div class="chart-card" style="margin-bottom: 24px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color);">
+                    <div style="font-size: 14px; font-weight: 700; color: var(--text-main);">
+                        🎯 因子空間ポジショニングマップ
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 6px; font-size: 12px;">
+                            <span>横軸:</span>
+                            <select id="selectMapAxisX" class="form-select" style="padding: 3px 8px; font-size: 12px;"></select>
+                            <span style="margin-left: 6px;">縦軸:</span>
+                            <select id="selectMapAxisY" class="form-select" style="padding: 3px 8px; font-size: 12px;"></select>
+                        </div>
+                        <div style="display: flex; gap: 4px;">
+                            <button type="button" id="btnMapModeResponses" class="btn btn-sm btn-primary">👤 回答者の因子得点</button>
+                            <button type="button" id="btnMapModeWords" class="btn btn-sm">🔤 語の因子負荷量</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="chartFactorSpace"></div>
             </div>
 
             <!-- 図4: 属性別クロス集計（属性列がある場合のみ表示） -->
