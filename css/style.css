@@ -489,6 +489,18 @@ body {
     color: #FFFFFF;
 }
 
+.btn-danger {
+    background: #EF4444;
+    color: #FFFFFF;
+    border: 1px solid #DC2626;
+}
+
+.btn-danger:hover {
+    background: #DC2626;
+    border-color: #B91C1C;
+    color: #FFFFFF;
+}
+
 /* アラートバー */
 .preview-alert {
     display: flex;
@@ -574,6 +586,31 @@ body {
 
 .preview-table tr.row-problem:hover td {
     background-color: #FEF3C7;
+}
+
+.preview-table tr.row-selected td {
+    background-color: #EFF6FF !important;
+}
+
+.preview-table tr.row-selected:hover td {
+    background-color: #DBEAFE !important;
+}
+
+.preview-table th.col-check,
+.preview-table td.col-check {
+    width: 36px;
+    min-width: 36px;
+    max-width: 36px;
+    text-align: center;
+    padding: 6px 4px;
+}
+
+.preview-table input[type="checkbox"] {
+    cursor: pointer;
+    width: 15px;
+    height: 15px;
+    accent-color: #2563EB;
+    vertical-align: middle;
 }
 
 .preview-table td.col-target-cell {

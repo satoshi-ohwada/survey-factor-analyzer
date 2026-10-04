@@ -21,7 +21,8 @@ const AppState = {
     previewMode: 'limit', // 'limit' (先頭5行) または 'all' (全行表示)
     previewPage: 1,
     previewPageSize: 50,
-    previewFilterWarning: false // true: 問題のある行のみ絞り込み
+    previewFilterWarning: false, // true: 問題のある行のみ絞り込み
+    selectedRowIndices: new Set() // 選択された行のインデックス一覧
 };
 
 // 初期化
@@ -171,8 +172,10 @@ function setupEventListeners() {
     const btnPreviewAll = document.getElementById('btnPreviewAll');
     const btnFilterWarnings = document.getElementById('btnFilterWarnings');
     const btnAddRow = document.getElementById('btnAddRow');
+    const btnBulkDelete = document.getElementById('btnBulkDelete');
     const btnPrevPage = document.getElementById('btnPrevPage');
     const btnNextPage = document.getElementById('btnNextPage');
+    const previewTableThead = document.getElementById('previewTableThead');
     const previewTableTbody = document.getElementById('previewTableTbody');
 
     if (btnPreviewLimit) {
@@ -208,6 +211,26 @@ function setupEventListeners() {
         });
     }
 
+    if (btnBulkDelete) {
+        btnBulkDelete.addEventListener('click', () => {
+            const count = AppState.selectedRowIndices.size;
+            if (count === 0) return;
+            if (confirm(`選択した ${count} 件のデータを一括削除しますか？`)) {
+                // インデックスの降順（大きい順）にソートして削除
+                const sorted = Array.from(AppState.selectedRowIndices).sort((a, b) => b - a);
+                sorted.forEach(idx => {
+                    if (idx >= 0 && idx < AppState.rawRows.length) {
+                        AppState.rawRows.splice(idx, 1);
+                    }
+                });
+                AppState.selectedRowIndices.clear();
+                document.getElementById('fileNameDisplay').textContent = 
+                    `📄 ${AppState.loadedFileName} (${AppState.rawRows.length}件のデータ)`;
+                renderDataPreview();
+            }
+        });
+    }
+
     if (btnPrevPage) {
         btnPrevPage.addEventListener('click', () => {
             if (AppState.previewPage > 1) {
@@ -224,8 +247,49 @@ function setupEventListeners() {
         });
     }
 
-    // プレビューテーブル内セルの直接編集と行削除
+    // 全選択チェックボックス
+    if (previewTableThead) {
+        previewTableThead.addEventListener('change', (e) => {
+            if (e.target && e.target.id === 'checkSelectAll') {
+                const checked = e.target.checked;
+                const checkboxes = previewTableTbody.querySelectorAll('.row-checkbox');
+                checkboxes.forEach(cb => {
+                    const idx = parseInt(cb.getAttribute('data-row-idx'), 10);
+                    cb.checked = checked;
+                    const tr = document.getElementById(`previewRow_${idx}`);
+                    if (checked) {
+                        AppState.selectedRowIndices.add(idx);
+                        if (tr) tr.classList.add('row-selected');
+                    } else {
+                        AppState.selectedRowIndices.delete(idx);
+                        if (tr) tr.classList.remove('row-selected');
+                    }
+                });
+                updateBulkDeleteBtn();
+            }
+        });
+    }
+
+    // プレビューテーブル内セルの直接編集・行チェック・行削除
     if (previewTableTbody) {
+        // 行チェックボックスの変更
+        previewTableTbody.addEventListener('change', (e) => {
+            const cb = e.target.closest('.row-checkbox');
+            if (cb) {
+                const rowIdx = parseInt(cb.getAttribute('data-row-idx'), 10);
+                const tr = document.getElementById(`previewRow_${rowIdx}`);
+                if (cb.checked) {
+                    AppState.selectedRowIndices.add(rowIdx);
+                    if (tr) tr.classList.add('row-selected');
+                } else {
+                    AppState.selectedRowIndices.delete(rowIdx);
+                    if (tr) tr.classList.remove('row-selected');
+                }
+                updateBulkDeleteBtn();
+                updateSelectAllState();
+            }
+        });
+
         previewTableTbody.addEventListener('focusout', (e) => {
             const cell = e.target.closest('.cell-editable');
             if (cell) {
@@ -255,6 +319,13 @@ function setupEventListeners() {
                 const rowIdx = parseInt(delBtn.getAttribute('data-row-idx'), 10);
                 if (confirm(`行 ${rowIdx + 1} を削除しますか？`)) {
                     AppState.rawRows.splice(rowIdx, 1);
+                    AppState.selectedRowIndices.delete(rowIdx);
+                    const updated = new Set();
+                    AppState.selectedRowIndices.forEach(idx => {
+                        if (idx < rowIdx) updated.add(idx);
+                        else if (idx > rowIdx) updated.add(idx - 1);
+                    });
+                    AppState.selectedRowIndices = updated;
                     document.getElementById('fileNameDisplay').textContent = 
                         `📄 ${AppState.loadedFileName} (${AppState.rawRows.length}件のデータ)`;
                     renderDataPreview();
@@ -375,6 +446,7 @@ function processParsedData(parsed, fileName) {
     AppState.previewMode = 'limit';
     AppState.previewPage = 1;
     AppState.previewFilterWarning = false;
+    AppState.selectedRowIndices.clear();
     const btnPreviewLimit = document.getElementById('btnPreviewLimit');
     const btnPreviewAll = document.getElementById('btnPreviewAll');
     const btnFilterWarnings = document.getElementById('btnFilterWarnings');
@@ -428,7 +500,7 @@ function renderDataPreview() {
         if (warningAlert) warningAlert.style.display = 'flex';
         if (successAlert) successAlert.style.display = 'none';
         if (warningDesc) {
-            warningDesc.innerHTML = `選択中の自由記述列に、空欄または分析対象外となる回答が <b>${problemCount}件</b> あります（空欄: ${emptyCount}件, 定型無効・極短文等: ${junkCount}件）。<br><span style="color:#B45309;">※ このままでも分析実行時に自動除外されますが、下の表でクリックして直接テキストを修正・補完するか、不要な行は右端の 🗑️ で削除できます。</span>`;
+            warningDesc.innerHTML = `選択中の自由記述列に、空欄または分析対象外となる回答が <b>${problemCount}件</b> あります（空欄: ${emptyCount}件, 定型無効・極短文等: ${junkCount}件）。<br><span style="color:#B45309;">※ このままでも分析実行時に自動除外されますが、下の表でクリックして直接テキストを修正・補完するか、不要な行はチェックして一括削除または右端の 🗑️ で削除できます。</span>`;
         }
         if (btnFilterWarnings) btnFilterWarnings.style.display = 'inline-flex';
     } else {
@@ -479,7 +551,8 @@ function renderDataPreview() {
 
     // 4. テーブルヘッダーの描画
     if (thead) {
-        let theadHtml = '<th style="width: 45px; text-align: center;">#</th>';
+        let theadHtml = '<th class="col-check"><input type="checkbox" id="checkSelectAll" title="表示中の行をすべて選択 / 解除"></th>';
+        theadHtml += '<th style="width: 45px; text-align: center;">#</th>';
         AppState.headers.forEach(h => {
             if (h === AppState.textColumn) {
                 theadHtml += `<th class="col-target">${escapeHtml(h)} <span class="badge-col-target">自由記述</span></th>`;
@@ -497,19 +570,23 @@ function renderDataPreview() {
     // 5. テーブルボディの描画
     if (tbody) {
         if (pageItems.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="${AppState.headers.length + 3}" style="text-align: center; color: #94A3B8; padding: 24px;">該当するデータはありません</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="${AppState.headers.length + 4}" style="text-align: center; color: #94A3B8; padding: 24px;">該当するデータはありません</td></tr>`;
+            updateBulkDeleteBtn();
+            updateSelectAllState();
             return;
         }
 
         let tbodyHtml = '';
         pageItems.forEach(item => {
             const isProblem = item.quality.isProblem;
-            const rowClass = isProblem ? 'row-problem' : '';
+            const isSelected = AppState.selectedRowIndices.has(item.idx);
+            const rowClass = `${isProblem ? 'row-problem' : ''} ${isSelected ? 'row-selected' : ''}`.trim();
             const badgeClass = isProblem 
                 ? (item.quality.status === 'empty' ? 'badge-status-empty' : 'badge-status-junk')
                 : 'badge-status-valid';
 
             tbodyHtml += `<tr class="${rowClass}" id="previewRow_${item.idx}">`;
+            tbodyHtml += `<td class="col-check"><input type="checkbox" class="row-checkbox" data-row-idx="${item.idx}" ${isSelected ? 'checked' : ''} aria-label="行を選択"></td>`;
             tbodyHtml += `<td style="color:#64748B; font-weight:600; text-align:center;">${item.idx + 1}</td>`;
 
             AppState.headers.forEach(h => {
@@ -527,6 +604,49 @@ function renderDataPreview() {
         });
 
         tbody.innerHTML = tbodyHtml;
+        updateBulkDeleteBtn();
+        updateSelectAllState();
+    }
+}
+
+/**
+ * 一括削除ボタンの表示・件数更新
+ */
+function updateBulkDeleteBtn() {
+    const btnBulkDelete = document.getElementById('btnBulkDelete');
+    const countSpan = document.getElementById('selectedRowCount');
+    const count = AppState.selectedRowIndices.size;
+    if (countSpan) countSpan.textContent = count;
+    if (btnBulkDelete) {
+        btnBulkDelete.style.display = count > 0 ? 'inline-flex' : 'none';
+    }
+}
+
+/**
+ * テーブルヘッダーの全選択チェックボックスの同期
+ */
+function updateSelectAllState() {
+    const checkSelectAll = document.getElementById('checkSelectAll');
+    if (!checkSelectAll) return;
+    const checkboxes = document.querySelectorAll('#previewTableTbody .row-checkbox');
+    if (checkboxes.length === 0) {
+        checkSelectAll.checked = false;
+        checkSelectAll.indeterminate = false;
+        return;
+    }
+    let checkedCount = 0;
+    checkboxes.forEach(cb => {
+        if (cb.checked) checkedCount++;
+    });
+    if (checkedCount === 0) {
+        checkSelectAll.checked = false;
+        checkSelectAll.indeterminate = false;
+    } else if (checkedCount === checkboxes.length) {
+        checkSelectAll.checked = true;
+        checkSelectAll.indeterminate = false;
+    } else {
+        checkSelectAll.checked = false;
+        checkSelectAll.indeterminate = true;
     }
 }
 
