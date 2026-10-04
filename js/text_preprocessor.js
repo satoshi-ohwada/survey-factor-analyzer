@@ -196,14 +196,20 @@ const TextPreprocessor = {
             });
         });
 
-        // 3. 語彙の選定（あまりに稀な単語(1回のみ)や、全文書の70%以上に出現する一般的すぎる単語をフィルタ）
+        // 3. 語彙の選定（稀な単語や全文書に渡る一般的すぎる単語をフィルタ）
+        // 回答数が10件以下の少数データでは全員が言及した重要語を除外しないよう maxDf = N とする
         const minDf = N >= 20 ? 2 : 1;
-        const maxDf = Math.max(3, Math.floor(N * 0.75));
+        const maxDf = N <= 10 ? N : Math.max(3, Math.floor(N * 0.85));
 
-        const candidateWords = Object.keys(docFreq).filter(w => {
+        let candidateWords = Object.keys(docFreq).filter(w => {
             const df = docFreq[w];
             return df >= minDf && df <= maxDf;
         });
+
+        // 候補語が少なすぎる場合は閾値を緩和して全語彙を採用
+        if (candidateWords.length < 3) {
+            candidateWords = Object.keys(docFreq);
+        }
 
         // TF-IDF スコアの総和で単語をランキングして上位 maxVocabSize を選ぶ
         const wordScores = {};

@@ -894,6 +894,8 @@ body {
     padding: 8px 12px;
     font-size: 13px;
     line-height: 1.4;
+    white-space: pre-wrap;
+    word-break: break-word;
     border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
     margin-bottom: 8px;
 }

@@ -825,7 +825,7 @@ async function runFullPipeline() {
         await TextPreprocessor.init();
 
         showLoading('アンケートテキストを前処理中...');
-        // 2. 有効回答の抽出（無意味回答のスキップ）
+        // 2. 有効回答の抽出（無意味回答および自立語なし文のスキップ）
         const validResponses = [];
         let junkCount = 0;
 
@@ -836,11 +836,18 @@ async function runFullPipeline() {
             if (TextPreprocessor.isJunkResponse(textStr)) {
                 junkCount++;
             } else {
-                validResponses.push({
-                    id: r.ID || r.id || r.No || (idx + 1),
-                    text: textStr,
-                    row: r
-                });
+                // 形態素解析で名詞・動詞・形容詞などの有効語が1つ以上抽出できるか判定
+                const tokens = TextPreprocessor.tokenize(textStr);
+                if (tokens.length === 0) {
+                    // 挨拶文・定型句など、分析対象となる特徴語が抽出できない回答
+                    junkCount++;
+                } else {
+                    validResponses.push({
+                        id: r.ID || r.id || r.No || (idx + 1),
+                        text: textStr,
+                        row: r
+                    });
+                }
             }
         });
 
@@ -983,6 +990,18 @@ function renderTextStatsProfile(validResponses, junkCount, tfidfData) {
 function setupAxisSelectors(themes) {
     const selectX = document.getElementById('selectMapAxisX');
     const selectY = document.getElementById('selectMapAxisY');
+
+    // 因子数が減った場合の境界チェックとリセット
+    if (AppState.mapAxisX >= themes.length) {
+        AppState.mapAxisX = 0;
+    }
+    if (AppState.mapAxisY >= themes.length) {
+        AppState.mapAxisY = themes.length > 1 ? 1 : 0;
+    }
+    // X軸とY軸が同一で、2つ以上の因子がある場合はY軸を別の因子に設定
+    if (AppState.mapAxisX === AppState.mapAxisY && themes.length > 1) {
+        AppState.mapAxisY = (AppState.mapAxisX + 1) % themes.length;
+    }
 
     selectX.innerHTML = '';
     selectY.innerHTML = '';
@@ -1142,7 +1161,7 @@ function showResponseModal(pointData) {
                 主所属因子: ${escapeHtml(pointData.themeLabel)}
             </span>
         </div>
-        <div style="background:#F8FAFC; border:1px solid #E2E8F0; padding:16px; border-radius:8px; font-size:14px; line-height:1.6;">
+        <div style="background:#F8FAFC; border:1px solid #E2E8F0; padding:16px; border-radius:8px; font-size:14px; line-height:1.6; white-space: pre-wrap; word-break: break-word;">
             ${escapeHtml(pointData.text)}
         </div>
     `;
@@ -1169,7 +1188,7 @@ window.showAllThemeResponses = function(themeId) {
     const rowsHtml = matchedResponses.map((r, i) => `
         <tr style="border-bottom:1px solid #E2E8F0;">
             <td style="padding:10px 8px; font-weight:700; color:#64748B;">${i + 1}</td>
-            <td style="padding:10px 8px; color:#1E293B;">${escapeHtml(r.text)}</td>
+            <td style="padding:10px 8px; color:#1E293B; white-space: pre-wrap; word-break: break-word;">${escapeHtml(r.text)}</td>
             <td style="padding:10px 8px; text-align:right; font-weight:600; color:#2563EB;">
                 ${Math.round(r.confidence * 100)}%
             </td>
