@@ -37,6 +37,7 @@ function setupEventListeners() {
     const dropZone = document.getElementById('dropZone');
     const btnDemo = document.getElementById('btnDemoData');
     const btnRun = document.getElementById('btnRunAnalysis');
+    const btnRunTop = document.getElementById('btnRunAnalysisTop');
     const btnDecK = document.getElementById('btnDecK');
     const btnIncK = document.getElementById('btnIncK');
     const inputK = document.getElementById('inputK');
@@ -130,10 +131,17 @@ function setupEventListeners() {
         updateFactorSpaceMap();
     });
 
-    // 分析実行
-    btnRun.addEventListener('click', () => {
-        runFullPipeline();
-    });
+    // 分析実行（最下部メインボタン ＆ 上部クイックボタン）
+    if (btnRun) {
+        btnRun.addEventListener('click', () => {
+            runFullPipeline();
+        });
+    }
+    if (btnRunTop) {
+        btnRunTop.addEventListener('click', () => {
+            runFullPipeline();
+        });
+    }
 
     // A4レポート出力 (印刷 / PDF)
     const btnPrintReport = document.getElementById('btnPrintReport');
@@ -313,10 +321,14 @@ function processParsedData(parsed, fileName) {
     const selectTextCol = document.getElementById('selectTextCol');
     const selectAttrCol = document.getElementById('selectAttrCol');
     const fileNameDisplay = document.getElementById('fileNameDisplay');
+    const fileStatusBar = document.getElementById('fileStatusBar');
     const configGrid = document.getElementById('configGrid');
+    const runActionArea = document.getElementById('runActionArea');
     const btnRun = document.getElementById('btnRunAnalysis');
+    const btnRunTop = document.getElementById('btnRunAnalysisTop');
 
     fileNameDisplay.textContent = `📄 ${fileName} (${parsed.rows.length}件のデータ)`;
+    if (fileStatusBar) fileStatusBar.style.display = 'flex';
 
     // 列選択ドロップダウンの更新
     selectTextCol.innerHTML = '';
@@ -355,7 +367,9 @@ function processParsedData(parsed, fileName) {
     AppState.kCount = optimalK;
 
     configGrid.style.display = 'grid';
-    btnRun.disabled = false;
+    if (runActionArea) runActionArea.style.display = 'flex';
+    if (btnRun) btnRun.disabled = false;
+    if (btnRunTop) btnRunTop.disabled = false;
 
     // プレビューの初期化と描画
     AppState.previewMode = 'limit';
@@ -637,6 +651,11 @@ async function runFullPipeline() {
         return;
     }
 
+    const btnRun = document.getElementById('btnRunAnalysis');
+    const btnRunTop = document.getElementById('btnRunAnalysisTop');
+    if (btnRun) btnRun.disabled = true;
+    if (btnRunTop) btnRunTop.disabled = true;
+
     showLoading('形態素解析と日本語辞書を読み込み中...');
     try {
         // 1. Kuromojiの初期化
@@ -693,6 +712,8 @@ async function runFullPipeline() {
         console.error(err);
         alert('分析処理中にエラーが発生しました: ' + err.message);
     } finally {
+        if (btnRun) btnRun.disabled = false;
+        if (btnRunTop) btnRunTop.disabled = false;
         hideLoading();
     }
 }

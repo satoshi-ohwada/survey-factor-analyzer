@@ -48,7 +48,14 @@
                     <input type="file" id="csvFileInput" accept=".csv, .tsv, .txt" style="display: none;">
                 </div>
 
-                <div id="fileNameDisplay" style="font-size: 13px; font-weight: 600; color: #2563EB; margin-top: 12px;"></div>
+                <!-- ファイル読み込み情報バー（上部クイック実行付き） -->
+                <div id="fileStatusBar" class="file-status-bar" style="display: none;">
+                    <div id="fileNameDisplay" class="file-name-text"></div>
+                    <button id="btnRunAnalysisTop" class="btn btn-cta-top" type="button" title="現在の設定ですぐに分析を開始">
+                        <span class="btn-icon">🚀</span>
+                        <span class="btn-text">分析スタート</span>
+                    </button>
+                </div>
 
                 <!-- 解析パラメータ設定（CSV読込後に表示） -->
                 <div id="configGrid" class="config-grid" style="display: none;">
@@ -79,13 +86,6 @@
                             <input type="text" id="inputK" class="stepper-val" value="3" readonly>
                             <button type="button" id="btnIncK" class="stepper-btn" style="border-radius: 0 6px 6px 0;">＋</button>
                         </div>
-                    </div>
-
-                    <div class="action-group">
-                        <button id="btnRunAnalysis" class="btn btn-cta" type="button" title="選択した設定で因子分析を実行">
-                            <span class="btn-icon">🚀</span>
-                            <span class="btn-text">分析スタート</span>
-                        </button>
                     </div>
                 </div>
 
@@ -154,6 +154,15 @@
                             <button type="button" id="btnNextPage" class="btn btn-xs">次へ ▶</button>
                         </div>
                     </div>
+                </div>
+
+                <!-- 最下部の独立した分析実行エリア（一番下） -->
+                <div id="runActionArea" class="run-action-area" style="display: none;">
+                    <button id="btnRunAnalysis" class="btn btn-cta-large" type="button" title="設定とデータを確認後、クリックして因子分析を実行">
+                        <span class="btn-icon">🚀</span>
+                        <span class="btn-text">分析スタート</span>
+                    </button>
+                    <div class="run-action-hint">※設定とデータを確認したら、ここをクリックして分析（形態素解析・因子分解）を開始します</div>
                 </div>
             </div>
         </section>

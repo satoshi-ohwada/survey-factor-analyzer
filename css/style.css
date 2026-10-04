@@ -177,85 +177,132 @@ body {
     margin-top: 4px;
 }
 
-/* 設定フォーム */
-.config-grid {
-    display: grid;
-    grid-template-columns: minmax(220px, 1.4fr) minmax(180px, 1fr) 140px auto;
-    gap: 16px;
-    align-items: flex-end;
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid var(--border-color);
-}
-
-@media (max-width: 960px) {
-    .config-grid {
-        grid-template-columns: 1fr 1fr;
-    }
-    .action-group {
-        grid-column: 1 / -1;
-        justify-content: center !important;
-        margin-top: 8px;
-    }
-}
-
-@media (max-width: 580px) {
-    .config-grid {
-        grid-template-columns: 1fr;
-    }
-    .action-group {
-        justify-content: center !important;
-    }
-}
-
-.action-group {
+/* ファイル情報バー（上部クイック実行） */
+.file-status-bar {
     display: flex;
-    align-items: flex-end;
-    justify-content: flex-end;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
 }
 
-/* 分析スタートCTAボタン（横長バーにならず誰が見てもボタンとわかるデザイン） */
-.btn-cta {
+.file-name-text {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-cta-top {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    height: 42px;
-    padding: 0 24px;
-    font-size: 14.5px;
+    gap: 6px;
+    height: 34px;
+    padding: 0 18px;
+    font-size: 13px;
     font-weight: 700;
     color: #FFFFFF;
     background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
     border: 1px solid #1D4ED8;
-    border-radius: 24px; /* ピル形状（角丸）で直感的なボタン形状 */
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+    border-radius: 20px;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+}
+
+.btn-cta-top:hover {
+    background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.45);
+    transform: translateY(-1px);
+}
+
+.btn-cta-top:active {
+    transform: translateY(0);
+}
+
+.btn-cta-top:disabled {
+    background: #94A3B8;
+    border-color: #94A3B8;
+    box-shadow: none;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+/* 設定フォーム（3項目のみでスッキリ配置） */
+.config-grid {
+    display: grid;
+    grid-template-columns: minmax(220px, 1.4fr) minmax(180px, 1fr) auto;
+    gap: 20px;
+    align-items: flex-end;
+    margin-top: 16px;
+    padding-top: 4px;
+}
+
+@media (max-width: 768px) {
+    .config-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* 最下部 分析実行アクションエリア（一番下・専用の独立領域） */
+.run-action-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 0 14px 0;
+    margin-top: 20px;
+    border-top: 1px solid var(--border-color);
+    background: linear-gradient(180deg, rgba(248, 250, 252, 0.5) 0%, rgba(241, 245, 249, 0.8) 100%);
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+    margin-left: -20px;
+    margin-right: -20px;
+    margin-bottom: -20px;
+}
+
+.btn-cta-large {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    height: 48px;
+    padding: 0 36px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #FFFFFF;
+    background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+    border: 1px solid #1D4ED8;
+    border-radius: 28px;
+    box-shadow: 0 4px 16px rgba(37, 99, 235, 0.38);
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     white-space: nowrap;
     text-decoration: none;
     user-select: none;
-    width: auto !important; /* 横に広がりすぎないよう厳格に制御 */
-    min-width: 150px;
-    max-width: 200px;
 }
 
-.btn-cta:hover {
+.btn-cta-large:hover {
     background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
-    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.48);
+    box-shadow: 0 6px 22px rgba(37, 99, 235, 0.5);
     transform: translateY(-2px);
 }
 
-.btn-cta:active {
+.btn-cta-large:active {
     transform: translateY(1px);
-    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
 }
 
-.btn-cta:focus-visible {
+.btn-cta-large:focus-visible {
     outline: 2px solid #2563EB;
     outline-offset: 2px;
 }
 
-.btn-cta:disabled {
+.btn-cta-large:disabled {
     background: #94A3B8;
     border-color: #94A3B8;
     box-shadow: none;
@@ -264,15 +311,21 @@ body {
     opacity: 0.7;
 }
 
-.btn-cta .btn-icon {
-    font-size: 16px;
+.btn-cta-large .btn-icon {
+    font-size: 20px;
     line-height: 1;
 }
 
-.btn-cta .btn-text {
-    font-size: 14px;
+.btn-cta-large .btn-text {
+    font-size: 16px;
     font-weight: 700;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.5px;
+}
+
+.run-action-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 8px;
 }
 
 .form-group {
