@@ -35,7 +35,6 @@ function setupEventListeners() {
     const inputK = document.getElementById('inputK');
     const selectTextCol = document.getElementById('selectTextCol');
     const selectAttrCol = document.getElementById('selectAttrCol');
-    const btnExportReport = document.getElementById('btnExportReport');
     const btnHelp = document.getElementById('btnHelp');
     const modalClose = document.getElementById('modalClose');
     const detailModal = document.getElementById('detailModal');
@@ -134,11 +133,6 @@ function setupEventListeners() {
             printA4Report();
         });
     }
-
-    // レポート画像保存
-    btnExportReport.addEventListener('click', () => {
-        exportReportImage();
-    });
 
     // ヘルプ
     btnHelp.addEventListener('click', () => {
@@ -706,40 +700,6 @@ function printA4Report() {
     setTimeout(() => {
         window.print();
     }, 120);
-}
-
-/**
- * レポート画像の保存 (html2canvas)
- */
-async function exportReportImage() {
-    const resultsContainer = document.getElementById('resultsContainer');
-    if (!resultsContainer || resultsContainer.style.display === 'none') {
-        alert('分析を実行してから画像保存を行ってください');
-        return;
-    }
-
-    showLoading('レポート画像を生成中...');
-    try {
-        if (typeof html2canvas === 'undefined') {
-            throw new Error('画像生成ライブラリが読み込まれていません');
-        }
-
-        const canvas = await html2canvas(resultsContainer, {
-            scale: 2,
-            backgroundColor: '#F8FAFC',
-            logging: false,
-            useCORS: true
-        });
-
-        const link = document.createElement('a');
-        link.download = `アンケート潜在因子分析レポート_${new Date().toISOString().slice(0, 10)}.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-    } catch (err) {
-        alert('画像の保存に失敗しました: ' + err.message);
-    } finally {
-        hideLoading();
-    }
 }
 
 /**
