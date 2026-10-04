@@ -701,6 +701,24 @@ body {
     color: var(--text-muted);
 }
 
+/* データ変更案内バナー */
+.data-changed-banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: #FFFBEB;
+    border: 1px solid #FDE68A;
+    border-radius: var(--radius-md);
+    padding: 10px 16px;
+    margin-bottom: 14px;
+    font-size: 13px;
+    color: #92400E;
+    box-shadow: 0 1px 3px rgba(245, 158, 11, 0.15);
+    animation: fadeIn 0.3s ease;
+}
+
 /* サマリーバー */
 .summary-bar {
     display: flex;
@@ -1145,6 +1163,7 @@ body {
     .btn,
     select,
     .summary-bar,
+    .data-changed-banner,
     .badge-rec,
     .theme-title span,
     .axis-switch-panel,

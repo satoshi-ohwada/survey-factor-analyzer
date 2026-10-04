@@ -254,6 +254,7 @@ function setupEventListeners() {
                 document.getElementById('fileNameDisplay').textContent = 
                     `📄 ${AppState.loadedFileName} (${AppState.rawRows.length}件のデータ)`;
                 renderDataPreview();
+                markDataDirty();
             }
         });
     }
@@ -356,6 +357,7 @@ function setupEventListeners() {
                     document.getElementById('fileNameDisplay').textContent = 
                         `📄 ${AppState.loadedFileName} (${AppState.rawRows.length}件のデータ)`;
                     renderDataPreview();
+                    markDataDirty();
                 }
             }
         });
@@ -746,6 +748,19 @@ function updateRowAndAlertsAfterEdit(rowIdx) {
     if (AppState.previewFilterWarning && !quality.isProblem) {
         renderDataPreview();
     }
+
+    markDataDirty();
+}
+
+/**
+ * プレビューデータの変更を検知し、分析結果が表示中なら再分析案内を表示
+ */
+function markDataDirty() {
+    const notice = document.getElementById('dataChangedNotice');
+    const resultsContainer = document.getElementById('resultsContainer');
+    if (notice && resultsContainer && resultsContainer.style.display !== 'none') {
+        notice.style.display = 'flex';
+    }
 }
 
 /**
@@ -777,6 +792,7 @@ function addNewRow() {
     AppState.previewPage = totalPages;
 
     renderDataPreview();
+    markDataDirty();
 
     // 追加された行へスクロールしてフォーカス
     setTimeout(() => {
@@ -871,6 +887,9 @@ async function runFullPipeline() {
 function renderResults(validResponses, junkCount, result, tfidfData) {
     const resultsContainer = document.getElementById('resultsContainer');
     resultsContainer.style.display = 'block';
+
+    const dataChangedNotice = document.getElementById('dataChangedNotice');
+    if (dataChangedNotice) dataChangedNotice.style.display = 'none';
 
     const validCount = validResponses.length;
 
@@ -1070,7 +1089,8 @@ function renderThemeCards(themes) {
             const currentText = theme.label.replace(/^【|】$/g, '');
             const newName = prompt('因子の名称を編集してください:', currentText);
             if (newName && newName.trim() !== '') {
-                theme.label = `【${newName.trim()}】`;
+                const cleanedName = newName.trim().replace(/^[【「\[]+|[】」\]]+$/g, '');
+                theme.label = `【${cleanedName}】`;
                 titleEl.innerHTML = `${escapeHtml(theme.label)} ✏️`;
 
                 // すべての図（ドーナツ、パス図、因子空間マップ、クロス集計）を連動再描画
@@ -1190,8 +1210,13 @@ window.exportThemeCsv = function(themeId) {
         .filter(r => r.primaryThemeId === themeId)
         .sort((a, b) => b.confidence - a.confidence);
 
+    const escapeCsv = (val) => {
+        const str = (val === null || val === undefined) ? '' : String(val);
+        return `"${str.replace(/"/g, '""')}"`;
+    };
+
     const csvData = [
-        ['No', 'ID', '因子名', '適合度(%)', '回答本文']
+        ['No', 'ID', '因子名', '適合度(%)', '回答本文'].map(escapeCsv)
     ];
 
     matchedResponses.forEach((r, idx) => {
@@ -1200,15 +1225,16 @@ window.exportThemeCsv = function(themeId) {
             r.id,
             theme.label,
             Math.round(r.confidence * 100),
-            `"${r.text.replace(/"/g, '""')}"`
-        ]);
+            r.text
+        ].map(escapeCsv));
     });
 
-    const csvContent = "\uFEFF" + csvData.map(e => e.join(",")).join("\n");
+    const csvContent = "\uFEFF" + csvData.map(e => e.join(",")).join("\r\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `因子_${theme.label.replace(/[【】]/g, '')}_回答一覧.csv`;
+    const cleanFileName = theme.label.replace(/[【】\\/:*?"<>|]/g, '');
+    link.download = `因子_${cleanFileName}_回答一覧.csv`;
     link.click();
 };
 

@@ -517,7 +517,25 @@ const ChartRenderer = {
             counts[attrVal][r.primaryThemeId] = (counts[attrVal][r.primaryThemeId] || 0) + 1;
         });
 
-        const sortedAttrs = Array.from(attrValues);
+        // 属性の自然順序ソート（年代・数値・評価尺度・未設定対応）
+        const ORDER_MAP = {
+            '大変不満': 1, '不満': 2, 'やや不満': 3, 'どちらともいえない': 4, '普通': 4, 'やや満足': 5, '満足': 6, '大変満足': 7,
+            '非常に不満': 1, '非常に満足': 7, '悪い': 1, 'やや悪い': 2, '良い': 4, '大変良い': 5,
+            '低': 1, '中': 2, '高': 3
+        };
+
+        const sortedAttrs = Array.from(attrValues).sort((a, b) => {
+            if (a === '（未設定）') return 1;
+            if (b === '（未設定）') return -1;
+            if (ORDER_MAP[a] && ORDER_MAP[b]) return ORDER_MAP[a] - ORDER_MAP[b];
+            // 年代や数値を含む場合は数値の昇順で比較（例: '20代' vs '30代'）
+            const numA = (a.match(/\d+/) || [])[0];
+            const numB = (b.match(/\d+/) || [])[0];
+            if (numA !== undefined && numB !== undefined && numA !== numB) {
+                return parseInt(numA, 10) - parseInt(numB, 10);
+            }
+            return a.localeCompare(b, 'ja');
+        });
 
         const traces = themes.map((theme, tIdx) => {
             const percentages = sortedAttrs.map(attr => {

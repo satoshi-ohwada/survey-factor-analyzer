@@ -230,33 +230,84 @@ const FactorEngine = {
                 }
             }
 
-            // 各テーマへの適合率 (0%〜100%)
-            const probabilities = rowW.map(s => sumScore > 0 ? (s / sumScore) : (1 / K));
+            // 特徴語が抽出できなかった回答 (sumScore <= 1e-9) の場合
+            const hasMatchedWords = sumScore > 1e-9;
+            let assignedThemeId = maxK;
+            let confidence = 0;
 
-            themes[maxK].count++;
-            themeScores[maxK] += maxScore;
+            if (hasMatchedWords) {
+                confidence = maxScore / sumScore;
+            } else {
+                // 特徴語を含まない文は、特定因子に偏らせずインデックスを分散
+                assignedThemeId = i % K;
+                confidence = 0;
+            }
+
+            // 各テーマへの適合率 (0%〜100%)
+            const probabilities = rowW.map(s => hasMatchedWords ? (s / sumScore) : (1 / K));
+
+            themes[assignedThemeId].count++;
+            themeScores[assignedThemeId] += maxScore;
 
             responsesWithTheme.push({
                 index: i,
                 id: responses[i].id,
                 text: responses[i].text,
                 row: responses[i].row,
-                primaryThemeId: maxK,
-                confidence: probabilities[maxK],
-                themeProbabilities: probabilities
+                primaryThemeId: assignedThemeId,
+                confidence: confidence,
+                themeProbabilities: probabilities,
+                hasMatchedWords
             });
         }
 
-        // 4. 各テーマの全体シェア（％）の計算
-        themes.forEach(t => {
-            t.share = Math.round((t.count / N) * 100);
-        });
+        // 4. 各テーマの全体シェア（％）の計算（最大剰余法により合計が厳密に100%になるよう調整）
+        if (N > 0) {
+            const rawShares = themes.map(t => (t.count / N) * 100);
+            const floorShares = rawShares.map(s => Math.floor(s));
+            let remainder = 100 - floorShares.reduce((a, b) => a + b, 0);
 
-        // 5. 各テーマの代表回答をピックアップ（適合スコアが高く、ある程度の文字数があるもの）
+            // 小数点以下の端数が大きい順にソートして余りを配分
+            const remaindersWithIdx = rawShares.map((s, idx) => ({
+                idx,
+                rem: s - floorShares[idx]
+            })).sort((a, b) => b.rem - a.rem);
+
+            for (let i = 0; i < remainder && i < remaindersWithIdx.length; i++) {
+                floorShares[remaindersWithIdx[i].idx]++;
+            }
+
+            themes.forEach((t, i) => {
+                t.share = floorShares[i];
+            });
+        }
+
+        // 5. 各テーマの代表回答をピックアップ
+        // 8文字以上の回答を優先し、短文中心のデータでも欠落しないようフォールバック
         themes.forEach(t => {
-            const candidates = responsesWithTheme
-                .filter(r => r.primaryThemeId === t.id && r.text.length >= 8)
+            const pool = responsesWithTheme
+                .filter(r => r.primaryThemeId === t.id && r.hasMatchedWords);
+
+            // まず8文字以上の候補を優先
+            let candidates = pool
+                .filter(r => r.text.length >= 8)
                 .sort((a, b) => b.confidence - a.confidence);
+
+            // 8文字以上の候補が3件未満の場合、文字数制限なしの候補で補完
+            if (candidates.length < 3) {
+                const candidateIds = new Set(candidates.map(c => c.id));
+                const fallbackCandidates = pool
+                    .filter(r => !candidateIds.has(r.id))
+                    .sort((a, b) => b.confidence - a.confidence);
+                candidates = candidates.concat(fallbackCandidates);
+            }
+
+            // 万一 pool 全体が空の場合は、全体から適合度が最大のものをフォールバック採用
+            if (candidates.length === 0) {
+                candidates = responsesWithTheme
+                    .filter(r => r.primaryThemeId === t.id)
+                    .sort((a, b) => b.confidence - a.confidence);
+            }
 
             // 上位3件を代表回答とする
             t.representativeResponses = candidates.slice(0, 3).map(c => ({

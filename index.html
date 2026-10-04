@@ -191,6 +191,17 @@
                 </div>
             </div>
 
+            <!-- データ変更時の再分析案内バナー -->
+            <div id="dataChangedNotice" class="data-changed-banner" style="display: none;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 16px;">⚠️</span>
+                    <span><b>データが変更されました:</b> 編集・削除した内容をグラフや統計に反映するには「最新データで再分析」を押してください。</span>
+                </div>
+                <button type="button" class="btn btn-sm btn-primary" onclick="runFullPipeline();">
+                    🚀 最新データで再分析
+                </button>
+            </div>
+
             <!-- サマリーバー -->
             <div class="summary-bar">
                 <div class="summary-stats">
