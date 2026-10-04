@@ -118,6 +118,19 @@ function setupEventListeners() {
         updateFactorSpaceMap();
     });
 
+    const btnSwapAxes = document.getElementById('btnSwapAxes');
+    if (btnSwapAxes) {
+        btnSwapAxes.addEventListener('click', () => {
+            const currentX = AppState.mapAxisX;
+            const currentY = AppState.mapAxisY;
+            AppState.mapAxisX = currentY;
+            AppState.mapAxisY = currentX;
+            if (selectMapAxisX) selectMapAxisX.value = currentY;
+            if (selectMapAxisY) selectMapAxisY.value = currentX;
+            updateFactorSpaceMap();
+        });
+    }
+
     // 因子空間マップのモード切替（回答者得点 vs 語の負荷量）
     btnMapModeResponses.addEventListener('click', () => {
         AppState.mapMode = 'responses';

@@ -376,8 +376,8 @@ const ChartRenderer = {
         const modeLabel = mode === 'responses' ? '回答者得点' : '語の負荷量';
         const layout = {
             title: {
-                text: `<b>【図3】因子空間ポジショニングマップ（${modeLabel}）</b>`,
-                font: { size: 13, color: '#1E293B' },
+                text: `<b>【図3】因子空間ポジショニングマップ（${modeLabel}）</b> <span style="font-size:11px; font-weight:normal; color:#64748B;">[横: 因子${xFactorIdx + 1} × 縦: 因子${yFactorIdx + 1}]</span>`,
+                font: { size: 12.5, color: '#1E293B' },
                 x: 0.02,
                 xanchor: 'left',
                 y: 0.98
@@ -420,7 +420,7 @@ const ChartRenderer = {
             displaylogo: false,
             toImageButtonOptions: {
                 format: 'png',
-                filename: `【図3】因子空間ポジショニングマップ（${modeLabel}）`,
+                filename: `【図3】因子空間ポジショニングマップ（因子${xFactorIdx + 1}×因子${yFactorIdx + 1}_${modeLabel}）`,
                 height: 550,
                 width: 750,
                 scale: 2

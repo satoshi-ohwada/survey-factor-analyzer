@@ -282,12 +282,30 @@
                             <button type="button" id="btnMapModeWords" class="btn btn-sm" style="padding: 3px 8px; font-size: 11px;">語の負荷量</button>
                         </div>
                     </div>
-                    <!-- 軸セレクタバー -->
-                    <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; font-size: 11px; margin-bottom: 6px;">
-                        <span>横軸:</span>
-                        <select id="selectMapAxisX" class="form-select" style="padding: 2px 6px; font-size: 11px; height: 26px;"></select>
-                        <span>縦軸:</span>
-                        <select id="selectMapAxisY" class="form-select" style="padding: 2px 6px; font-size: 11px; height: 26px;"></select>
+                    <!-- 軸切り替えパネル（目立つように強調） -->
+                    <div class="axis-switch-panel">
+                        <div class="axis-switch-panel-header">
+                            <div class="axis-switch-title">
+                                <span>🔄</span>
+                                <span>比較する軸（因子）の切り替え</span>
+                            </div>
+                            <div class="axis-switch-hint">
+                                ※ 任意の2つの因子を選んで、相関や回答者の分布を観察できます
+                            </div>
+                        </div>
+                        <div class="axis-switch-controls">
+                            <div class="axis-select-group">
+                                <span class="axis-badge-x">横軸 (X)</span>
+                                <select id="selectMapAxisX" title="横軸に設定する因子"></select>
+                            </div>
+                            <button type="button" id="btnSwapAxes" class="btn-swap-axis" title="横軸と縦軸の因子を入れ替える">
+                                ⇄ 軸を入れ替え
+                            </button>
+                            <div class="axis-select-group">
+                                <span class="axis-badge-y">縦軸 (Y)</span>
+                                <select id="selectMapAxisY" title="縦軸に設定する因子"></select>
+                            </div>
+                        </div>
                     </div>
                     <div id="chartFactorSpace"></div>
                 </div>
