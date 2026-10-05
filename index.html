@@ -42,12 +42,46 @@
         <!-- アップロード・設定セクション -->
         <section class="config-section">
             <div class="card">
-                <!-- ドロップゾーン -->
-                <div id="dropZone" class="drop-zone" onclick="document.getElementById('csvFileInput').click();">
-                    <div class="drop-icon">📁</div>
-                    <div class="drop-text">ここにアンケートファイル (CSV / TSV / TXT) をドラッグ＆ドロップ</div>
-                    <div class="drop-subtext">またはクリックして選択（1行1回答のテキストファイルもそのまま読み込めます / UTF-8・Shift_JIS自動判定）</div>
-                    <input type="file" id="csvFileInput" accept=".csv, .tsv, .txt" style="display: none;">
+                <!-- データ入力方法の切り替えタブ -->
+                <div class="data-input-tabs">
+                    <button type="button" id="tabInputFile" class="data-input-tab active">
+                        📁 ファイルから読み込み (CSV / TSV / TXT)
+                    </button>
+                    <button type="button" id="tabInputPaste" class="data-input-tab">
+                        📋 Excel等からコピー＆ペースト
+                    </button>
+                </div>
+
+                <!-- 1. ファイルドロップゾーン -->
+                <div id="dropZoneWrapper">
+                    <div id="dropZone" class="drop-zone" onclick="document.getElementById('csvFileInput').click();">
+                        <div class="drop-icon">📁</div>
+                        <div class="drop-text">ここにアンケートファイル (CSV / TSV / TXT) をドラッグ＆ドロップ</div>
+                        <div class="drop-subtext">またはクリックして選択（1行1回答のテキストファイルもそのまま読み込めます / UTF-8・Shift_JIS自動判定）</div>
+                        <input type="file" id="csvFileInput" accept=".csv, .tsv, .txt" style="display: none;">
+                    </div>
+                </div>
+
+                <!-- 2. コピペ入力エリア（初期非表示） -->
+                <div id="pasteZoneWrapper" style="display: none;">
+                    <div class="paste-zone-box">
+                        <div class="paste-zone-header">
+                            <span class="paste-zone-title">📋 Excelのセル範囲をコピー（Ctrl+C）して、下の枠に貼り付け（Ctrl+V）してください</span>
+                            <label class="paste-header-toggle">
+                                <input type="checkbox" id="checkPasteHasHeader" checked> 1行目を列名（見出し）として扱う
+                            </label>
+                        </div>
+                        <textarea id="pasteTextarea" class="paste-textarea" rows="6" placeholder="Excelで分析したい行・列を選択してコピーし、ここに貼り付けてください&#10;（例: 自由記述のみの1列、または年代や満足度などを含む複数列。ヘッダーなしでも取り込めます）"></textarea>
+                        <div class="paste-zone-footer">
+                            <span id="pasteStatsInfo" class="paste-stats-info">データが入力されていません</span>
+                            <div class="paste-actions">
+                                <button type="button" id="btnClearPaste" class="btn btn-sm btn-secondary">クリア</button>
+                                <button type="button" id="btnLoadPaste" class="btn btn-sm btn-primary">
+                                    📥 貼り付けたデータを取り込む
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- ファイル読み込み情報バー（上部クイック実行付き） -->

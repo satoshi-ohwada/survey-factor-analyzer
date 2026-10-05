@@ -151,6 +151,111 @@ const CsvParser = {
     },
 
     /**
+     * Excel等からコピー＆ペーストされたテキストをパースする
+     * @param {string} text 
+     * @param {object} [options]
+     * @param {boolean} [options.hasHeader=true] 1行目を列名として扱うか
+     * @returns {{headers: string[], rows: object[]}}
+     */
+    parsePastedText(text, options = {}) {
+        const hasHeader = (options.hasHeader !== undefined) ? options.hasHeader : true;
+        const cleanText = String(text || '').replace(/^\uFEFF/, '').trim();
+        if (!cleanText) {
+            throw new Error('貼り付けられたテキストが空です');
+        }
+
+        const lines = cleanText.split(/\r?\n/).filter(line => line.trim().length > 0);
+        if (lines.length === 0) {
+            throw new Error('有効なデータ行が見つかりませんでした');
+        }
+
+        // 区切り文字判定（タブまたはカンマ）
+        const sampleLines = lines.slice(0, Math.min(10, lines.length));
+        const tabCounts = sampleLines.map(l => (l.match(/\t/g) || []).length);
+        const commaCounts = sampleLines.map(l => (l.match(/,/g) || []).length);
+
+        const hasTabs = tabCounts.some(c => c > 0);
+        const hasCommas = commaCounts.some(c => c > 0);
+
+        // 1列のみ（タブもカンマも含まれない）の場合
+        if (!hasTabs && !hasCommas) {
+            if (hasHeader && lines.length > 1) {
+                const firstLine = lines[0].trim();
+                const isShortHeader = firstLine.length <= 20 && !/[。、！？]$/.test(firstLine);
+                if (isShortHeader) {
+                    return this.parsePlainText(lines);
+                }
+            }
+            // 全行をデータ行として取り込む（1列形式）
+            const rows = lines.map((l, idx) => ({
+                ID: idx + 1,
+                '自由記述テキスト': l.trim()
+            }));
+            return {
+                headers: ['ID', '自由記述テキスト'],
+                rows: rows
+            };
+        }
+
+        // 複数列（TSVまたはCSV）の場合
+        if (!hasHeader) {
+            // ヘッダーなしモード: 全行をデータとしてパースし、列名を自動生成
+            const parsed = Papa.parse(cleanText, {
+                header: false,
+                skipEmptyLines: 'greedy',
+                dynamicTyping: false
+            });
+
+            if (!parsed.data || parsed.data.length === 0) {
+                throw new Error('データのパースに失敗しました');
+            }
+
+            const colCount = Math.max(...parsed.data.map(row => row.length));
+            const headers = [];
+            for (let i = 1; i <= colCount; i++) {
+                headers.push(`列${i}`);
+            }
+
+            const rows = parsed.data.map((row) => {
+                const rowObj = {};
+                headers.forEach((h, cIdx) => {
+                    rowObj[h] = row[cIdx] !== undefined ? String(row[cIdx]).trim() : '';
+                });
+                return rowObj;
+            }).filter(r => Object.values(r).some(v => v !== ''));
+
+            return { headers, rows };
+        } else {
+            // ヘッダーありモード
+            const parsed = Papa.parse(cleanText, {
+                header: true,
+                skipEmptyLines: 'greedy',
+                dynamicTyping: false
+            });
+
+            const fields = (parsed.meta.fields || []).map(f => f.replace(/^\uFEFF/, '').trim());
+            if (fields.length > 0 && parsed.data.length > 0) {
+                const sanitizedRows = parsed.data.map(row => {
+                    const newRow = {};
+                    fields.forEach(f => {
+                        const val = row[f] || row['\uFEFF' + f] || '';
+                        newRow[f] = (val !== undefined && val !== null) ? String(val).trim() : '';
+                    });
+                    return newRow;
+                }).filter(r => Object.values(r).some(v => v !== ''));
+
+                return {
+                    headers: fields,
+                    rows: sanitizedRows
+                };
+            }
+
+            // フォールバック
+            return this.parsePlainText(lines);
+        }
+    },
+
+    /**
      * 自由記述列（テキストが最も長くバリエーションが豊富な列）を推測する
      * @param {string[]} headers 
      * @param {object[]} rows 

@@ -384,6 +384,126 @@ function setupEventListeners() {
             clearAllColumnFilters();
         });
     }
+
+    // コピペ入力ゾーンの初期化
+    setupPasteZone();
+}
+
+/**
+ * コピー＆ペースト（Excel貼り付け）入力ゾーンのセットアップ
+ */
+function setupPasteZone() {
+    const tabInputFile = document.getElementById('tabInputFile');
+    const tabInputPaste = document.getElementById('tabInputPaste');
+    const dropZoneWrapper = document.getElementById('dropZoneWrapper');
+    const pasteZoneWrapper = document.getElementById('pasteZoneWrapper');
+    const pasteTextarea = document.getElementById('pasteTextarea');
+    const checkPasteHasHeader = document.getElementById('checkPasteHasHeader');
+    const pasteStatsInfo = document.getElementById('pasteStatsInfo');
+    const btnClearPaste = document.getElementById('btnClearPaste');
+    const btnLoadPaste = document.getElementById('btnLoadPaste');
+
+    if (!tabInputFile || !tabInputPaste || !pasteZoneWrapper || !pasteTextarea) return;
+
+    // タブ切り替え関数
+    const switchTab = (mode) => {
+        if (mode === 'paste') {
+            tabInputPaste.classList.add('active');
+            tabInputFile.classList.remove('active');
+            dropZoneWrapper.style.display = 'none';
+            pasteZoneWrapper.style.display = 'block';
+            pasteTextarea.focus();
+        } else {
+            tabInputFile.classList.add('active');
+            tabInputPaste.classList.remove('active');
+            dropZoneWrapper.style.display = 'block';
+            pasteZoneWrapper.style.display = 'none';
+        }
+    };
+
+    tabInputFile.addEventListener('click', () => switchTab('file'));
+    tabInputPaste.addEventListener('click', () => switchTab('paste'));
+
+    // 貼り付けテキストの行数・列数リアルタイム分析
+    const updatePasteStats = () => {
+        const text = pasteTextarea.value.trim();
+        if (!text) {
+            pasteStatsInfo.textContent = 'データが入力されていません';
+            pasteStatsInfo.classList.remove('has-data');
+            return;
+        }
+        const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+        if (lines.length === 0) {
+            pasteStatsInfo.textContent = 'データが入力されていません';
+            pasteStatsInfo.classList.remove('has-data');
+            return;
+        }
+
+        const sample = lines[0];
+        const tabCount = (sample.match(/\t/g) || []).length;
+        const commaCount = (sample.match(/,/g) || []).length;
+        const colCount = Math.max(tabCount, commaCount) + 1;
+
+        if (colCount > 1) {
+            pasteStatsInfo.textContent = `📊 ${lines.length.toLocaleString()} 行 × ${colCount} 列 のデータを検出しました`;
+        } else {
+            pasteStatsInfo.textContent = `📝 ${lines.length.toLocaleString()} 行（1列テキスト）を検出しました`;
+        }
+        pasteStatsInfo.classList.add('has-data');
+    };
+
+    pasteTextarea.addEventListener('input', updatePasteStats);
+
+    // クリアボタン
+    if (btnClearPaste) {
+        btnClearPaste.addEventListener('click', () => {
+            pasteTextarea.value = '';
+            updatePasteStats();
+            pasteTextarea.focus();
+        });
+    }
+
+    // 貼り付けデータ取り込み実行
+    if (btnLoadPaste) {
+        btnLoadPaste.addEventListener('click', () => {
+            const text = pasteTextarea.value.trim();
+            if (!text) {
+                alert('Excel等からコピーしたデータを貼り付けてください');
+                pasteTextarea.focus();
+                return;
+            }
+
+            const hasHeader = checkPasteHasHeader ? checkPasteHasHeader.checked : true;
+            showLoading('貼り付けたデータを解析中...');
+            try {
+                const parsed = CsvParser.parsePastedText(text, { hasHeader });
+                processParsedData(parsed, 'エクセル貼り付けデータ');
+            } catch (err) {
+                alert('データの取り込みに失敗しました: ' + err.message);
+            } finally {
+                hideLoading();
+            }
+        });
+    }
+
+    // 画面全体でのCtrl+V検知（ファイル未読み込み時のスマート貼り付け）
+    window.addEventListener('paste', (e) => {
+        // すでに何らかの入力フォーム・テキストエリアにフォーカスがある場合は通常のペーストに任せる
+        const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+        if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') {
+            return;
+        }
+
+        const clipboardData = e.clipboardData || window.clipboardData;
+        if (!clipboardData) return;
+        const pastedText = clipboardData.getData('text');
+        if (pastedText && pastedText.trim().length > 0) {
+            // 自動でコピペタブに切り替えて貼り付け
+            switchTab('paste');
+            pasteTextarea.value = pastedText;
+            updatePasteStats();
+        }
+    });
 }
 
 /**
