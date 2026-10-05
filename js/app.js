@@ -181,6 +181,7 @@ function setupEventListeners() {
 
     // 印刷前後のPlotlyグラフ自動リサイズ
     window.addEventListener('beforeprint', () => {
+        document.body.classList.add('is-printing');
         updatePrintMetaInfo();
         document.querySelectorAll('.js-plotly-plot').forEach(el => {
             try { Plotly.Plots.resize(el); } catch (e) {}
@@ -188,6 +189,7 @@ function setupEventListeners() {
     });
 
     window.addEventListener('afterprint', () => {
+        document.body.classList.remove('is-printing');
         document.querySelectorAll('.js-plotly-plot').forEach(el => {
             try { Plotly.Plots.resize(el); } catch (e) {}
         });
@@ -1897,14 +1899,20 @@ function printA4Report() {
 
     updatePrintMetaInfo();
 
-    // グラフのリサイズを実行してから印刷ダイアログを起動
-    document.querySelectorAll('.js-plotly-plot').forEach(el => {
-        try { Plotly.Plots.resize(el); } catch (e) {}
-    });
+    // 印刷直前にis-printingクラスを付与し、非表示だった図5（スモールマルチプルズ）を可視化・レイアウト確定
+    document.body.classList.add('is-printing');
 
+    // DOMの展開を待ってから全Plotlyグラフ（図5の小散布図を含む）を正確な幅にリサイズ
     setTimeout(() => {
-        window.print();
-    }, 150);
+        document.querySelectorAll('.js-plotly-plot').forEach(el => {
+            try { Plotly.Plots.resize(el); } catch (e) {}
+        });
+
+        // リサイズ完了後に印刷ダイアログを起動
+        setTimeout(() => {
+            window.print();
+        }, 120);
+    }, 60);
 }
 
 /**

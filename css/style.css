@@ -1565,6 +1565,27 @@ body {
     padding: 10px 12px 6px 12px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
     transition: transform 0.15s ease, box-shadow 0.15s ease;
+    min-width: 0;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.attr-sub-plot {
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.attr-sub-plot .js-plotly-plot,
+.attr-sub-plot .plot-container,
+.attr-sub-plot .svg-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+}
+
+.attr-sub-plot svg.main-svg {
+    max-width: 100% !important;
 }
 
 .attr-multiples-card:hover {
@@ -1804,8 +1825,11 @@ body {
 
     .attr-multiples-grid {
         display: grid !important;
-        grid-template-columns: 1fr 1fr !important;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
         gap: 6px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
     }
 
     .attr-multiples-card {
@@ -1814,6 +1838,10 @@ body {
         border: 1px solid #CBD5E1 !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
     }
 
     .attr-multiples-card-header {
@@ -1836,10 +1864,68 @@ body {
     }
 
     .attr-sub-plot {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
         height: 135px !important;
+        overflow: hidden !important;
+    }
+
+    .attr-sub-plot .js-plotly-plot,
+    .attr-sub-plot .plot-container,
+    .attr-sub-plot .svg-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .attr-sub-plot svg.main-svg {
+        width: 100% !important;
+        max-width: 100% !important;
     }
 
     .print-only-block {
         display: block !important;
     }
+}
+
+/* 印刷準備時（window.print直前に一時的に可視化してPlotlyリサイズを正確に行う） */
+body.is-printing .print-only-block {
+    display: block !important;
+}
+
+body.is-printing .attr-multiples-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    gap: 6px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+body.is-printing .attr-multiples-card {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+}
+
+body.is-printing .attr-sub-plot {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+}
+
+body.is-printing .attr-sub-plot .js-plotly-plot,
+body.is-printing .attr-sub-plot .plot-container,
+body.is-printing .attr-sub-plot .svg-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+}
+
+body.is-printing .attr-sub-plot svg.main-svg {
+    width: 100% !important;
+    max-width: 100% !important;
 }

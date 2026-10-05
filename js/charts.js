@@ -1009,8 +1009,9 @@ const ChartRenderer = {
             };
 
             const layout = {
-                margin: { l: 30, r: 12, t: 8, b: 24 },
+                margin: { l: 22, r: 8, t: 6, b: 20 },
                 height: 185,
+                autosize: true,
                 paper_bgcolor: 'rgba(0,0,0,0)',
                 plot_bgcolor: '#FAFAFC',
                 xaxis: {
@@ -1019,7 +1020,8 @@ const ChartRenderer = {
                     gridcolor: '#F1F5F9',
                     zeroline: true,
                     zerolinecolor: '#E2E8F0',
-                    tickfont: { size: 8, color: '#94A3B8' }
+                    tickfont: { size: 8, color: '#94A3B8' },
+                    fixedrange: true
                 },
                 yaxis: {
                     range: rangeY,
@@ -1027,7 +1029,8 @@ const ChartRenderer = {
                     gridcolor: '#F1F5F9',
                     zeroline: true,
                     zerolinecolor: '#E2E8F0',
-                    tickfont: { size: 8, color: '#94A3B8' }
+                    tickfont: { size: 8, color: '#94A3B8' },
+                    fixedrange: true
                 },
                 hoverlabel: {
                     bgcolor: '#1E293B',
