@@ -23,7 +23,8 @@ const AppState = {
     previewPage: 1,
     previewPageSize: 50,
     previewFilterWarning: false, // true: 問題のある行のみ絞り込み
-    selectedRowIndices: new Set() // 選択された行のインデックス一覧
+    selectedRowIndices: new Set(), // 選択された行のインデックス一覧
+    columnFilters: {} // 列ごとのフィルター条件 { 列名: 値 }
 };
 
 // 初期化
@@ -375,6 +376,222 @@ function setupEventListeners() {
             }
         });
     }
+
+    // フィルター全クリアボタン
+    const btnClearAllFilters = document.getElementById('btnClearAllFilters');
+    if (btnClearAllFilters) {
+        btnClearAllFilters.addEventListener('click', () => {
+            clearAllColumnFilters();
+        });
+    }
+}
+
+/**
+ * 現在の列フィルターを適用した行一覧を取得
+ */
+function getFilteredRows() {
+    const activeFilters = Object.entries(AppState.columnFilters).filter(([_, v]) => v !== undefined && v !== null && v !== '');
+    if (activeFilters.length === 0) return AppState.rawRows;
+
+    return AppState.rawRows.filter(r => {
+        return activeFilters.every(([col, val]) => {
+            const rawVal = r[col];
+            const strVal = (rawVal !== undefined && rawVal !== null && String(rawVal).trim() !== '') ? String(rawVal).trim() : '（未設定）';
+            return strVal === val;
+        });
+    });
+}
+
+/**
+ * 列フィルターを設定
+ */
+function setColumnFilter(col, val) {
+    if (val === undefined || val === null || val === '') {
+        delete AppState.columnFilters[col];
+    } else {
+        AppState.columnFilters[col] = String(val).trim();
+    }
+    AppState.previewPage = 1;
+    renderDataPreview();
+    updateRunButtons();
+}
+
+/**
+ * すべての列フィルターを解除
+ */
+function clearAllColumnFilters() {
+    AppState.columnFilters = {};
+    AppState.previewPage = 1;
+    renderDataPreview();
+    updateRunButtons();
+}
+
+/**
+ * 分析スタートボタンの表記・ヒントを更新
+ */
+function updateRunButtons() {
+    const btnRun = document.getElementById('btnRunAnalysis');
+    const btnRunTop = document.getElementById('btnRunAnalysisTop');
+    const runHint = document.querySelector('.run-action-hint');
+    const filteredRows = getFilteredRows();
+    const isFiltered = Object.keys(AppState.columnFilters).length > 0;
+    const filterDesc = Object.entries(AppState.columnFilters).map(([c, v]) => `${c}＝${v}`).join(', ');
+
+    if (btnRun) {
+        if (isFiltered) {
+            btnRun.innerHTML = `<span class="btn-icon">🚀</span><span class="btn-text">絞り込んだ ${filteredRows.length}件 で分析スタート</span>`;
+            if (runHint) runHint.innerHTML = `※ 絞り込み条件（<b>${escapeHtml(filterDesc)}</b>）に合致した ${filteredRows.length}件 のみを対象に分析します`;
+        } else {
+            btnRun.innerHTML = `<span class="btn-icon">🚀</span><span class="btn-text">分析スタート</span>`;
+            if (runHint) runHint.textContent = `※設定とデータを確認したら、ここをクリックして分析（形態素解析・因子分解）を開始します`;
+        }
+    }
+    if (btnRunTop) {
+        if (isFiltered) {
+            btnRunTop.textContent = `🚀 ${filteredRows.length}件を分析`;
+        } else {
+            btnRunTop.textContent = `🚀 分析スタート`;
+        }
+    }
+}
+
+/**
+ * 適用中フィルターバー（#activeFiltersBar）のUI更新
+ */
+function updateActiveFiltersBar() {
+    const bar = document.getElementById('activeFiltersBar');
+    const list = document.getElementById('activeFiltersList');
+    const countInfo = document.getElementById('activeFiltersCountInfo');
+    if (!bar || !list) return;
+
+    const activeEntries = Object.entries(AppState.columnFilters).filter(([_, v]) => v !== undefined && v !== null && v !== '');
+    if (activeEntries.length === 0) {
+        bar.style.display = 'none';
+        list.innerHTML = '';
+        return;
+    }
+
+    bar.style.display = 'flex';
+    list.innerHTML = '';
+
+    activeEntries.forEach(([col, val]) => {
+        const tag = document.createElement('span');
+        tag.className = 'filter-tag';
+        tag.innerHTML = `
+            <span>${escapeHtml(col)}: <b>${escapeHtml(val)}</b></span>
+            <button type="button" class="filter-tag-del" title="${escapeHtml(col)}のフィルターを解除" data-col="${escapeHtml(col)}">&times;</button>
+        `;
+        tag.querySelector('.filter-tag-del').addEventListener('click', () => {
+            setColumnFilter(col, '');
+        });
+        list.appendChild(tag);
+    });
+
+    const filteredRows = getFilteredRows();
+    if (countInfo) {
+        countInfo.textContent = `全 ${AppState.rawRows.length}件中 ${filteredRows.length}件 に絞り込み中`;
+    }
+}
+
+/**
+ * Excel風ヘッダーフィルターメニューの表示
+ */
+function showColumnFilterMenu(triggerBtn, colName) {
+    let menu = document.getElementById('excelFilterMenu');
+    if (!menu) {
+        menu = document.createElement('div');
+        menu.id = 'excelFilterMenu';
+        menu.className = 'excel-filter-menu';
+        document.body.appendChild(menu);
+
+        // 外側クリックで閉じる
+        document.addEventListener('click', (e) => {
+            if (!menu.contains(e.target) && !e.target.closest('.btn-th-filter')) {
+                menu.style.display = 'none';
+            }
+        });
+    }
+
+    // 既に開いている同じ列ボタンなら閉じる
+    if (menu.style.display === 'block' && menu.getAttribute('data-target-col') === colName) {
+        menu.style.display = 'none';
+        return;
+    }
+
+    menu.setAttribute('data-target-col', colName);
+    menu.innerHTML = '';
+
+    // タイトル
+    const headerEl = document.createElement('div');
+    headerEl.className = 'excel-filter-menu-header';
+    headerEl.textContent = `【${colName}】で絞り込み`;
+    menu.appendChild(headerEl);
+
+    // その列のユニーク値と件数を集計（他の列フィルターを考慮した候補件数）
+    const otherFilters = { ...AppState.columnFilters };
+    delete otherFilters[colName];
+    const otherFilteredRows = AppState.rawRows.filter(r => {
+        return Object.entries(otherFilters).every(([c, v]) => {
+            const raw = r[c];
+            const str = (raw !== undefined && raw !== null && String(raw).trim() !== '') ? String(raw).trim() : '（未設定）';
+            return str === v;
+        });
+    });
+
+    const valCounts = {};
+    otherFilteredRows.forEach(r => {
+        const raw = r[colName];
+        const val = (raw !== undefined && raw !== null && String(raw).trim() !== '') ? String(raw).trim() : '（未設定）';
+        valCounts[val] = (valCounts[val] || 0) + 1;
+    });
+
+    const ORDER_MAP = {
+        '大変不満': 1, '不満': 2, 'やや不満': 3, 'どちらともいえない': 4, '普通': 4, 'やや満足': 5, '満足': 6, '大変満足': 7,
+        '非常に不満': 1, '非常に満足': 7, '悪い': 1, 'やや悪い': 2, '良い': 4, '大変良い': 5,
+        '低': 1, '中': 2, '高': 3
+    };
+
+    const sortedVals = Object.keys(valCounts).sort((a, b) => {
+        if (a === '（未設定）') return 1;
+        if (b === '（未設定）') return -1;
+        if (ORDER_MAP[a] && ORDER_MAP[b]) return ORDER_MAP[a] - ORDER_MAP[b];
+        const numA = (a.match(/\d+/) || [])[0];
+        const numB = (b.match(/\d+/) || [])[0];
+        if (numA !== undefined && numB !== undefined && numA !== numB) {
+            return parseInt(numA, 10) - parseInt(numB, 10);
+        }
+        return a.localeCompare(b, 'ja');
+    });
+
+    // (すべて) 項目
+    const itemAll = document.createElement('div');
+    const isCurrentAll = !AppState.columnFilters[colName];
+    itemAll.className = `excel-filter-item ${isCurrentAll ? 'selected' : ''}`;
+    itemAll.innerHTML = `<span>${isCurrentAll ? '✓ ' : ''}(すべて)</span><span class="excel-filter-item-count">${otherFilteredRows.length}件</span>`;
+    itemAll.addEventListener('click', () => {
+        setColumnFilter(colName, '');
+        menu.style.display = 'none';
+    });
+    menu.appendChild(itemAll);
+
+    // 各ユニーク値項目
+    sortedVals.forEach(val => {
+        const item = document.createElement('div');
+        const isSelected = AppState.columnFilters[colName] === val;
+        item.className = `excel-filter-item ${isSelected ? 'selected' : ''}`;
+        item.innerHTML = `<span>${isSelected ? '✓ ' : ''}${escapeHtml(val)}</span><span class="excel-filter-item-count">${valCounts[val]}件</span>`;
+        item.addEventListener('click', () => {
+            setColumnFilter(colName, val);
+            menu.style.display = 'none';
+        });
+        menu.appendChild(item);
+    });
+
+    // 位置合わせ（トリガーボタンの直下）
+    const rect = triggerBtn.getBoundingClientRect();
+    menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
+    menu.style.left = `${Math.min(window.innerWidth - 220, Math.max(10, rect.left + window.scrollX - 20))}px`;
+    menu.style.display = 'block';
 }
 
 /**
@@ -430,6 +647,7 @@ function processParsedData(parsed, fileName) {
     AppState.headers = parsed.headers;
     AppState.rawRows = parsed.rows;
     AppState.loadedFileName = fileName;
+    AppState.columnFilters = {};
 
     const selectTextCol = document.getElementById('selectTextCol');
     const selectAttrCol = document.getElementById('selectAttrCol');
@@ -522,20 +740,41 @@ function renderDataPreview() {
     const btnNextPage = document.getElementById('btnNextPage');
     const btnFilterWarnings = document.getElementById('btnFilterWarnings');
 
-    // 1. 全行の入力品質判定
-    const allAssessed = AppState.rawRows.map((row, idx) => {
+    // 1. 列フィルター（Excelオートフィルター）の適用と入力品質判定
+    const activeFilters = Object.entries(AppState.columnFilters).filter(([_, v]) => v !== undefined && v !== null && v !== '');
+    const filteredRowsWithIdx = [];
+
+    AppState.rawRows.forEach((row, idx) => {
+        const matches = activeFilters.every(([col, val]) => {
+            const rawVal = row[col];
+            const strVal = (rawVal !== undefined && rawVal !== null && String(rawVal).trim() !== '') ? String(rawVal).trim() : '（未設定）';
+            return strVal === val;
+        });
+        if (matches) {
+            filteredRowsWithIdx.push({ row, idx });
+        }
+    });
+
+    const allAssessed = filteredRowsWithIdx.map(({ row, idx }) => {
         const quality = TextPreprocessor.checkQuality(row[AppState.textColumn]);
         return { row, idx, quality };
     });
 
-    const totalCount = allAssessed.length;
+    const totalCount = AppState.rawRows.length;
+    const filteredCount = allAssessed.length;
     const problemItems = allAssessed.filter(item => item.quality.isProblem);
     const problemCount = problemItems.length;
     const emptyCount = allAssessed.filter(item => item.quality.status === 'empty').length;
     const junkCount = problemCount - emptyCount;
 
     // バッジとアラートの更新
-    if (previewStatsBadge) previewStatsBadge.textContent = `全 ${totalCount} 件`;
+    if (previewStatsBadge) {
+        if (activeFilters.length > 0) {
+            previewStatsBadge.textContent = `全 ${totalCount} 件中 ${filteredCount} 件`;
+        } else {
+            previewStatsBadge.textContent = `全 ${totalCount} 件`;
+        }
+    }
     if (warningRowCount) warningRowCount.textContent = problemCount;
 
     if (problemCount > 0) {
@@ -555,7 +794,11 @@ function renderDataPreview() {
         }
     }
 
-    // 2. 表示対象リストの決定（フィルター反映）
+    // 適用中フィルターバーと実行ボタンの更新
+    updateActiveFiltersBar();
+    updateRunButtons();
+
+    // 2. 表示対象リストの決定（品質フィルター反映）
     let itemsToDisplay = AppState.previewFilterWarning ? problemItems : allAssessed;
 
     // 3. 表示モード（先頭5件 vs 全件・ページネーション）
@@ -564,7 +807,7 @@ function renderDataPreview() {
         pageItems = itemsToDisplay.slice(0, 5);
         if (previewPagination) previewPagination.style.display = 'none';
         if (previewShowingInfo) {
-            previewShowingInfo.textContent = `先頭 ${pageItems.length} 件を表示中 (全 ${totalCount} 件)`;
+            previewShowingInfo.textContent = `先頭 ${pageItems.length} 件を表示中 (対象: ${filteredCount} 件 / 全 ${totalCount} 件)`;
         }
     } else {
         // 全行表示モード（50件/ページ）
@@ -587,26 +830,47 @@ function renderDataPreview() {
 
         const showStart = itemsToDisplay.length > 0 ? (startIdx + 1) : 0;
         if (previewShowingInfo) {
-            previewShowingInfo.textContent = `${showStart}〜${endIdx} 件を表示中 (対象: ${itemsToDisplay.length} 件 / 全 ${totalCount} 件)`;
+            previewShowingInfo.textContent = `${showStart}〜${endIdx} 件を表示中 (対象: ${filteredCount} 件 / 全 ${totalCount} 件)`;
         }
     }
 
-    // 4. テーブルヘッダーの描画
+    // 4. テーブルヘッダーの描画（各列にExcel風フィルターボタンを付与）
     if (thead) {
         let theadHtml = '<th class="col-check"><input type="checkbox" id="checkSelectAll" title="表示中の行をすべて選択 / 解除"></th>';
         theadHtml += '<th style="width: 45px; text-align: center;">#</th>';
         AppState.headers.forEach(h => {
-            if (h === AppState.textColumn) {
-                theadHtml += `<th class="col-target">${escapeHtml(h)} <span class="badge-col-target">自由記述</span></th>`;
-            } else if (h === AppState.attributeColumn) {
-                theadHtml += `<th class="col-attr">${escapeHtml(h)} <span class="badge-col-attr">属性</span></th>`;
-            } else {
-                theadHtml += `<th>${escapeHtml(h)}</th>`;
-            }
+            const isTarget = (h === AppState.textColumn);
+            const isAttr = (h === AppState.attributeColumn);
+            const hasFilter = !!AppState.columnFilters[h];
+            const colClass = isTarget ? 'col-target' : (isAttr ? 'col-attr' : '');
+            const badgeHtml = isTarget ? '<span class="badge-col-target">自由記述</span>' : (isAttr ? '<span class="badge-col-attr">属性</span>' : '');
+
+            // 自由記述列以外にフィルターボタンを付与
+            const filterBtnHtml = !isTarget ? `
+                <button type="button" class="btn-th-filter ${hasFilter ? 'has-filter' : ''}" data-col="${escapeHtml(h)}" title="${escapeHtml(h)} で絞り込み">
+                    ${hasFilter ? '▼ 絞込中' : '▼'}
+                </button>
+            ` : '';
+
+            theadHtml += `<th class="${colClass}">
+                <div class="th-header-inner">
+                    <span>${escapeHtml(h)} ${badgeHtml}</span>
+                    ${filterBtnHtml}
+                </div>
+            </th>`;
         });
         theadHtml += '<th style="width: 90px; text-align: center;">入力状態</th>';
         theadHtml += '<th style="width: 45px; text-align: center;">削除</th>';
         thead.innerHTML = theadHtml;
+
+        // フィルターボタンのイベントリスナー登録
+        thead.querySelectorAll('.btn-th-filter').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const col = btn.getAttribute('data-col');
+                if (col) showColumnFilterMenu(btn, col);
+            });
+        });
     }
 
     // 5. テーブルボディの描画
@@ -840,11 +1104,17 @@ async function runFullPipeline() {
         await TextPreprocessor.init();
 
         showLoading('アンケートテキストを前処理中...');
-        // 2. 有効回答の抽出（無意味回答および自立語なし文のスキップ）
+        // 2. 絞り込み条件（オートフィルター）を満たす行を取得
+        const rowsToAnalyze = getFilteredRows();
+        if (rowsToAnalyze.length === 0) {
+            alert('絞り込み条件に一致するデータが0件です。フィルター条件を変更してください。');
+            return;
+        }
+
         const validResponses = [];
         let junkCount = 0;
 
-        AppState.rawRows.forEach((r, idx) => {
+        rowsToAnalyze.forEach((r, idx) => {
             const rawText = r[AppState.textColumn];
             const textStr = (rawText !== undefined && rawText !== null) ? String(rawText).trim() : '';
 
@@ -1409,6 +1679,20 @@ function updatePrintMetaInfo() {
     if (printDate2) printDate2.textContent = `出力日時: ${nowStr}`;
     if (printDateLast) printDateLast.textContent = `出力日時: ${nowStr}`;
     if (printValidCount) printValidCount.textContent = validCount.toLocaleString();
+
+    // 絞り込み条件（オートフィルター）の反映
+    const printFilterWrapper = document.getElementById('printFilterWrapper');
+    const printFilterConditions = document.getElementById('printFilterConditions');
+    const filterEntries = Object.entries(AppState.columnFilters || {});
+    if (printFilterWrapper && printFilterConditions) {
+        if (filterEntries.length > 0) {
+            printFilterWrapper.style.display = 'inline';
+            printFilterConditions.textContent = filterEntries.map(([col, val]) => `${col}＝「${val}」`).join(' AND ');
+        } else {
+            printFilterWrapper.style.display = 'none';
+            printFilterConditions.textContent = '-';
+        }
+    }
 
     if (printPage1Label) {
         printPage1Label.textContent = `1 / ${totalPages} ページ (サマリー)`;

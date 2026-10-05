@@ -138,6 +138,18 @@
                         </div>
                     </div>
 
+                    <!-- 適用中のフィルター表示バー (Excelオートフィルター) -->
+                    <div id="activeFiltersBar" class="active-filters-bar" style="display: none;">
+                        <div class="active-filters-inner">
+                            <span class="active-filters-label">🔍 絞り込み条件:</span>
+                            <div id="activeFiltersList" class="active-filters-list"></div>
+                            <button type="button" id="btnClearAllFilters" class="btn btn-xs btn-outline-clear" title="すべての絞り込み条件を解除">
+                                ✕ すべてクリア
+                            </button>
+                        </div>
+                        <span id="activeFiltersCountInfo" class="active-filters-count">全0件中 0件 に絞り込み中</span>
+                    </div>
+
                     <!-- プレビューテーブルラッパー -->
                     <div class="preview-table-wrapper">
                         <table class="preview-table">
@@ -181,7 +193,7 @@
                     <div>
                         <h1 style="font-size: 16pt; font-weight: 800; color: #1E293B; margin: 0; line-height: 1.2;">アンケート自由記述 潜在因子分析レポート</h1>
                         <div style="font-size: 9pt; color: #64748B; margin-top: 3px;">
-                            分析対象: <b id="printFileName" style="color:#1E293B;">-</b> │ 出力日時: <span id="printDate">-</span> │ 有効回答: <b id="printValidCount">-</b> 件
+                            分析対象: <b id="printFileName" style="color:#1E293B;">-</b> │ 出力日時: <span id="printDate">-</span> │ 有効回答: <b id="printValidCount">-</b> 件<span id="printFilterWrapper" style="display: none;"> │ 絞り込み条件: <b id="printFilterConditions" style="color:#2563EB;">-</b></span>
                         </div>
                     </div>
                     <div style="text-align: right;">
