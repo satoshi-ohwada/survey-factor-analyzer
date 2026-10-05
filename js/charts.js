@@ -552,6 +552,104 @@ const ChartRenderer = {
     },
 
     /**
+     * 属性値の自然順序ソート
+     * 1. 「（未設定）」は常に最後尾
+     * 2. 全角数字・丸数字・括弧数字の半角数値正規化、および先頭の番号（例: 1. 2. ① (1)）による昇順ソート
+     * 3. 評価尺度（満足度、改善・変化度、品質・評価、高低・大小等）の定義済み順序
+     * 4. 年代などの数値抽出ソート（20代 vs 30代）
+     * 5. 日本語五十音順（localeCompare）
+     * @param {Iterable<string>} attrList 
+     * @returns {string[]}
+     */
+    sortAttributeValues(attrList) {
+        // 定義済みの評価尺度順序マップ（ポジティブ/高位から順に設定）
+        const ORDER_MAP = {
+            // 改善・変化尺度
+            '非常に良くなっている': 1, 'かなり良くなっている': 1, '大きく改善': 1, '大いに改善': 1,
+            '良くなっている': 2, '改善している': 2, '改善した': 2, '良くなった': 2,
+            'やや良くなっている': 3, '少し良くなっている': 3, 'やや改善している': 3, 'やや改善': 3, '少し改善': 3,
+            '変わらない': 4, '変化なし': 4, 'どちらともいえない': 4, '普通': 4, '同等': 4, '同じ': 4,
+            'やや悪くなっている': 5, '少し悪くなっている': 5, 'やや悪化している': 5, 'やや悪化': 5, '少し悪化': 5,
+            '悪くなっている': 6, '悪化している': 6, '悪化した': 6, '悪くなった': 6,
+            '非常に悪くなっている': 7, 'かなり悪くなっている': 7, '大きく悪化': 7,
+
+            // 満足度尺度
+            '大変満足': 1, '非常に満足': 1, 'とても満足': 1,
+            '満足': 2,
+            'やや満足': 3, '少し満足': 3,
+            'やや不満': 5, '少し不満': 5,
+            '不満': 6,
+            '大変不満': 7, '非常に不満': 7, 'とても不満': 7,
+
+            // 評価・品質尺度
+            '大変良い': 1, '非常に良い': 1, 'とても良い': 1,
+            '良い': 2,
+            'やや良い': 3, '少し良い': 3,
+            'やや悪い': 5, '少し悪い': 5,
+            '悪い': 6,
+            '大変悪い': 7, '非常に悪い': 7, 'とても悪い': 7,
+
+            // 高低・大小・頻度尺度
+            '高': 1, '高い': 1, '中': 2, '低': 3, '低い': 3,
+            '大': 1, '小': 3,
+            '多い': 1, '少ない': 3,
+            '頻繁に': 1, '時々': 2, 'たまに': 3, 'ほとんどない': 4, '全くない': 5
+        };
+
+        // 全角数字・丸数字などを半角数値に正規化して先頭の数値を抽出
+        const getLeadingNumber = (str) => {
+            if (!str) return null;
+            // 丸数字 ①〜⑳ (Unicode: 0x2460 - 0x2473)
+            const firstCharCode = str.charCodeAt(0);
+            if (firstCharCode >= 0x2460 && firstCharCode <= 0x2473) {
+                return firstCharCode - 0x2460 + 1;
+            }
+            // 全角数字を半角数字に変換
+            const halfStr = str.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+            // 先頭の数字（例: "1", "1.", "1_", "1-", "(1)", "【1】", "1 " など）
+            const match = halfStr.match(/^[\(\[\{【]?(\d+)[\)\]\}】._\s、。\-\:]*/);
+            if (match) {
+                return parseInt(match[1], 10);
+            }
+            return null;
+        };
+
+        return Array.from(attrList).sort((a, b) => {
+            const strA = String(a !== undefined && a !== null ? a : '').trim();
+            const strB = String(b !== undefined && b !== null ? b : '').trim();
+
+            if (strA === '（未設定）' || strA === '') return 1;
+            if (strB === '（未設定）' || strB === '') return -1;
+
+            // 1. 先頭の数値（1〜5、①〜⑤、１〜５など）による昇順ソート
+            const leadA = getLeadingNumber(strA);
+            const leadB = getLeadingNumber(strB);
+            if (leadA !== null && leadB !== null && leadA !== leadB) {
+                return leadA - leadB;
+            }
+
+            // 2. 定義済みの評価尺度順序によるソート
+            const rankA = ORDER_MAP[strA];
+            const rankB = ORDER_MAP[strB];
+            if (rankA !== undefined && rankB !== undefined && rankA !== rankB) {
+                return rankA - rankB;
+            }
+
+            // 3. 文字列中に含まれる数値によるソート（年代など: 例 '20代' vs '30代'）
+            const halfA = strA.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+            const halfB = strB.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+            const numA = (halfA.match(/\d+/) || [])[0];
+            const numB = (halfB.match(/\d+/) || [])[0];
+            if (numA !== undefined && numB !== undefined && numA !== numB) {
+                return parseInt(numA, 10) - parseInt(numB, 10);
+            }
+
+            // 4. 日本語五十音順（localeCompare）
+            return strA.localeCompare(strB, 'ja');
+        });
+    },
+
+    /**
      * 属性別クロス集計チャートを描画
      * @param {string} containerId 
      * @param {any[]} responsesWithTheme 
@@ -575,25 +673,12 @@ const ChartRenderer = {
             counts[attrVal][r.primaryThemeId] = (counts[attrVal][r.primaryThemeId] || 0) + 1;
         });
 
-        // 属性の自然順序ソート（年代・数値・評価尺度・未設定対応）
-        const ORDER_MAP = {
-            '大変不満': 1, '不満': 2, 'やや不満': 3, 'どちらともいえない': 4, '普通': 4, 'やや満足': 5, '満足': 6, '大変満足': 7,
-            '非常に不満': 1, '非常に満足': 7, '悪い': 1, 'やや悪い': 2, '良い': 4, '大変良い': 5,
-            '低': 1, '中': 2, '高': 3
-        };
+        // 属性の自然順序ソート（評価尺度・数値・未設定対応）
+        const sortedAttrs = this.sortAttributeValues(attrValues);
 
-        const sortedAttrs = Array.from(attrValues).sort((a, b) => {
-            if (a === '（未設定）') return 1;
-            if (b === '（未設定）') return -1;
-            if (ORDER_MAP[a] && ORDER_MAP[b]) return ORDER_MAP[a] - ORDER_MAP[b];
-            // 年代や数値を含む場合は数値の昇順で比較（例: '20代' vs '30代'）
-            const numA = (a.match(/\d+/) || [])[0];
-            const numB = (b.match(/\d+/) || [])[0];
-            if (numA !== undefined && numB !== undefined && numA !== numB) {
-                return parseInt(numA, 10) - parseInt(numB, 10);
-            }
-            return a.localeCompare(b, 'ja');
-        });
+        // ラベルの最大文字長さに応じた左余白の動的計算（見切れ防止: 最小110px〜最大260px）
+        const maxLabelLen = Math.max(...sortedAttrs.map(a => String(a).length), 4);
+        const dynamicMarginL = Math.max(110, Math.min(260, maxLabelLen * 14 + 25));
 
         const traces = themes.map((theme, tIdx) => {
             const percentages = sortedAttrs.map(attr => {
@@ -628,10 +713,12 @@ const ChartRenderer = {
                 ticksuffix: '%'
             },
             yaxis: {
-                autorange: 'reversed'
+                autorange: 'reversed',
+                automargin: true,
+                tickfont: { size: 12, color: '#334155' }
             },
-            margin: { l: 90, r: 30, t: 50, b: 50 },
-            height: Math.max(260, sortedAttrs.length * 45 + 100),
+            margin: { l: dynamicMarginL, r: 30, t: 50, b: 50 },
+            height: Math.max(260, sortedAttrs.length * 48 + 100),
             paper_bgcolor: 'rgba(0,0,0,0)',
             plot_bgcolor: '#FAFAFC',
             legend: {
@@ -736,23 +823,7 @@ const ChartRenderer = {
         const rangeY = [Math.max(0, minY - padY), maxY + padY];
 
         // 2. 属性値の自然順序ソート
-        const ORDER_MAP = {
-            '大変不満': 1, '不満': 2, 'やや不満': 3, 'どちらともいえない': 4, '普通': 4, 'やや満足': 5, '満足': 6, '大変満足': 7,
-            '非常に不満': 1, '非常に満足': 7, '悪い': 1, 'やや悪い': 2, '良い': 4, '大変良い': 5,
-            '低': 1, '中': 2, '高': 3
-        };
-
-        const sortedAttrs = Object.keys(attrGroups).sort((a, b) => {
-            if (a === '（未設定）') return 1;
-            if (b === '（未設定）') return -1;
-            if (ORDER_MAP[a] && ORDER_MAP[b]) return ORDER_MAP[a] - ORDER_MAP[b];
-            const numA = (a.match(/\d+/) || [])[0];
-            const numB = (b.match(/\d+/) || [])[0];
-            if (numA !== undefined && numB !== undefined && numA !== numB) {
-                return parseInt(numA, 10) - parseInt(numB, 10);
-            }
-            return a.localeCompare(b, 'ja');
-        });
+        const sortedAttrs = this.sortAttributeValues(Object.keys(attrGroups));
 
         // 3. 全体情報ヘッダー＆スモールマルチプルズのグリッドDOM作成
         const wrapper = document.createElement('div');
