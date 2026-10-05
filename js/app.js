@@ -925,13 +925,22 @@ function renderResults(validResponses, junkCount, result, tfidfData) {
     // 【図3】因子空間ポジショニングマップ
     updateFactorSpaceMap();
 
-    // 【図4】属性別クロス集計チャート（属性列が指定されている場合）
-    const crossTabCard = document.getElementById('crossTabCard');
+    // 属性別分析セクション（属性列が指定されている場合: 図4クロス集計 ＆ 図5スモールマルチプルズ）
+    const attrSection = document.getElementById('attributeAnalysisSection');
     if (AppState.attributeColumn) {
-        crossTabCard.style.display = 'block';
+        if (attrSection) attrSection.style.display = 'block';
         ChartRenderer.renderCrossTabChart('chartCrossTab', result.responsesWithTheme, result.themes, AppState.attributeColumn);
+        ChartRenderer.renderAttributeSmallMultiples('chartAttrMultiples', {
+            xFactorIdx: AppState.mapAxisX,
+            yFactorIdx: AppState.mapAxisY,
+            themes: result.themes,
+            responsesWithTheme: result.responsesWithTheme,
+            W: result.W,
+            attributeCol: AppState.attributeColumn,
+            onPointClick: (pointData) => showResponseModal(pointData)
+        });
     } else {
-        crossTabCard.style.display = 'none';
+        if (attrSection) attrSection.style.display = 'none';
     }
 
     // 【各因子の詳細カード】
@@ -1046,8 +1055,21 @@ function updateFactorSpaceMap() {
         W,
         H,
         vocabulary,
+        attributeCol: AppState.attributeColumn,
         onPointClick: (pointData) => showResponseModal(pointData)
     });
+
+    if (AppState.attributeColumn) {
+        ChartRenderer.renderAttributeSmallMultiples('chartAttrMultiples', {
+            xFactorIdx: AppState.mapAxisX,
+            yFactorIdx: AppState.mapAxisY,
+            themes,
+            responsesWithTheme,
+            W,
+            attributeCol: AppState.attributeColumn,
+            onPointClick: (pointData) => showResponseModal(pointData)
+        });
+    }
 }
 
 /**
@@ -1065,11 +1087,17 @@ function renderThemeCards(themes) {
         card.style.borderLeftColor = color;
 
         // 代表回答HTML
-        const responsesHtml = theme.representativeResponses.map((r, rIdx) => `
-            <div class="response-item">
-                <b>${rIdx + 1}.</b> 「${escapeHtml(r.text)}」
-            </div>
-        `).join('') || '<div class="response-item" style="color:#94A3B8;">該当する代表意見がありません</div>';
+        const responsesHtml = theme.representativeResponses.map((r, rIdx) => {
+            const rawAttr = (r.row && AppState.attributeColumn) ? r.row[AppState.attributeColumn] : null;
+            const attrBadge = (rawAttr !== undefined && rawAttr !== null && String(rawAttr).trim() !== '')
+                ? `<span class="badge-attr">${escapeHtml(String(rawAttr).trim())}</span>`
+                : '';
+            return `
+                <div class="response-item">
+                    <b>${rIdx + 1}.</b> ${attrBadge}「${escapeHtml(r.text)}」
+                </div>
+            `;
+        }).join('') || '<div class="response-item" style="color:#94A3B8;">該当する代表意見がありません</div>';
 
         card.innerHTML = `
             <div class="theme-card-header">
@@ -1154,12 +1182,18 @@ function showResponseModal(pointData) {
     const modalTitle = document.getElementById('modalTitle');
     const modalBody = document.getElementById('modalBody');
 
+    const rawAttr = pointData.attrVal || (pointData.row && AppState.attributeColumn ? pointData.row[AppState.attributeColumn] : null);
+    const attrHtml = (rawAttr !== undefined && rawAttr !== null && String(rawAttr).trim() !== '')
+        ? `<span class="badge-attr" style="font-size:12px; padding:4px 8px;">${escapeHtml(AppState.attributeColumn)}: ${escapeHtml(String(rawAttr).trim())}</span>`
+        : '';
+
     modalTitle.textContent = `回答詳細 (ID: ${pointData.id || '-'})`;
     modalBody.innerHTML = `
-        <div style="margin-bottom: 12px;">
+        <div style="margin-bottom: 12px; display:flex; align-items:center; flex-wrap:wrap; gap:8px;">
             <span class="badge-rec" style="font-size:12px; padding:4px 8px;">
                 主所属因子: ${escapeHtml(pointData.themeLabel)}
             </span>
+            ${attrHtml}
         </div>
         <div style="background:#F8FAFC; border:1px solid #E2E8F0; padding:16px; border-radius:8px; font-size:14px; line-height:1.6; white-space: pre-wrap; word-break: break-word;">
             ${escapeHtml(pointData.text)}
@@ -1185,15 +1219,25 @@ window.showAllThemeResponses = function(themeId) {
 
     modalTitle.textContent = `${theme.label} の全回答一覧（${matchedResponses.length}件）`;
 
-    const rowsHtml = matchedResponses.map((r, i) => `
-        <tr style="border-bottom:1px solid #E2E8F0;">
-            <td style="padding:10px 8px; font-weight:700; color:#64748B;">${i + 1}</td>
-            <td style="padding:10px 8px; color:#1E293B; white-space: pre-wrap; word-break: break-word;">${escapeHtml(r.text)}</td>
-            <td style="padding:10px 8px; text-align:right; font-weight:600; color:#2563EB;">
-                ${Math.round(r.confidence * 100)}%
-            </td>
-        </tr>
-    `).join('');
+    const hasAttr = !!AppState.attributeColumn;
+    const attrHeaderHtml = hasAttr ? `<th style="padding:8px; width:110px;">${escapeHtml(AppState.attributeColumn)}</th>` : '';
+
+    const rowsHtml = matchedResponses.map((r, i) => {
+        const rawAttr = (hasAttr && r.row) ? r.row[AppState.attributeColumn] : '';
+        const attrVal = (rawAttr !== undefined && rawAttr !== null && String(rawAttr).trim() !== '') ? String(rawAttr).trim() : '（未設定）';
+        const attrCellHtml = hasAttr ? `<td style="padding:10px 8px; color:#475569; font-size:12px;"><span class="badge-attr">${escapeHtml(attrVal)}</span></td>` : '';
+
+        return `
+            <tr style="border-bottom:1px solid #E2E8F0;">
+                <td style="padding:10px 8px; font-weight:700; color:#64748B;">${i + 1}</td>
+                ${attrCellHtml}
+                <td style="padding:10px 8px; color:#1E293B; white-space: pre-wrap; word-break: break-word;">${escapeHtml(r.text)}</td>
+                <td style="padding:10px 8px; text-align:right; font-weight:600; color:#2563EB;">
+                    ${Math.round(r.confidence * 100)}%
+                </td>
+            </tr>
+        `;
+    }).join('');
 
     modalBody.innerHTML = `
         <div style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
@@ -1205,6 +1249,7 @@ window.showAllThemeResponses = function(themeId) {
                 <thead style="background:#F1F5F9; position:sticky; top:0;">
                     <tr>
                         <th style="padding:8px; width:40px;">#</th>
+                        ${attrHeaderHtml}
                         <th style="padding:8px;">回答文</th>
                         <th style="padding:8px; width:80px; text-align:right;">適合度</th>
                     </tr>
@@ -1234,18 +1279,27 @@ window.exportThemeCsv = function(themeId) {
         return `"${str.replace(/"/g, '""')}"`;
     };
 
+    const hasAttr = !!AppState.attributeColumn;
+    const headerRow = ['No', 'ID', '因子名'];
+    if (hasAttr) headerRow.push(AppState.attributeColumn);
+    headerRow.push('適合度(%)', '回答本文');
+
     const csvData = [
-        ['No', 'ID', '因子名', '適合度(%)', '回答本文'].map(escapeCsv)
+        headerRow.map(escapeCsv)
     ];
 
     matchedResponses.forEach((r, idx) => {
-        csvData.push([
+        const rowData = [
             idx + 1,
             r.id,
-            theme.label,
-            Math.round(r.confidence * 100),
-            r.text
-        ].map(escapeCsv));
+            theme.label
+        ];
+        if (hasAttr) {
+            const rawAttr = r.row ? r.row[AppState.attributeColumn] : '';
+            rowData.push(rawAttr !== undefined && rawAttr !== null ? String(rawAttr).trim() : '');
+        }
+        rowData.push(Math.round(r.confidence * 100), r.text);
+        csvData.push(rowData.map(escapeCsv));
     });
 
     const csvContent = "\uFEFF" + csvData.map(e => e.join(",")).join("\r\n");
@@ -1267,16 +1321,33 @@ function updatePrintMetaInfo() {
         hour: '2-digit', minute: '2-digit'
     });
     const validCount = (AppState.validResponses || []).length;
+    const hasAttr = !!AppState.attributeColumn;
+    const totalPages = hasAttr ? 3 : 2;
 
     const printFileName = document.getElementById('printFileName');
     const printDate = document.getElementById('printDate');
     const printDate2 = document.getElementById('printDate2');
+    const printDateLast = document.getElementById('printDateLast');
     const printValidCount = document.getElementById('printValidCount');
+    const printPage1Label = document.getElementById('printPage1Label');
+    const printPage2Title = document.getElementById('printPage2Title');
+    const printLastPageTitle = document.getElementById('printLastPageTitle');
 
     if (printFileName) printFileName.textContent = fileName;
     if (printDate) printDate.textContent = nowStr;
     if (printDate2) printDate2.textContent = `出力日時: ${nowStr}`;
+    if (printDateLast) printDateLast.textContent = `出力日時: ${nowStr}`;
     if (printValidCount) printValidCount.textContent = validCount.toLocaleString();
+
+    if (printPage1Label) {
+        printPage1Label.textContent = `1 / ${totalPages} ページ (サマリー)`;
+    }
+    if (printPage2Title) {
+        printPage2Title.textContent = `アンケート自由記述 潜在因子分析レポート - 2 / ${totalPages} ページ（属性別クロス集計 ＆ 意見ポジショニング分布）`;
+    }
+    if (printLastPageTitle) {
+        printLastPageTitle.textContent = `アンケート自由記述 潜在因子分析レポート - ${totalPages} / ${totalPages} ページ（各因子の詳細 ＆ 生の声）`;
+    }
 }
 
 /**

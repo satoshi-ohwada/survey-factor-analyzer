@@ -186,7 +186,7 @@
                     </div>
                     <div style="text-align: right;">
                         <div style="font-size: 9.5pt; font-weight: 700; color: #2563EB;">Survey Factor Analyzer</div>
-                        <div style="font-size: 8pt; color: #64748B;">1 / 2 ページ (サマリー)</div>
+                        <div id="printPage1Label" style="font-size: 8pt; color: #64748B;">1 / 2 ページ (サマリー)</div>
                     </div>
                 </div>
             </div>
@@ -324,17 +324,34 @@
                 </div>
             </div>
 
-            <!-- 図4: 属性別クロス集計（属性列がある場合のみ表示） -->
-            <div id="crossTabCard" class="chart-card" style="display: none; margin-bottom: 24px;">
-                <div id="chartCrossTab"></div>
+            <!-- 属性別分析セクション（属性列がある場合のみ表示） -->
+            <div id="attributeAnalysisSection" style="display: none; margin-bottom: 24px;">
+                <!-- 印刷用改ページ (属性あり時: A4 2ページ目へ) -->
+                <div class="print-page-break"></div>
+                <div class="print-only" style="margin-bottom: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #CBD5E1; padding-bottom: 4px;">
+                        <span id="printPage2Title" style="font-size: 8.5pt; color: #64748B;">アンケート自由記述 潜在因子分析レポート - 2 / 3 ページ（属性別クロス集計 ＆ 意見ポジショニング分布）</span>
+                        <span id="printDate2" style="font-size: 8.5pt; color: #64748B;"></span>
+                    </div>
+                </div>
+
+                <!-- 図4: 属性別クロス集計 -->
+                <div id="crossTabCard" class="chart-card" style="margin-bottom: 20px;">
+                    <div id="chartCrossTab"></div>
+                </div>
+
+                <!-- 図5: 属性別因子空間マップ比較（Small Multiples） -->
+                <div id="attrMultiplesCard" class="chart-card" style="margin-bottom: 20px;">
+                    <div id="chartAttrMultiples"></div>
+                </div>
             </div>
 
-            <!-- 印刷用改ページ (A4 2ページ目へ) -->
+            <!-- 印刷用改ページ (最終ページ: 各因子の詳細 ＆ 生の声) -->
             <div class="print-page-break"></div>
             <div class="print-only" style="margin-bottom: 8px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #CBD5E1; padding-bottom: 4px;">
-                    <span style="font-size: 8.5pt; color: #64748B;">アンケート自由記述 潜在因子分析レポート - 2 / 2 ページ（各因子の詳細 ＆ 生の声）</span>
-                    <span id="printDate2" style="font-size: 8.5pt; color: #64748B;"></span>
+                    <span id="printLastPageTitle" style="font-size: 8.5pt; color: #64748B;">アンケート自由記述 潜在因子分析レポート - 2 / 2 ページ（各因子の詳細 ＆ 生の声）</span>
+                    <span id="printDateLast" style="font-size: 8.5pt; color: #64748B;"></span>
                 </div>
             </div>
 

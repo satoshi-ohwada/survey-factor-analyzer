@@ -313,6 +313,7 @@ const FactorEngine = {
             t.representativeResponses = candidates.slice(0, 3).map(c => ({
                 id: c.id,
                 text: c.text,
+                row: c.row,
                 confidence: Math.round(c.confidence * 100)
             }));
         });

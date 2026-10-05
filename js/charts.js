@@ -274,6 +274,7 @@ const ChartRenderer = {
             W = [],
             H = [],
             vocabulary = [],
+            attributeCol = '',
             onPointClick
         } = options;
 
@@ -297,12 +298,19 @@ const ChartRenderer = {
                     if (r.primaryThemeId === theme.id) {
                         const scoreX = W[i] ? W[i][xFactorIdx] : 0;
                         const scoreY = W[i] ? W[i][yFactorIdx] : 0;
+                        const rawAttr = (r.row && attributeCol) ? r.row[attributeCol] : null;
+                        const attrVal = (rawAttr !== undefined && rawAttr !== null && String(rawAttr).trim() !== '')
+                            ? String(rawAttr).trim()
+                            : '';
+
                         matchingResponses.push({
                             x: scoreX,
                             y: scoreY,
                             text: r.text,
                             id: r.id,
-                            themeLabel: theme.label
+                            themeLabel: theme.label,
+                            attrVal: attrVal,
+                            row: r.row
                         });
                     }
                 }
@@ -312,7 +320,8 @@ const ChartRenderer = {
                     y: matchingResponses.map(p => p.y),
                     text: matchingResponses.map(p => {
                         const short = p.text.length > 35 ? p.text.substring(0, 35) + '…' : p.text;
-                        return `<b>${p.themeLabel}</b><br>${short}`;
+                        const attrBadge = p.attrVal ? ` [${p.attrVal}]` : '';
+                        return `<b>${p.themeLabel}</b>${attrBadge}<br>${short}`;
                     }),
                     customdata: matchingResponses,
                     mode: 'markers',
@@ -590,5 +599,261 @@ const ChartRenderer = {
         };
 
         Plotly.newPlot(containerId, traces, layout, config);
+    },
+
+    /**
+     * 属性別因子空間マップ（スモールマルチプルズ / Small Multiples）を描画
+     * 各属性の小散布図を並べ、背景に全体のゴーストプロットを敷いて偏りを可視化
+     * @param {string} containerId 
+     * @param {object} options 
+     */
+    renderAttributeSmallMultiples(containerId, options) {
+        const {
+            xFactorIdx = 0,
+            yFactorIdx = 1,
+            themes = [],
+            responsesWithTheme = [],
+            W = [],
+            attributeCol = '',
+            onPointClick
+        } = options;
+
+        const container = document.getElementById(containerId);
+        if (!container || !attributeCol || responsesWithTheme.length === 0) return;
+
+        container.innerHTML = '';
+
+        const safeHtml = (str) => {
+            if (typeof escapeHtml === 'function') return escapeHtml(str);
+            return String(str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        };
+
+        const xTheme = themes[xFactorIdx] || { label: `因子${xFactorIdx + 1}` };
+        const yTheme = themes[yFactorIdx] || { label: `因子${yFactorIdx + 1}` };
+        const xClean = xTheme.label.replace(/^【|】$/g, '');
+        const yClean = yTheme.label.replace(/^【|】$/g, '');
+
+        // 1. 全回答の座標と属性値を抽出
+        const allPoints = [];
+        const attrGroups = {};
+
+        let minX = Infinity, maxX = -Infinity;
+        let minY = Infinity, maxY = -Infinity;
+
+        for (let i = 0; i < responsesWithTheme.length; i++) {
+            const r = responsesWithTheme[i];
+            const scoreX = W[i] ? W[i][xFactorIdx] : 0;
+            const scoreY = W[i] ? W[i][yFactorIdx] : 0;
+
+            if (scoreX < minX) minX = scoreX;
+            if (scoreX > maxX) maxX = scoreX;
+            if (scoreY < minY) minY = scoreY;
+            if (scoreY > maxY) maxY = scoreY;
+
+            const rawVal = r.row ? r.row[attributeCol] : '';
+            const attrVal = (rawVal !== undefined && rawVal !== null && String(rawVal).trim() !== '')
+                ? String(rawVal).trim()
+                : '（未設定）';
+
+            const pointObj = {
+                x: scoreX,
+                y: scoreY,
+                id: r.id,
+                text: r.text,
+                row: r.row,
+                primaryThemeId: r.primaryThemeId,
+                themeLabel: themes[r.primaryThemeId] ? themes[r.primaryThemeId].label : '',
+                confidence: r.confidence,
+                attrVal: attrVal
+            };
+
+            allPoints.push(pointObj);
+
+            if (!attrGroups[attrVal]) {
+                attrGroups[attrVal] = [];
+            }
+            attrGroups[attrVal].push(pointObj);
+        }
+
+        // 座標軸の範囲を全小プロットで完全に共通化（適度な余白を追加）
+        const padX = (maxX - minX) * 0.08 || 0.1;
+        const padY = (maxY - minY) * 0.08 || 0.1;
+        const rangeX = [Math.max(0, minX - padX), maxX + padX];
+        const rangeY = [Math.max(0, minY - padY), maxY + padY];
+
+        // 2. 属性値の自然順序ソート
+        const ORDER_MAP = {
+            '大変不満': 1, '不満': 2, 'やや不満': 3, 'どちらともいえない': 4, '普通': 4, 'やや満足': 5, '満足': 6, '大変満足': 7,
+            '非常に不満': 1, '非常に満足': 7, '悪い': 1, 'やや悪い': 2, '良い': 4, '大変良い': 5,
+            '低': 1, '中': 2, '高': 3
+        };
+
+        const sortedAttrs = Object.keys(attrGroups).sort((a, b) => {
+            if (a === '（未設定）') return 1;
+            if (b === '（未設定）') return -1;
+            if (ORDER_MAP[a] && ORDER_MAP[b]) return ORDER_MAP[a] - ORDER_MAP[b];
+            const numA = (a.match(/\d+/) || [])[0];
+            const numB = (b.match(/\d+/) || [])[0];
+            if (numA !== undefined && numB !== undefined && numA !== numB) {
+                return parseInt(numA, 10) - parseInt(numB, 10);
+            }
+            return a.localeCompare(b, 'ja');
+        });
+
+        // 3. 全体情報ヘッダー＆スモールマルチプルズのグリッドDOM作成
+        const wrapper = document.createElement('div');
+        wrapper.className = 'attr-multiples-container';
+
+        const headerEl = document.createElement('div');
+        headerEl.className = 'attr-multiples-top-header';
+        headerEl.innerHTML = `
+            <div class="attr-multiples-title">
+                <b>【図5】属性別因子空間マップ比較（${safeHtml(attributeCol)} ごとの意見ポジショニング分布）</b>
+            </div>
+            <div class="attr-multiples-legend">
+                <span class="legend-ghost-item"><span class="legend-dot-ghost"></span> 全体の分布（背景影）</span>
+                <span class="legend-highlight-item"><span class="legend-dot-color"></span> 各属性の回答（因子色）</span>
+                <span class="legend-axis-info">横軸: 因子${xFactorIdx + 1}【${safeHtml(xClean)}】 │ 縦軸: 因子${yFactorIdx + 1}【${safeHtml(yClean)}】</span>
+            </div>
+        `;
+        wrapper.appendChild(headerEl);
+
+        const gridEl = document.createElement('div');
+        gridEl.className = 'attr-multiples-grid';
+        wrapper.appendChild(gridEl);
+        container.appendChild(wrapper);
+
+        // 4. 各属性のミニ散布図を描画
+        sortedAttrs.forEach((attrName, idx) => {
+            const points = attrGroups[attrName];
+            const count = points.length;
+
+            // この属性で最も多い因子を計算
+            const themeCounts = {};
+            points.forEach(p => {
+                themeCounts[p.primaryThemeId] = (themeCounts[p.primaryThemeId] || 0) + 1;
+            });
+            let maxThemeId = -1;
+            let maxCount = -1;
+            Object.keys(themeCounts).forEach(tid => {
+                if (themeCounts[tid] > maxCount) {
+                    maxCount = themeCounts[tid];
+                    maxThemeId = parseInt(tid, 10);
+                }
+            });
+            const topTheme = themes[maxThemeId];
+            const topThemePct = count > 0 ? Math.round((maxCount / count) * 100) : 0;
+            const topColor = topTheme ? this.COLORS[maxThemeId % this.COLORS.length] : '#2563EB';
+
+            // カードDOM
+            const cardEl = document.createElement('div');
+            cardEl.className = 'attr-multiples-card';
+            const plotId = `${containerId}-sub-${idx}`;
+
+            cardEl.innerHTML = `
+                <div class="attr-multiples-card-header">
+                    <div class="attr-card-title-group">
+                        <span class="attr-card-name">${safeHtml(attrName)}</span>
+                        <span class="attr-card-count">N=${count}</span>
+                    </div>
+                    ${topTheme ? `
+                        <span class="attr-card-top-factor" style="color: ${topColor}; background: ${topColor}15; border: 1px solid ${topColor}35;">
+                            最多: ${safeHtml(topTheme.label.replace(/^【|】$/g, ''))} (${topThemePct}%)
+                        </span>
+                    ` : ''}
+                </div>
+                <div id="${plotId}" class="attr-sub-plot"></div>
+            `;
+            gridEl.appendChild(cardEl);
+
+            // トレース1: 全体ゴーストプロット（薄いグレーの背景影）
+            const ghostTrace = {
+                x: allPoints.map(p => p.x),
+                y: allPoints.map(p => p.y),
+                mode: 'markers',
+                type: 'scatter',
+                name: '全体（比較用）',
+                marker: {
+                    size: 5,
+                    color: '#CBD5E1',
+                    opacity: 0.4
+                },
+                hoverinfo: 'none',
+                showlegend: false
+            };
+
+            // トレース2: 当該属性の回答プロット（主所属因子の色で強調）
+            const attrTrace = {
+                x: points.map(p => p.x),
+                y: points.map(p => p.y),
+                text: points.map(p => {
+                    const short = p.text.length > 30 ? p.text.substring(0, 30) + '…' : p.text;
+                    return `<b>${p.themeLabel}</b> (${Math.round(p.confidence * 100)}%)<br>${short}`;
+                }),
+                customdata: points,
+                mode: 'markers',
+                type: 'scatter',
+                name: attrName,
+                marker: {
+                    size: 8,
+                    color: points.map(p => this.COLORS[p.primaryThemeId % this.COLORS.length]),
+                    opacity: 0.9,
+                    line: { color: '#ffffff', width: 1.2 }
+                },
+                hoverinfo: 'text',
+                showlegend: false
+            };
+
+            const layout = {
+                margin: { l: 30, r: 12, t: 8, b: 24 },
+                height: 185,
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: '#FAFAFC',
+                xaxis: {
+                    range: rangeX,
+                    showgrid: true,
+                    gridcolor: '#F1F5F9',
+                    zeroline: true,
+                    zerolinecolor: '#E2E8F0',
+                    tickfont: { size: 8, color: '#94A3B8' }
+                },
+                yaxis: {
+                    range: rangeY,
+                    showgrid: true,
+                    gridcolor: '#F1F5F9',
+                    zeroline: true,
+                    zerolinecolor: '#E2E8F0',
+                    tickfont: { size: 8, color: '#94A3B8' }
+                },
+                hoverlabel: {
+                    bgcolor: '#1E293B',
+                    font: { color: '#ffffff', size: 11 },
+                    align: 'left'
+                }
+            };
+
+            const config = {
+                responsive: true,
+                displayModeBar: false
+            };
+
+            Plotly.newPlot(plotId, [ghostTrace, attrTrace], layout, config).then(() => {
+                const el = document.getElementById(plotId);
+                if (el && onPointClick) {
+                    el.removeAllListeners && el.removeAllListeners('plotly_click');
+                    el.on('plotly_click', (d) => {
+                        if (d && d.points && d.points[0]) {
+                            const custom = d.points[0].customdata;
+                            if (custom) onPointClick(custom);
+                        }
+                    });
+                }
+            });
+        });
     }
 };

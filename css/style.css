@@ -1129,6 +1129,146 @@ body {
 }
 
 /* ========================================================
+   属性別分析（Small Multiples ＆ 属性バッジ）
+   ======================================================== */
+.badge-attr {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    color: #475569;
+    background: #F1F5F9;
+    border: 1px solid #CBD5E1;
+    border-radius: 4px;
+    padding: 1px 6px;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+.attr-multiples-container {
+    width: 100%;
+}
+
+.attr-multiples-top-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #E2E8F0;
+}
+
+.attr-multiples-title {
+    font-size: 14.5px;
+    color: #1E293B;
+}
+
+.attr-multiples-legend {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 11.5px;
+    color: #64748B;
+    flex-wrap: wrap;
+}
+
+.legend-ghost-item, .legend-highlight-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.legend-dot-ghost {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #CBD5E1;
+    display: inline-block;
+}
+
+.legend-dot-color {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    border: 1.5px solid #FFFFFF;
+    box-shadow: 0 0 0 1px #94A3B8;
+    display: inline-block;
+}
+
+.legend-axis-info {
+    font-weight: 600;
+    color: #334155;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.attr-multiples-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+}
+
+.attr-multiples-card {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: var(--radius-sm);
+    padding: 10px 12px 6px 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.attr-multiples-card:hover {
+    border-color: #CBD5E1;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.05);
+}
+
+.attr-multiples-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #F1F5F9;
+}
+
+.attr-card-title-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.attr-card-name {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #1E293B;
+}
+
+.attr-card-count {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748B;
+    background: #F1F5F9;
+    padding: 1px 6px;
+    border-radius: 10px;
+}
+
+.attr-card-top-factor {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 7px;
+    border-radius: 4px;
+}
+
+.attr-sub-plot {
+    width: 100%;
+    height: 185px;
+}
+
+/* ========================================================
    印刷・A4レポート出力用スタイル (@media print)
    ======================================================== */
 
@@ -1279,5 +1419,57 @@ body {
     .themes-section-title {
         font-size: 12pt !important;
         margin-bottom: 6px !important;
+    }
+
+    /* 属性別分析セクション（印刷時） */
+    .attr-multiples-top-header {
+        margin-bottom: 6px !important;
+        padding-bottom: 4px !important;
+    }
+
+    .attr-multiples-title {
+        font-size: 10pt !important;
+    }
+
+    .attr-multiples-legend {
+        font-size: 7.5pt !important;
+        gap: 8px !important;
+    }
+
+    .attr-multiples-grid {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 6px !important;
+    }
+
+    .attr-multiples-card {
+        padding: 4px 6px !important;
+        box-shadow: none !important;
+        border: 1px solid #CBD5E1 !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+
+    .attr-multiples-card-header {
+        margin-bottom: 2px !important;
+        padding-bottom: 2px !important;
+    }
+
+    .attr-card-name {
+        font-size: 8.5pt !important;
+    }
+
+    .attr-card-count {
+        font-size: 7.5pt !important;
+        padding: 0 4px !important;
+    }
+
+    .attr-card-top-factor {
+        font-size: 7.5pt !important;
+        padding: 0 4px !important;
+    }
+
+    .attr-sub-plot {
+        height: 135px !important;
     }
 }
