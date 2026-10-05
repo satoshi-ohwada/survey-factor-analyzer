@@ -124,6 +124,98 @@
                     </div>
                 </div>
 
+                <!-- カスタム辞書・除外ワード設定セクション（アコーディオン） -->
+                <div id="dictionarySection" class="dictionary-accordion" style="display: none;">
+                    <div id="dictionaryHeader" class="dict-header" role="button" tabindex="0" title="クリックして辞書設定を開閉">
+                        <div class="dict-header-left">
+                            <span class="dict-icon">⚙️</span>
+                            <span class="dict-title">カスタム辞書・除外ワード設定（任意）</span>
+                            <span id="dictRuleSummaryBadge" class="dict-badge">登録: 0件</span>
+                        </div>
+                        <div class="dict-header-right">
+                            <span class="dict-hint">複合語・除外語・表記ゆれ</span>
+                            <span id="dictAccordionIcon" class="dict-accordion-icon">▼</span>
+                        </div>
+                    </div>
+                    <div id="dictionaryBody" class="dict-body" style="display: none;">
+                        <div class="dict-intro-bar">
+                            <span class="dict-intro-text">
+                                特定の業界用語や新語を1単語として扱ったり、アンケート共通の不要語を除外して因子の解釈性を高めます。
+                            </span>
+                            <div class="dict-toolbar">
+                                <button type="button" id="btnImportRules" class="btn btn-xs btn-outline" title="テキストファイルから設定を読み込みます">
+                                    📥 設定を読込
+                                </button>
+                                <button type="button" id="btnExportRules" class="btn btn-xs btn-outline" title="現在の設定をテキストファイルに書き出します">
+                                    📤 設定を出力
+                                </button>
+                                <a id="btnDownloadTemplate" href="data/custom_rules.txt" download="custom_rules.txt" class="dict-link" title="見本ファイルをダウンロード">
+                                    📄 見本ファイル
+                                </a>
+                                <button type="button" id="btnClearAllRules" class="dict-link dict-link-danger" title="画面上のルールをすべて初期化">
+                                    全クリア
+                                </button>
+                                <input type="file" id="rulesFileInput" accept=".txt,.csv" style="display: none;">
+                            </div>
+                        </div>
+
+                        <div class="dict-grid">
+                            <!-- ① 除外ワード（ストップワード） -->
+                            <div class="dict-card">
+                                <div class="dict-card-header">
+                                    <div class="dict-card-title">
+                                        <span>🚫 除外ワード（ストップワード）</span>
+                                        <span id="badgeStopwordsCount" class="dict-card-count">0</span>
+                                    </div>
+                                    <button type="button" id="btnResetStopwords" class="dict-mini-btn" title="標準のストップワードリストに戻します">初期化</button>
+                                </div>
+                                <p class="dict-card-desc">分析から除外したい不要語・前提語（例:「店」「利用」「アンケート」等）</p>
+                                <div class="dict-input-row">
+                                    <input type="text" id="inputNewStopword" class="dict-input" placeholder="除外する単語を入力">
+                                    <button type="button" id="btnAddStopword" class="btn btn-xs btn-primary">追加</button>
+                                </div>
+                                <div id="stopwordsList" class="dict-tag-list"></div>
+                            </div>
+
+                            <!-- ② 複合語（強制抽出ワード） -->
+                            <div class="dict-card">
+                                <div class="dict-card-header">
+                                    <div class="dict-card-title">
+                                        <span>🔗 複合語（強制抽出ワード）</span>
+                                        <span id="badgeCompoundsCount" class="dict-card-count">0</span>
+                                    </div>
+                                    <button type="button" id="btnClearCompounds" class="dict-mini-btn" title="複合語をすべてクリア">クリア</button>
+                                </div>
+                                <p class="dict-card-desc">分割されたくない専門用語・重要フレーズ（例:「アフターサポート」「生成AI」）</p>
+                                <div class="dict-input-row">
+                                    <input type="text" id="inputNewCompound" class="dict-input" placeholder="結合したい複合語を入力">
+                                    <button type="button" id="btnAddCompound" class="btn btn-xs btn-primary">追加</button>
+                                </div>
+                                <div id="compoundWordsList" class="dict-tag-list"></div>
+                            </div>
+
+                            <!-- ③ 表記ゆれの統一（同義語） -->
+                            <div class="dict-card">
+                                <div class="dict-card-header">
+                                    <div class="dict-card-title">
+                                        <span>🔄 表記ゆれの統一（同義語）</span>
+                                        <span id="badgeSynonymsCount" class="dict-card-count">0</span>
+                                    </div>
+                                    <button type="button" id="btnClearSynonyms" class="dict-mini-btn" title="表記ゆれルールをすべてクリア">クリア</button>
+                                </div>
+                                <p class="dict-card-desc">別の表現を1つに統合（例:「スマホ」→「スマートフォン」）</p>
+                                <div class="dict-input-row dict-input-row-synonym">
+                                    <input type="text" id="inputSynonymFrom" class="dict-input" placeholder="元の語 (例: スマホ)">
+                                    <span class="dict-arrow">→</span>
+                                    <input type="text" id="inputSynonymTo" class="dict-input" placeholder="統一後 (例: スマートフォン)">
+                                    <button type="button" id="btnAddSynonym" class="btn btn-xs btn-primary">追加</button>
+                                </div>
+                                <div id="synonymRulesList" class="dict-tag-list"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- データプレビュー＆検証セクション（データ読込後に表示） -->
                 <div id="previewSection" class="preview-section" style="display: none;">
                     <div class="preview-toolbar">
@@ -429,6 +521,40 @@
         </div>
     </div>
 
+    <!-- ルールインポート確認モーダル -->
+    <div id="rulesImportModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="modal-header">
+                <h3 class="modal-title">辞書・ルール設定の読み込み</h3>
+                <button type="button" id="btnRulesModalClose" class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 13px; color: #475569; margin-bottom: 12px; line-height: 1.5;">
+                    読み込んだファイルから以下の設定が検出されました：
+                </p>
+                <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; line-height: 1.8;">
+                    <div>🚫 除外ワード: <strong id="modalStopwordCount" style="color: #2563EB;">0</strong> 件</div>
+                    <div>🔗 複合語: <strong id="modalCompoundCount" style="color: #2563EB;">0</strong> 件</div>
+                    <div>🔄 表記ゆれの統一: <strong id="modalSynonymCount" style="color: #2563EB;">0</strong> 件</div>
+                </div>
+                <p style="font-size: 12.5px; color: #475569; margin-bottom: 14px;">
+                    現在の画面上の設定とどのように統合しますか？
+                </p>
+                <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                    <button type="button" id="btnImportReplace" class="btn btn-sm btn-outline-danger" title="現在の設定を破棄してファイルの内容に置き換えます">
+                        上書き（置き換え）
+                    </button>
+                    <button type="button" id="btnImportMerge" class="btn btn-sm btn-primary" title="現在の設定を残したままファイルの内容を追加します">
+                        追加（マージ）
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- トースト通知 -->
+    <div id="toastNotification" class="toast-notification" style="display: none;"></div>
+
     <!-- ローディング表示 -->
     <div id="loadingOverlay" class="loading-overlay">
         <div class="spinner"></div>
@@ -438,6 +564,7 @@
     <!-- アプリケーションロジック -->
     <script src="js/demo_data.js"></script>
     <script src="js/csv_parser.js"></script>
+    <script src="js/stopwords_default.js"></script>
     <script src="js/text_preprocessor.js"></script>
     <script src="js/factor_engine.js"></script>
     <script src="js/charts.js"></script>

@@ -18,6 +18,11 @@ const AppState = {
     mapAttrFilter: '', // '' (全属性) または特定の属性値 (例: '20代')
     loadedFileName: '',
 
+    // カスタム辞書・ルール状態
+    customStopWords: new Set(),
+    customCompoundWords: new Set(),
+    customSynonymRules: new Map(),
+
     // プレビュー＆データ編集状態
     previewMode: 'limit', // 'limit' (先頭5行) または 'all' (全行表示)
     previewPage: 1,
@@ -30,6 +35,7 @@ const AppState = {
 // 初期化
 document.addEventListener('DOMContentLoaded', async () => {
     setupEventListeners();
+    await initCustomRules();
 });
 
 /**
@@ -389,6 +395,9 @@ function setupEventListeners() {
 
     // コピペ入力ゾーンの初期化
     setupPasteZone();
+
+    // カスタム辞書・除外ワード設定の初期化
+    setupDictionaryEventListeners();
 }
 
 /**
@@ -830,6 +839,8 @@ function processParsedData(parsed, fileName) {
     AppState.kCount = optimalK;
 
     configGrid.style.display = 'grid';
+    const dictSection = document.getElementById('dictionarySection');
+    if (dictSection) dictSection.style.display = 'block';
     if (runActionArea) runActionArea.style.display = 'flex';
     if (btnRun) btnRun.disabled = false;
     if (btnRunTop) btnRunTop.disabled = false;
@@ -1258,6 +1269,13 @@ async function runFullPipeline() {
         // 1. Kuromojiの初期化
         await TextPreprocessor.init();
 
+        // カスタム辞書・ルール（除外語・複合語・表記ゆれ）を前処理モジュールにセット
+        TextPreprocessor.setCustomRules({
+            stopWords: AppState.customStopWords,
+            compoundWords: AppState.customCompoundWords,
+            synonymRules: AppState.customSynonymRules
+        });
+
         showLoading('アンケートテキストを前処理中...');
         // 2. 絞り込み条件（オートフィルター）を満たす行を取得
         const rowsToAnalyze = getFilteredRows();
@@ -1623,6 +1641,19 @@ function renderThemeCards(themes) {
                 <div class="theme-chart-col">
                     <div class="theme-chart-title">【因子負荷量（上位キーワード）】</div>
                     <div id="chart-kw-${theme.id}"></div>
+                    <div class="card-keywords-toolbar">
+                        <div class="card-keywords-header">
+                            <span>💡 単語を除外（クリックで除外＆自動再計算）:</span>
+                        </div>
+                        <div class="card-kw-tags">
+                            ${theme.keywords.slice(0, 8).map(kw => `
+                                <span class="card-kw-tag" title="「${escapeHtml(kw.word)}」を除外ワードに追加して再分析">
+                                    <span>${escapeHtml(kw.word)}</span>
+                                    <button type="button" class="card-kw-exclude-btn" data-word="${escapeHtml(kw.word)}" title="「${escapeHtml(kw.word)}」を除外">✕</button>
+                                </span>
+                            `).join('')}
+                        </div>
+                    </div>
                 </div>
                 <div class="theme-responses-col">
                     <div>
@@ -1663,6 +1694,25 @@ function renderThemeCards(themes) {
                     });
                 }
             }
+        });
+
+        // 重要キーワードの除外ボタン（ワンクリック除外＆自動再分析）
+        const kwExcludeBtns = card.querySelectorAll('.card-kw-exclude-btn');
+        kwExcludeBtns.forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const word = btn.getAttribute('data-word');
+                if (!word) return;
+
+                if (confirm(`単語「${word}」を除外ワード（ストップワード）に追加して再分析しますか？`)) {
+                    AppState.customStopWords.add(word);
+                    saveCustomRulesToStorage();
+                    renderCustomRulesUI();
+                    showToast(`「${word}」を除外ワードに追加して再計算中...`);
+                    await runFullPipeline();
+                    showToast(`「${word}」を除外して再分析が完了しました`);
+                }
+            });
         });
 
         // 重要キーワード横棒グラフの描画
@@ -1955,3 +2005,490 @@ function escapeHtml(str) {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
 }
+
+// ========================================================
+// カスタム辞書・除外ワード設定（ストップワード・複合語・表記ゆれ）
+// ========================================================
+const STORAGE_KEY_STOPWORDS = 'survey_factor_custom_stopwords';
+const STORAGE_KEY_COMPOUNDS = 'survey_factor_custom_compounds';
+const STORAGE_KEY_SYNONYMS = 'survey_factor_custom_synonyms';
+
+let toastTimer = null;
+let pendingImportRules = null;
+
+function showToast(message, duration = 3000) {
+    const toast = document.getElementById('toastNotification');
+    if (!toast) return;
+    toast.textContent = message;
+    toast.style.display = 'flex';
+
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+        toast.style.display = 'none';
+    }, duration);
+}
+
+function saveCustomRulesToStorage() {
+    try {
+        localStorage.setItem(STORAGE_KEY_STOPWORDS, JSON.stringify(Array.from(AppState.customStopWords)));
+        localStorage.setItem(STORAGE_KEY_COMPOUNDS, JSON.stringify(Array.from(AppState.customCompoundWords)));
+        localStorage.setItem(STORAGE_KEY_SYNONYMS, JSON.stringify(Array.from(AppState.customSynonymRules.entries())));
+    } catch (e) {
+        console.warn('LocalStorage save failed:', e);
+    }
+}
+
+async function initCustomRules() {
+    AppState.customStopWords = new Set();
+    AppState.customCompoundWords = new Set();
+    AppState.customSynonymRules = new Map();
+
+    let loadedFromStorage = false;
+    try {
+        const storedStop = localStorage.getItem(STORAGE_KEY_STOPWORDS);
+        if (storedStop) {
+            const arr = JSON.parse(storedStop);
+            if (Array.isArray(arr) && arr.length > 0) {
+                AppState.customStopWords = new Set(arr);
+                loadedFromStorage = true;
+            }
+        }
+        const storedComp = localStorage.getItem(STORAGE_KEY_COMPOUNDS);
+        if (storedComp) {
+            const arr = JSON.parse(storedComp);
+            if (Array.isArray(arr) && arr.length > 0) {
+                AppState.customCompoundWords = new Set(arr);
+                loadedFromStorage = true;
+            }
+        }
+        const storedSyn = localStorage.getItem(STORAGE_KEY_SYNONYMS);
+        if (storedSyn) {
+            const arr = JSON.parse(storedSyn);
+            if (Array.isArray(arr) && arr.length > 0) {
+                AppState.customSynonymRules = new Map(arr);
+                loadedFromStorage = true;
+            }
+        }
+    } catch (e) {
+        console.warn('LocalStorage load failed:', e);
+    }
+
+    // 初回起動時、LocalStorage にデータがなければ data/custom_rules.txt を読み込む
+    if (!loadedFromStorage && typeof fetch !== 'undefined') {
+        try {
+            const resp = await fetch('data/custom_rules.txt');
+            if (resp.ok) {
+                const txt = await resp.text();
+                const parsed = TextPreprocessor.parseRulesText(txt);
+                if (parsed.compoundWords.size > 0 || parsed.stopWords.size > 0 || parsed.synonymRules.size > 0) {
+                    AppState.customCompoundWords = parsed.compoundWords;
+                    AppState.customStopWords = parsed.stopWords;
+                    AppState.customSynonymRules = parsed.synonymRules;
+                    saveCustomRulesToStorage();
+                }
+            }
+        } catch (e) {
+            // ローカルファイル制限等の場合は無視
+        }
+    }
+
+    renderCustomRulesUI();
+}
+
+function renderCustomRulesUI() {
+    const stopwordsList = document.getElementById('stopwordsList');
+    const compoundWordsList = document.getElementById('compoundWordsList');
+    const synonymRulesList = document.getElementById('synonymRulesList');
+    const badgeStop = document.getElementById('badgeStopwordsCount');
+    const badgeComp = document.getElementById('badgeCompoundsCount');
+    const badgeSyn = document.getElementById('badgeSynonymsCount');
+    const summaryBadge = document.getElementById('dictRuleSummaryBadge');
+
+    if (!stopwordsList || !compoundWordsList || !synonymRulesList) return;
+
+    // ① 除外ワード
+    stopwordsList.innerHTML = '';
+    const sortedStop = Array.from(AppState.customStopWords).sort((a, b) => a.localeCompare(b, 'ja'));
+    sortedStop.forEach(w => {
+        const tag = document.createElement('span');
+        tag.className = 'dict-tag';
+        tag.innerHTML = `<span>${escapeHtml(w)}</span><button type="button" class="dict-tag-remove" data-action="remove-stopword" data-word="${escapeHtml(w)}" title="除外を解除">✕</button>`;
+        stopwordsList.appendChild(tag);
+    });
+    if (badgeStop) badgeStop.textContent = sortedStop.length;
+
+    // ② 複合語
+    compoundWordsList.innerHTML = '';
+    const sortedComp = Array.from(AppState.customCompoundWords).sort((a, b) => a.localeCompare(b, 'ja'));
+    sortedComp.forEach(w => {
+        const tag = document.createElement('span');
+        tag.className = 'dict-tag';
+        tag.innerHTML = `<span>${escapeHtml(w)}</span><button type="button" class="dict-tag-remove" data-action="remove-compound" data-word="${escapeHtml(w)}" title="複合語登録を解除">✕</button>`;
+        compoundWordsList.appendChild(tag);
+    });
+    if (badgeComp) badgeComp.textContent = sortedComp.length;
+
+    // ③ 表記ゆれ
+    synonymRulesList.innerHTML = '';
+    const sortedSyn = Array.from(AppState.customSynonymRules.entries()).sort((a, b) => a[0].localeCompare(b, 'ja'));
+    sortedSyn.forEach(([from, to]) => {
+        const tag = document.createElement('span');
+        tag.className = 'dict-tag dict-tag-synonym';
+        tag.innerHTML = `<span>${escapeHtml(from)} → ${escapeHtml(to)}</span><button type="button" class="dict-tag-remove" data-action="remove-synonym" data-from="${escapeHtml(from)}" title="表記ゆれルールを解除">✕</button>`;
+        synonymRulesList.appendChild(tag);
+    });
+    if (badgeSyn) badgeSyn.textContent = sortedSyn.length;
+
+    // サマリーバッジ
+    const totalCount = sortedStop.length + sortedComp.length + sortedSyn.length;
+    if (summaryBadge) {
+        summaryBadge.textContent = `登録: ${totalCount}件`;
+        if (totalCount > 0) {
+            summaryBadge.classList.add('has-rules');
+        } else {
+            summaryBadge.classList.remove('has-rules');
+        }
+    }
+}
+
+function setupDictionaryEventListeners() {
+    const dictHeader = document.getElementById('dictionaryHeader');
+    const dictSection = document.getElementById('dictionarySection');
+    const dictBody = document.getElementById('dictionaryBody');
+
+    // アコーディオン開閉
+    if (dictHeader && dictSection && dictBody) {
+        dictHeader.addEventListener('click', () => {
+            const isOpen = dictSection.classList.contains('is-open');
+            if (isOpen) {
+                dictSection.classList.remove('is-open');
+                dictBody.style.display = 'none';
+            } else {
+                dictSection.classList.add('is-open');
+                dictBody.style.display = 'block';
+            }
+        });
+        dictHeader.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                dictHeader.click();
+            }
+        });
+    }
+
+    // ① 除外ワード追加
+    const inputStopword = document.getElementById('inputNewStopword');
+    const btnAddStopword = document.getElementById('btnAddStopword');
+    const addStopwordAction = () => {
+        const word = (inputStopword.value || '').trim();
+        if (!word) return;
+        AppState.customStopWords.add(word);
+        inputStopword.value = '';
+        saveCustomRulesToStorage();
+        renderCustomRulesUI();
+        showToast(`除外ワードに「${word}」を追加しました`);
+        markDataDirty();
+    };
+    if (btnAddStopword) btnAddStopword.addEventListener('click', addStopwordAction);
+    if (inputStopword) {
+        inputStopword.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addStopwordAction();
+            }
+        });
+    }
+
+    // 除外ワードリスト内の削除ボタン
+    const stopwordsList = document.getElementById('stopwordsList');
+    if (stopwordsList) {
+        stopwordsList.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-action="remove-stopword"]');
+            if (btn) {
+                const word = btn.getAttribute('data-word');
+                if (word && AppState.customStopWords.has(word)) {
+                    AppState.customStopWords.delete(word);
+                    saveCustomRulesToStorage();
+                    renderCustomRulesUI();
+                    showToast(`除外ワード「${word}」を削除しました`);
+                    markDataDirty();
+                }
+            }
+        });
+    }
+
+    // 除外ワード初期化
+    const btnResetStopwords = document.getElementById('btnResetStopwords');
+    if (btnResetStopwords) {
+        btnResetStopwords.addEventListener('click', () => {
+            if (AppState.customStopWords.size === 0) return;
+            if (confirm('登録した除外ワードをすべてクリアし、標準ストップワードのみに戻しますか？')) {
+                AppState.customStopWords.clear();
+                saveCustomRulesToStorage();
+                renderCustomRulesUI();
+                showToast('除外ワードを初期状態に戻しました');
+                markDataDirty();
+            }
+        });
+    }
+
+    // ② 複合語追加
+    const inputCompound = document.getElementById('inputNewCompound');
+    const btnAddCompound = document.getElementById('btnAddCompound');
+    const addCompoundAction = () => {
+        const word = (inputCompound.value || '').trim();
+        if (!word) return;
+        AppState.customCompoundWords.add(word);
+        inputCompound.value = '';
+        saveCustomRulesToStorage();
+        renderCustomRulesUI();
+        showToast(`複合語に「${word}」を追加しました`);
+        markDataDirty();
+    };
+    if (btnAddCompound) btnAddCompound.addEventListener('click', addCompoundAction);
+    if (inputCompound) {
+        inputCompound.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addCompoundAction();
+            }
+        });
+    }
+
+    // 複合語リスト内の削除ボタン
+    const compoundWordsList = document.getElementById('compoundWordsList');
+    if (compoundWordsList) {
+        compoundWordsList.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-action="remove-compound"]');
+            if (btn) {
+                const word = btn.getAttribute('data-word');
+                if (word && AppState.customCompoundWords.has(word)) {
+                    AppState.customCompoundWords.delete(word);
+                    saveCustomRulesToStorage();
+                    renderCustomRulesUI();
+                    showToast(`複合語「${word}」を削除しました`);
+                    markDataDirty();
+                }
+            }
+        });
+    }
+
+    // 複合語クリア
+    const btnClearCompounds = document.getElementById('btnClearCompounds');
+    if (btnClearCompounds) {
+        btnClearCompounds.addEventListener('click', () => {
+            if (AppState.customCompoundWords.size === 0) return;
+            if (confirm('登録した複合語をすべてクリアしますか？')) {
+                AppState.customCompoundWords.clear();
+                saveCustomRulesToStorage();
+                renderCustomRulesUI();
+                showToast('複合語をすべてクリアしました');
+                markDataDirty();
+            }
+        });
+    }
+
+    // ③ 表記ゆれ追加
+    const inputSynFrom = document.getElementById('inputSynonymFrom');
+    const inputSynTo = document.getElementById('inputSynonymTo');
+    const btnAddSynonym = document.getElementById('btnAddSynonym');
+    const addSynonymAction = () => {
+        const from = (inputSynFrom.value || '').trim();
+        const to = (inputSynTo.value || '').trim();
+        if (!from || !to) {
+            alert('「元の語」と「統一後の語」を両方入力してください');
+            return;
+        }
+        AppState.customSynonymRules.set(from, to);
+        inputSynFrom.value = '';
+        inputSynTo.value = '';
+        saveCustomRulesToStorage();
+        renderCustomRulesUI();
+        showToast(`表記ゆれルール「${from} → ${to}」を追加しました`);
+        markDataDirty();
+    };
+    if (btnAddSynonym) btnAddSynonym.addEventListener('click', addSynonymAction);
+    if (inputSynTo) {
+        inputSynTo.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addSynonymAction();
+            }
+        });
+    }
+
+    // 表記ゆれリスト内の削除ボタン
+    const synonymRulesList = document.getElementById('synonymRulesList');
+    if (synonymRulesList) {
+        synonymRulesList.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-action="remove-synonym"]');
+            if (btn) {
+                const from = btn.getAttribute('data-from');
+                if (from && AppState.customSynonymRules.has(from)) {
+                    AppState.customSynonymRules.delete(from);
+                    saveCustomRulesToStorage();
+                    renderCustomRulesUI();
+                    showToast(`表記ゆれルール「${from}」を削除しました`);
+                    markDataDirty();
+                }
+            }
+        });
+    }
+
+    // 表記ゆれクリア
+    const btnClearSynonyms = document.getElementById('btnClearSynonyms');
+    if (btnClearSynonyms) {
+        btnClearSynonyms.addEventListener('click', () => {
+            if (AppState.customSynonymRules.size === 0) return;
+            if (confirm('登録した表記ゆれルールをすべてクリアしますか？')) {
+                AppState.customSynonymRules.clear();
+                saveCustomRulesToStorage();
+                renderCustomRulesUI();
+                showToast('表記ゆれルールをすべてクリアしました');
+                markDataDirty();
+            }
+        });
+    }
+
+    // エクスポートボタン（text-analysis-test 共通フォーマット）
+    const btnExportRules = document.getElementById('btnExportRules');
+    if (btnExportRules) {
+        btnExportRules.addEventListener('click', () => {
+            const text = TextPreprocessor.generateRulesText(
+                AppState.customCompoundWords,
+                AppState.customStopWords,
+                AppState.customSynonymRules
+            );
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const filename = `factor_analysis_rules_${yyyy}${mm}${dd}.txt`;
+
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast(`設定ファイルを「${filename}」として出力しました`);
+        });
+    }
+
+    // インポートボタン ＆ ファイル選択
+    const btnImportRules = document.getElementById('btnImportRules');
+    const rulesFileInput = document.getElementById('rulesFileInput');
+    if (btnImportRules && rulesFileInput) {
+        btnImportRules.addEventListener('click', () => {
+            rulesFileInput.value = '';
+            rulesFileInput.click();
+        });
+
+        rulesFileInput.addEventListener('change', (e) => {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                const text = evt.target.result;
+                openRulesImportModal(text);
+            };
+            reader.readAsText(file, 'utf-8');
+        });
+    }
+
+    // インポート確認モーダルボタン
+    const rulesImportModal = document.getElementById('rulesImportModal');
+    const btnRulesModalClose = document.getElementById('btnRulesModalClose');
+    const btnImportReplace = document.getElementById('btnImportReplace');
+    const btnImportMerge = document.getElementById('btnImportMerge');
+
+    if (btnRulesModalClose && rulesImportModal) {
+        btnRulesModalClose.addEventListener('click', () => {
+            rulesImportModal.style.display = 'none';
+            pendingImportRules = null;
+        });
+    }
+
+    if (btnImportReplace && btnImportMerge && rulesImportModal) {
+        btnImportReplace.addEventListener('click', () => {
+            if (!pendingImportRules) return;
+            AppState.customStopWords = new Set(pendingImportRules.stopWords);
+            AppState.customCompoundWords = new Set(pendingImportRules.compoundWords);
+            AppState.customSynonymRules = new Map(pendingImportRules.synonymRules);
+            finalizeRulesImport('上書き');
+        });
+
+        btnImportMerge.addEventListener('click', () => {
+            if (!pendingImportRules) return;
+            pendingImportRules.stopWords.forEach(w => AppState.customStopWords.add(w));
+            pendingImportRules.compoundWords.forEach(w => AppState.customCompoundWords.add(w));
+            pendingImportRules.synonymRules.forEach((v, k) => AppState.customSynonymRules.set(k, v));
+            finalizeRulesImport('追加（マージ）');
+        });
+    }
+
+    function finalizeRulesImport(modeLabel) {
+        saveCustomRulesToStorage();
+        renderCustomRulesUI();
+        rulesImportModal.style.display = 'none';
+        pendingImportRules = null;
+        showToast(`辞書設定を${modeLabel}しました`);
+        markDataDirty();
+    }
+
+    // 全設定クリアボタン
+    const btnClearAllRules = document.getElementById('btnClearAllRules');
+    if (btnClearAllRules) {
+        btnClearAllRules.addEventListener('click', () => {
+            const total = AppState.customStopWords.size + AppState.customCompoundWords.size + AppState.customSynonymRules.size;
+            if (total === 0) return;
+            if (confirm('登録されているすべての除外ワード・複合語・表記ゆれルールをクリアしますか？')) {
+                AppState.customStopWords.clear();
+                AppState.customCompoundWords.clear();
+                AppState.customSynonymRules.clear();
+                saveCustomRulesToStorage();
+                renderCustomRulesUI();
+                showToast('すべての辞書設定をクリアしました');
+                markDataDirty();
+            }
+        });
+    }
+}
+
+function openRulesImportModal(text) {
+    const parsed = TextPreprocessor.parseRulesText(text);
+    const total = parsed.stopWords.size + parsed.compoundWords.size + parsed.synonymRules.size;
+
+    if (total === 0) {
+        if (parsed.unclassifiedWords && parsed.unclassifiedWords.length > 0) {
+            const sample = parsed.unclassifiedWords.slice(0, 5).join('、');
+            if (confirm(`ファイル内にセクション見出しが見つかりませんでしたが、${parsed.unclassifiedWords.length} 個の単語が検出されました。\n（例: ${sample}...）\n\nこれらを「除外ワード」として登録しますか？`)) {
+                parsed.unclassifiedWords.forEach(w => AppState.customStopWords.add(w));
+                saveCustomRulesToStorage();
+                renderCustomRulesUI();
+                showToast(`除外ワードに ${parsed.unclassifiedWords.length} 件を追加しました`);
+                markDataDirty();
+            }
+            return;
+        }
+        alert('有効な除外ワード、複合語、表記ゆれルールが見つかりませんでした。\n「見本ファイル」の書き方を参考にしてください。');
+        return;
+    }
+
+    pendingImportRules = parsed;
+    const modal = document.getElementById('rulesImportModal');
+    const modalStop = document.getElementById('modalStopwordCount');
+    const modalComp = document.getElementById('modalCompoundCount');
+    const modalSyn = document.getElementById('modalSynonymCount');
+
+    if (modalStop) modalStop.textContent = parsed.stopWords.size;
+    if (modalComp) modalComp.textContent = parsed.compoundWords.size;
+    if (modalSyn) modalSyn.textContent = parsed.synonymRules.size;
+
+    if (modal) modal.style.display = 'flex';
+}
+
