@@ -755,6 +755,9 @@ function processParsedData(parsed, fileName) {
     AppState.rawRows = parsed.rows;
     AppState.loadedFileName = fileName;
     AppState.columnFilters = {};
+    AppState.validResponses = [];
+    AppState.analysisResult = null;
+    AppState.mapAttrFilter = '';
 
     const selectTextCol = document.getElementById('selectTextCol');
     const selectAttrCol = document.getElementById('selectAttrCol');
@@ -790,14 +793,34 @@ function processParsedData(parsed, fileName) {
     if (guessedTextCol) {
         selectTextCol.value = guessedTextCol;
         AppState.textColumn = guessedTextCol;
+    } else {
+        AppState.textColumn = parsed.headers.length > 0 ? parsed.headers[0] : null;
+        if (AppState.textColumn) {
+            selectTextCol.value = AppState.textColumn;
+        }
     }
 
     // 属性列の推測
-    const guessedAttrCols = CsvParser.guessAttributeColumns(parsed.headers, parsed.rows, guessedTextCol);
+    const guessedAttrCols = CsvParser.guessAttributeColumns(parsed.headers, parsed.rows, AppState.textColumn);
     if (guessedAttrCols.length > 0) {
         selectAttrCol.value = guessedAttrCols[0];
         AppState.attributeColumn = guessedAttrCols[0];
+    } else {
+        selectAttrCol.value = '';
+        AppState.attributeColumn = null;
     }
+
+    // 以前の分析結果コンテナを非表示・リセット
+    const resultsContainer = document.getElementById('resultsContainer');
+    if (resultsContainer) resultsContainer.style.display = 'none';
+    const dataChangedNotice = document.getElementById('dataChangedNotice');
+    if (dataChangedNotice) dataChangedNotice.style.display = 'none';
+    const attrSection = document.getElementById('attributeAnalysisSection');
+    if (attrSection) attrSection.style.display = 'none';
+    const chartCrossTab = document.getElementById('chartCrossTab');
+    if (chartCrossTab) chartCrossTab.innerHTML = '';
+    const chartAttrMultiples = document.getElementById('chartAttrMultiples');
+    if (chartAttrMultiples) chartAttrMultiples.innerHTML = '';
 
     // テーマ数の推奨初期値
     const optimalK = FactorEngine.estimateOptimalK(parsed.rows.length, 50);
@@ -1200,8 +1223,24 @@ function addNewRow() {
  * 分析パイプラインの実行
  */
 async function runFullPipeline() {
-    if (!AppState.textColumn) {
-        alert('自由記述の列を選択してください');
+    // UIの最新の選択状態とAppStateを確実に同期
+    const selectTextCol = document.getElementById('selectTextCol');
+    const selectAttrCol = document.getElementById('selectAttrCol');
+    if (selectTextCol) {
+        AppState.textColumn = selectTextCol.value || null;
+    }
+    if (selectAttrCol) {
+        AppState.attributeColumn = selectAttrCol.value || null;
+    }
+
+    // 属性列が現在のデータのヘッダーに存在しない場合は無効化
+    if (AppState.attributeColumn && !AppState.headers.includes(AppState.attributeColumn)) {
+        AppState.attributeColumn = null;
+        if (selectAttrCol) selectAttrCol.value = '';
+    }
+
+    if (!AppState.textColumn || !AppState.headers.includes(AppState.textColumn)) {
+        alert('有効な自由記述の列を選択してください');
         return;
     }
 
@@ -1339,11 +1378,16 @@ function renderResults(validResponses, junkCount, result, tfidfData, analyzedRow
 
     // 属性別分析セクション（属性列が指定されている場合: 図4クロス集計）
     const attrSection = document.getElementById('attributeAnalysisSection');
-    if (AppState.attributeColumn) {
+    const hasValidAttrCol = !!(AppState.attributeColumn && AppState.headers.includes(AppState.attributeColumn));
+    if (hasValidAttrCol) {
         if (attrSection) attrSection.style.display = 'block';
         ChartRenderer.renderCrossTabChart('chartCrossTab', result.responsesWithTheme, result.themes, AppState.attributeColumn);
     } else {
         if (attrSection) attrSection.style.display = 'none';
+        const crossTabEl = document.getElementById('chartCrossTab');
+        if (crossTabEl) crossTabEl.innerHTML = '';
+        const multiplesEl = document.getElementById('chartAttrMultiples');
+        if (multiplesEl) multiplesEl.innerHTML = '';
     }
 
     // 【各因子の詳細カード】
@@ -1460,7 +1504,8 @@ function setupAttrFilterSelector() {
     const selectAttrFilter = document.getElementById('selectMapAttrFilter');
     if (!attrFilterGroup || !selectAttrFilter) return;
 
-    if (!AppState.attributeColumn || !AppState.analysisResult || AppState.mapMode === 'words') {
+    const hasValidAttrCol = !!(AppState.attributeColumn && AppState.headers.includes(AppState.attributeColumn));
+    if (!hasValidAttrCol || !AppState.analysisResult || AppState.mapMode === 'words') {
         attrFilterGroup.style.display = 'none';
         AppState.mapAttrFilter = '';
         return;
@@ -1504,6 +1549,7 @@ function updateFactorSpaceMap() {
     if (!AppState.analysisResult) return;
 
     const { themes, responsesWithTheme, W, H, vocabulary } = AppState.analysisResult;
+    const hasValidAttrCol = !!(AppState.attributeColumn && AppState.headers.includes(AppState.attributeColumn));
 
     ChartRenderer.renderFactorSpaceMap('chartFactorSpace', {
         mode: AppState.mapMode,
@@ -1514,13 +1560,14 @@ function updateFactorSpaceMap() {
         W,
         H,
         vocabulary,
-        attributeCol: AppState.attributeColumn,
-        filterAttrVal: AppState.mapAttrFilter,
+        attributeCol: hasValidAttrCol ? AppState.attributeColumn : null,
+        filterAttrVal: hasValidAttrCol ? AppState.mapAttrFilter : '',
         onPointClick: (pointData) => showResponseModal(pointData)
     });
 
     // レポート／印刷用（全属性並列スモールマルチプルズ）を裏で更新
-    if (AppState.attributeColumn) {
+    const multiplesEl = document.getElementById('chartAttrMultiples');
+    if (hasValidAttrCol) {
         ChartRenderer.renderAttributeSmallMultiples('chartAttrMultiples', {
             xFactorIdx: AppState.mapAxisX,
             yFactorIdx: AppState.mapAxisY,
@@ -1530,6 +1577,8 @@ function updateFactorSpaceMap() {
             attributeCol: AppState.attributeColumn,
             onPointClick: (pointData) => showResponseModal(pointData)
         });
+    } else {
+        if (multiplesEl) multiplesEl.innerHTML = '';
     }
 }
 
@@ -1736,7 +1785,7 @@ window.exportThemeCsv = function(themeId) {
         return `"${str.replace(/"/g, '""')}"`;
     };
 
-    const hasAttr = !!AppState.attributeColumn;
+    const hasAttr = !!(AppState.attributeColumn && AppState.headers.includes(AppState.attributeColumn));
     const headerRow = ['No', 'ID', '因子名'];
     if (hasAttr) headerRow.push(AppState.attributeColumn);
     headerRow.push('適合度(%)', '回答本文');
@@ -1778,7 +1827,7 @@ function updatePrintMetaInfo() {
         hour: '2-digit', minute: '2-digit'
     });
     const validCount = (AppState.validResponses || []).length;
-    const hasAttr = !!AppState.attributeColumn;
+    const hasAttr = !!(AppState.attributeColumn && AppState.headers.includes(AppState.attributeColumn));
     const totalPages = hasAttr ? 3 : 2;
 
     const printFileName = document.getElementById('printFileName');

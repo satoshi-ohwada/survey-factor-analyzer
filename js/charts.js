@@ -23,33 +23,76 @@ const ChartRenderer = {
      * @param {(themeId: number) => void} onSliceClick 
      */
     renderDonutChart(containerId, themes, onSliceClick) {
-        const labels = themes.map(t => t.label);
-        const values = themes.map(t => t.count);
+        if (!themes || themes.length === 0) return;
+
+        const totalCount = themes.reduce((sum, t) => sum + (t.count || 0), 0);
+
+        // 凡例用ラベル（因子番号 ＋ 因子名 ＋ シェア%）
+        const labels = themes.map((t, i) => {
+            const pct = totalCount > 0 ? Math.round(((t.count || 0) / totalCount) * 100) : 0;
+            const cleanTitle = t.label.replace(/^【|】$/g, '');
+            return `因子${i + 1}: ${cleanTitle} (${pct}%)`;
+        });
+
+        const values = themes.map(t => t.count || 0);
         const colors = themes.map((_, i) => this.COLORS[i % this.COLORS.length]);
 
+        // スライス内にパーセント数値を明瞭に表示（外側へのはみ出しを完全防止）
         const data = [{
             type: 'pie',
             labels: labels,
             values: values,
-            hole: 0.55,
-            textinfo: 'label+percent',
-            textposition: 'outside',
-            hoverinfo: 'label+value+percent',
+            hole: 0.52,
+            domain: { x: [0, 1], y: [0.22, 1] },
+            textinfo: 'percent',
+            textposition: 'inside',
+            insidetextorientation: 'horizontal',
+            insidetextfont: {
+                size: 13,
+                color: '#FFFFFF',
+                family: 'sans-serif'
+            },
+            hovertemplate: '<b>%{label}</b><br>回答数: %{value}件 (%{percent})<extra></extra>',
             marker: {
                 colors: colors,
                 line: { color: '#ffffff', width: 2 }
-            },
-            insidetextorientation: 'radial'
+            }
         }];
+
+        // ドーナツ中央に合計件数を表示
+        const annotations = [{
+            font: { size: 12, color: '#475569' },
+            showarrow: false,
+            text: `合計<br><b style="font-size:15px; color:#1E293B;">${totalCount.toLocaleString()}件</b>`,
+            x: 0.5,
+            y: 0.61
+        }];
+
+        // 因子数に応じた凡例の高さ計算
+        const legendRows = Math.ceil(themes.length / 2);
+        const dynamicHeight = Math.max(360, 300 + legendRows * 28);
 
         const layout = {
             title: {
                 text: '<b>【図1】潜在因子の全体構成比（シェア）</b>',
-                font: { size: 15, color: '#1E293B' }
+                font: { size: 15, color: '#1E293B' },
+                x: 0.5,
+                xanchor: 'center'
             },
-            showlegend: false,
-            margin: { l: 40, r: 40, t: 50, b: 40 },
-            height: 350,
+            showlegend: true,
+            legend: {
+                orientation: 'h',
+                x: 0.5,
+                xanchor: 'center',
+                y: -0.12,
+                font: { size: 11, color: '#334155' },
+                bgcolor: 'rgba(255, 255, 255, 0.7)',
+                bordercolor: '#E2E8F0',
+                borderwidth: 1
+            },
+            annotations: annotations,
+            margin: { l: 20, r: 20, t: 45, b: 20 },
+            height: dynamicHeight,
             paper_bgcolor: 'rgba(0,0,0,0)',
             plot_bgcolor: 'rgba(0,0,0,0)',
             font: { family: 'sans-serif' }
@@ -657,7 +700,15 @@ const ChartRenderer = {
      * @param {string} attributeCol 
      */
     renderCrossTabChart(containerId, responsesWithTheme, themes, attributeCol) {
-        if (!attributeCol) return;
+        if (!attributeCol || !responsesWithTheme || responsesWithTheme.length === 0) return;
+
+        // 全回答において対象の属性列に有効値が1件も存在しない場合は描画しない
+        const hasValidAttr = responsesWithTheme.some(r => r.row && r.row[attributeCol] !== undefined && r.row[attributeCol] !== null && String(r.row[attributeCol]).trim() !== '');
+        if (!hasValidAttr) {
+            const container = document.getElementById(containerId);
+            if (container) container.innerHTML = '';
+            return;
+        }
 
         const attrValues = new Set();
         const counts = {};
@@ -756,6 +807,12 @@ const ChartRenderer = {
 
         const container = document.getElementById(containerId);
         if (!container || !attributeCol || responsesWithTheme.length === 0) return;
+
+        const hasValidAttr = responsesWithTheme.some(r => r.row && r.row[attributeCol] !== undefined && r.row[attributeCol] !== null && String(r.row[attributeCol]).trim() !== '');
+        if (!hasValidAttr) {
+            container.innerHTML = '';
+            return;
+        }
 
         container.innerHTML = '';
 
