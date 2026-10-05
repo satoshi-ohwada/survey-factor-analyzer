@@ -42,13 +42,13 @@ const ChartRenderer = {
             type: 'pie',
             labels: labels,
             values: values,
-            hole: 0.52,
-            domain: { x: [0, 1], y: [0.22, 1] },
+            hole: 0.46,
+            domain: { x: [0, 1], y: [0.14, 1] },
             textinfo: 'percent',
             textposition: 'inside',
             insidetextorientation: 'horizontal',
             insidetextfont: {
-                size: 13,
+                size: 14,
                 color: '#FFFFFF',
                 family: 'sans-serif'
             },
@@ -59,18 +59,18 @@ const ChartRenderer = {
             }
         }];
 
-        // ドーナツ中央に合計件数を表示
+        // ドーナツ中央に合計件数を表示（domain.y の中心 y=0.57 に配置）
         const annotations = [{
-            font: { size: 12, color: '#475569' },
+            font: { size: 12, color: '#64748B' },
             showarrow: false,
-            text: `合計<br><b style="font-size:15px; color:#1E293B;">${totalCount.toLocaleString()}件</b>`,
+            text: `合計<br><b style="font-size:18px; color:#1E293B;">${totalCount.toLocaleString()}件</b>`,
             x: 0.5,
-            y: 0.61
+            y: 0.57
         }];
 
-        // 因子数に応じた凡例の高さ計算
+        // 因子数に応じた凡例の高さ計算（ドーナツが小さくならないよう十分な高さを確保）
         const legendRows = Math.ceil(themes.length / 2);
-        const dynamicHeight = Math.max(360, 300 + legendRows * 28);
+        const dynamicHeight = Math.max(430, 370 + legendRows * 30);
 
         const layout = {
             title: {
@@ -84,14 +84,14 @@ const ChartRenderer = {
                 orientation: 'h',
                 x: 0.5,
                 xanchor: 'center',
-                y: -0.12,
+                y: -0.06,
                 font: { size: 11, color: '#334155' },
                 bgcolor: 'rgba(255, 255, 255, 0.7)',
                 bordercolor: '#E2E8F0',
                 borderwidth: 1
             },
             annotations: annotations,
-            margin: { l: 20, r: 20, t: 45, b: 20 },
+            margin: { l: 15, r: 15, t: 45, b: 15 },
             height: dynamicHeight,
             paper_bgcolor: 'rgba(0,0,0,0)',
             plot_bgcolor: 'rgba(0,0,0,0)',
