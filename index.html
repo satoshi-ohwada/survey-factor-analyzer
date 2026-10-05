@@ -240,7 +240,7 @@
             <div id="dataChangedNotice" class="data-changed-banner" style="display: none;">
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <span style="font-size: 16px;">⚠️</span>
-                    <span><b>データが変更されました:</b> 編集・削除した内容をグラフや統計に反映するには「最新データで再分析」を押してください。</span>
+                    <span><b>データや絞り込み条件が変更されました:</b> 編集・削除・絞り込みの変更をグラフや統計に反映するには「最新データで再分析」を押してください。</span>
                 </div>
                 <button type="button" class="btn btn-sm btn-primary" onclick="runFullPipeline();">
                     🚀 最新データで再分析
@@ -250,7 +250,7 @@
             <!-- サマリーバー -->
             <div class="summary-bar">
                 <div class="summary-stats">
-                    <span class="stat-item">総アンケート件数: <b id="statTotalRows" class="stat-val">0</b> 件</span>
+                    <span class="stat-item">分析対象データ件数: <b id="statTotalRows" class="stat-val">0</b> 件<span id="statFilterNote" style="font-size: 11px; color: #2563EB; font-weight: normal; margin-left: 4px;"></span></span>
                     <span class="stat-item">有効回答（テキスト有）: <b id="statValidRows" class="stat-val">0</b> 件</span>
                     <span class="stat-item">除外（定型「なし」等）: <b id="statJunkRows" class="stat-val" style="color:#64748B;">0</b> 件</span>
                     <span class="stat-item">抽出された主要テーマ: <b id="statThemesCount" class="stat-val">0</b> つ</span>

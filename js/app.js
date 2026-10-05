@@ -534,6 +534,7 @@ function setColumnFilter(col, val) {
     AppState.previewPage = 1;
     renderDataPreview();
     updateRunButtons();
+    markDataDirty();
 }
 
 /**
@@ -544,6 +545,7 @@ function clearAllColumnFilters() {
     AppState.previewPage = 1;
     renderDataPreview();
     updateRunButtons();
+    markDataDirty();
 }
 
 /**
@@ -665,23 +667,8 @@ function showColumnFilterMenu(triggerBtn, colName) {
         valCounts[val] = (valCounts[val] || 0) + 1;
     });
 
-    const ORDER_MAP = {
-        '大変不満': 1, '不満': 2, 'やや不満': 3, 'どちらともいえない': 4, '普通': 4, 'やや満足': 5, '満足': 6, '大変満足': 7,
-        '非常に不満': 1, '非常に満足': 7, '悪い': 1, 'やや悪い': 2, '良い': 4, '大変良い': 5,
-        '低': 1, '中': 2, '高': 3
-    };
-
-    const sortedVals = Object.keys(valCounts).sort((a, b) => {
-        if (a === '（未設定）') return 1;
-        if (b === '（未設定）') return -1;
-        if (ORDER_MAP[a] && ORDER_MAP[b]) return ORDER_MAP[a] - ORDER_MAP[b];
-        const numA = (a.match(/\d+/) || [])[0];
-        const numB = (b.match(/\d+/) || [])[0];
-        if (numA !== undefined && numB !== undefined && numA !== numB) {
-            return parseInt(numA, 10) - parseInt(numB, 10);
-        }
-        return a.localeCompare(b, 'ja');
-    });
+    // 属性の自然順序ソート（評価尺度・数値・未設定対応）
+    const sortedVals = ChartRenderer.sortAttributeValues(Object.keys(valCounts));
 
     // (すべて) 項目
     const itemAll = document.createElement('div');
@@ -1104,10 +1091,11 @@ function updateRowAndAlertsAfterEdit(rowIdx) {
         badge.title = quality.detail;
     }
 
-    // 全体の問題件数を再集計
+    // 現在の表示対象（絞り込み中データ）の問題件数を再集計
     let problemCount = 0;
     let emptyCount = 0;
-    AppState.rawRows.forEach(r => {
+    const currentRows = getFilteredRows();
+    currentRows.forEach(r => {
         const q = TextPreprocessor.checkQuality(r[AppState.textColumn]);
         if (q.isProblem) {
             problemCount++;
@@ -1166,7 +1154,12 @@ function markDataDirty() {
 function addNewRow() {
     const newRow = {};
     AppState.headers.forEach(h => {
-        newRow[h] = '';
+        // 現在適用中の列フィルターがある場合はその値を初期セット（表示から消えないようにする）
+        if (AppState.columnFilters && AppState.columnFilters[h]) {
+            newRow[h] = AppState.columnFilters[h];
+        } else {
+            newRow[h] = '';
+        }
     });
     if (AppState.headers.includes('ID')) {
         newRow['ID'] = AppState.rawRows.length + 1;
@@ -1185,7 +1178,8 @@ function addNewRow() {
     if (btnPreviewLimit) btnPreviewLimit.classList.remove('active');
     if (btnPreviewAll) btnPreviewAll.classList.add('active');
 
-    const totalPages = Math.ceil(AppState.rawRows.length / AppState.previewPageSize);
+    const filteredRows = getFilteredRows();
+    const totalPages = Math.max(1, Math.ceil(filteredRows.length / AppState.previewPageSize));
     AppState.previewPage = totalPages;
 
     renderDataPreview();
@@ -1281,7 +1275,7 @@ async function runFullPipeline() {
 
         showLoading('図とパス図を描画中...');
         // 5. 結果のレンダリング
-        renderResults(validResponses, junkCount, result, tfidfData);
+        renderResults(validResponses, junkCount, result, tfidfData, rowsToAnalyze.length);
 
     } catch (err) {
         console.error(err);
@@ -1296,7 +1290,7 @@ async function runFullPipeline() {
 /**
  * 分析結果のUI描画
  */
-function renderResults(validResponses, junkCount, result, tfidfData) {
+function renderResults(validResponses, junkCount, result, tfidfData, analyzedRowsCount) {
     const resultsContainer = document.getElementById('resultsContainer');
     resultsContainer.style.display = 'block';
 
@@ -1304,15 +1298,28 @@ function renderResults(validResponses, junkCount, result, tfidfData) {
     if (dataChangedNotice) dataChangedNotice.style.display = 'none';
 
     const validCount = validResponses.length;
+    const totalCount = AppState.rawRows.length;
+    const isFiltered = (analyzedRowsCount !== undefined && analyzedRowsCount < totalCount);
 
     // サマリー表示
-    document.getElementById('statTotalRows').textContent = AppState.rawRows.length;
-    document.getElementById('statValidRows').textContent = validCount;
-    document.getElementById('statJunkRows').textContent = junkCount;
+    const statTotalRows = document.getElementById('statTotalRows');
+    const statFilterNote = document.getElementById('statFilterNote');
+    if (statTotalRows) {
+        statTotalRows.textContent = (analyzedRowsCount || totalCount).toLocaleString();
+    }
+    if (statFilterNote) {
+        if (isFiltered) {
+            statFilterNote.textContent = `(全${totalCount.toLocaleString()}件から絞り込み)`;
+        } else {
+            statFilterNote.textContent = '';
+        }
+    }
+    document.getElementById('statValidRows').textContent = validCount.toLocaleString();
+    document.getElementById('statJunkRows').textContent = junkCount.toLocaleString();
     document.getElementById('statThemesCount').textContent = result.themes.length;
 
     // 【表】テキスト全体の基本統計・特性プロファイルの描画
-    renderTextStatsProfile(validResponses, junkCount, tfidfData);
+    renderTextStatsProfile(validResponses, junkCount, tfidfData, analyzedRowsCount);
 
     // 【図1】潜在因子の全体構成比（ドーナツチャート）
     ChartRenderer.renderDonutChart('chartDonut', result.themes, (themeIndex) => {
@@ -1349,10 +1356,11 @@ function renderResults(validResponses, junkCount, result, tfidfData) {
 /**
  * テキスト全体の基本統計・特性プロファイルの描画
  */
-function renderTextStatsProfile(validResponses, junkCount, tfidfData) {
-    const totalRows = AppState.rawRows.length;
+function renderTextStatsProfile(validResponses, junkCount, tfidfData, analyzedRowsCount) {
+    const totalRaw = AppState.rawRows.length;
+    const analyzedCount = (analyzedRowsCount !== undefined) ? analyzedRowsCount : totalRaw;
     const validRows = validResponses.length;
-    const validRate = totalRows > 0 ? Math.round((validRows / totalRows) * 100) : 100;
+    const validRate = analyzedCount > 0 ? Math.round((validRows / analyzedCount) * 100) : 100;
 
     const charLengths = validResponses.map(r => r.text.length);
     const totalChars = charLengths.reduce((s, l) => s + l, 0);
@@ -1368,7 +1376,15 @@ function renderTextStatsProfile(validResponses, junkCount, tfidfData) {
     document.getElementById('statUniqueWords').textContent = uniqueWords.toLocaleString();
     document.getElementById('statAnalyzedWords').textContent = analyzedWords.toLocaleString();
 
-    document.getElementById('tblTotalRows').textContent = totalRows.toLocaleString();
+    const isFiltered = analyzedCount < totalRaw;
+    const tblTotalRows = document.getElementById('tblTotalRows');
+    if (tblTotalRows) {
+        if (isFiltered) {
+            tblTotalRows.innerHTML = `${analyzedCount.toLocaleString()} <span style="font-size:11px; color:#2563EB; font-weight:normal;">(全${totalRaw.toLocaleString()}件中)</span>`;
+        } else {
+            tblTotalRows.textContent = `${totalRaw.toLocaleString()}`;
+        }
+    }
     document.getElementById('tblValidRate').textContent = `${validRate}%`;
     document.getElementById('tblValidRows').textContent = validRows.toLocaleString();
     document.getElementById('tblJunkRows').textContent = junkCount.toLocaleString();
@@ -1774,11 +1790,21 @@ function updatePrintMetaInfo() {
     const printPage2Title = document.getElementById('printPage2Title');
     const printLastPageTitle = document.getElementById('printLastPageTitle');
 
+    const totalRaw = (AppState.rawRows || []).length;
+    const filteredRows = getFilteredRows();
+    const isFiltered = (filteredRows.length < totalRaw);
+
     if (printFileName) printFileName.textContent = fileName;
     if (printDate) printDate.textContent = nowStr;
     if (printDate2) printDate2.textContent = `出力日時: ${nowStr}`;
     if (printDateLast) printDateLast.textContent = `出力日時: ${nowStr}`;
-    if (printValidCount) printValidCount.textContent = validCount.toLocaleString();
+    if (printValidCount) {
+        if (isFiltered) {
+            printValidCount.textContent = `${validCount.toLocaleString()} 件（対象: ${filteredRows.length.toLocaleString()}件 / 全${totalRaw.toLocaleString()}件）`;
+        } else {
+            printValidCount.textContent = `${validCount.toLocaleString()} 件`;
+        }
+    }
 
     // 絞り込み条件（オートフィルター）の反映
     const printFilterWrapper = document.getElementById('printFilterWrapper');
