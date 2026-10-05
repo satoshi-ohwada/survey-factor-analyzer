@@ -1537,11 +1537,7 @@ function renderThemeCards(themes) {
             const attrBadge = (rawAttr !== undefined && rawAttr !== null && String(rawAttr).trim() !== '')
                 ? `<span class="badge-attr">${escapeHtml(String(rawAttr).trim())}</span>`
                 : '';
-            return `
-                <div class="response-item">
-                    <b>${rIdx + 1}.</b> ${attrBadge}「${escapeHtml(r.text)}」
-                </div>
-            `;
+            return `<div class="response-item"><span class="response-num">${rIdx + 1}.</span>${attrBadge}<span class="response-text">「${escapeHtml(r.text.trim())}」</span></div>`;
         }).join('') || '<div class="response-item" style="color:#94A3B8;">該当する代表意見がありません</div>';
 
         card.innerHTML = `
