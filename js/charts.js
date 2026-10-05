@@ -88,7 +88,9 @@ const ChartRenderer = {
                 font: { size: 11, color: '#334155' },
                 bgcolor: 'rgba(255, 255, 255, 0.7)',
                 bordercolor: '#E2E8F0',
-                borderwidth: 1
+                borderwidth: 1,
+                itemclick: false,
+                itemdoubleclick: false
             },
             annotations: annotations,
             margin: { l: 15, r: 15, t: 45, b: 15 },
@@ -100,7 +102,8 @@ const ChartRenderer = {
 
         const config = {
             responsive: true,
-            displayModeBar: false
+            displayModeBar: false,
+            doubleClick: false
         };
 
         Plotly.newPlot(containerId, data, layout, config).then(() => {
@@ -577,18 +580,21 @@ const ChartRenderer = {
                 gridcolor: '#F1F5F9',
                 zeroline: false,
                 title: { text: '負荷量', font: { size: 9.5, color: '#64748B' } },
-                tickfont: { size: 9 }
+                tickfont: { size: 9 },
+                fixedrange: true
             },
             yaxis: {
                 autorange: true,
-                tickfont: { size: 10.5 }
+                tickfont: { size: 10.5 },
+                fixedrange: true
             },
             font: { size: 10.5, family: 'sans-serif' }
         };
 
         const config = {
             responsive: true,
-            displayModeBar: false
+            displayModeBar: false,
+            doubleClick: false
         };
 
         Plotly.newPlot(containerId, data, layout, config);
@@ -699,7 +705,7 @@ const ChartRenderer = {
      * @param {any[]} themes 
      * @param {string} attributeCol 
      */
-    renderCrossTabChart(containerId, responsesWithTheme, themes, attributeCol) {
+    renderCrossTabChart(containerId, responsesWithTheme, themes, attributeCol, onBarClick) {
         if (!attributeCol || !responsesWithTheme || responsesWithTheme.length === 0) return;
 
         // 全回答において対象の属性列に有効値が1件も存在しない場合は描画しない
@@ -761,12 +767,14 @@ const ChartRenderer = {
             xaxis: {
                 title: '割合 (%)',
                 range: [0, 100],
-                ticksuffix: '%'
+                ticksuffix: '%',
+                fixedrange: true
             },
             yaxis: {
                 autorange: 'reversed',
                 automargin: true,
-                tickfont: { size: 12, color: '#334155' }
+                tickfont: { size: 12, color: '#334155' },
+                fixedrange: true
             },
             margin: { l: dynamicMarginL, r: 30, t: 50, b: 50 },
             height: Math.max(260, sortedAttrs.length * 48 + 100),
@@ -776,16 +784,30 @@ const ChartRenderer = {
                 orientation: 'h',
                 y: -0.25,
                 x: 0.5,
-                xanchor: 'center'
+                xanchor: 'center',
+                itemclick: false,
+                itemdoubleclick: false
             }
         };
 
         const config = {
             responsive: true,
-            displayModeBar: false
+            displayModeBar: false,
+            doubleClick: false
         };
 
-        Plotly.newPlot(containerId, traces, layout, config);
+        Plotly.newPlot(containerId, traces, layout, config).then(() => {
+            const el = document.getElementById(containerId);
+            if (el && onBarClick) {
+                el.removeAllListeners && el.removeAllListeners('plotly_click');
+                el.on('plotly_click', (d) => {
+                    if (d && d.points && d.points[0]) {
+                        const themeIndex = d.points[0].curveNumber;
+                        onBarClick(themeIndex);
+                    }
+                });
+            }
+        });
     },
 
     /**

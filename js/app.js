@@ -1381,7 +1381,9 @@ function renderResults(validResponses, junkCount, result, tfidfData, analyzedRow
     const hasValidAttrCol = !!(AppState.attributeColumn && AppState.headers.includes(AppState.attributeColumn));
     if (hasValidAttrCol) {
         if (attrSection) attrSection.style.display = 'block';
-        ChartRenderer.renderCrossTabChart('chartCrossTab', result.responsesWithTheme, result.themes, AppState.attributeColumn);
+        ChartRenderer.renderCrossTabChart('chartCrossTab', result.responsesWithTheme, result.themes, AppState.attributeColumn, (themeIndex) => {
+            scrollToThemeCard(themeIndex);
+        });
     } else {
         if (attrSection) attrSection.style.display = 'none';
         const crossTabEl = document.getElementById('chartCrossTab');
@@ -1652,8 +1654,11 @@ function renderThemeCards(themes) {
                 setupAxisSelectors(themes);
                 updateFactorSpaceMap();
 
-                if (AppState.attributeColumn) {
-                    ChartRenderer.renderCrossTabChart('chartCrossTab', AppState.analysisResult.responsesWithTheme, themes, AppState.attributeColumn);
+                const hasValidAttrCol = !!(AppState.attributeColumn && AppState.headers.includes(AppState.attributeColumn));
+                if (hasValidAttrCol) {
+                    ChartRenderer.renderCrossTabChart('chartCrossTab', AppState.analysisResult.responsesWithTheme, themes, AppState.attributeColumn, (themeIndex) => {
+                        scrollToThemeCard(themeIndex);
+                    });
                 }
             }
         });
