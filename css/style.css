@@ -1089,6 +1089,21 @@ body {
     white-space: nowrap;
 }
 
+.axis-badge-attr {
+    font-size: 11px;
+    font-weight: 700;
+    color: #7C3AED;
+    background: #F5F3FF;
+    padding: 2px 7px;
+    border-radius: 4px;
+    border: 1px solid #DDD6FE;
+    white-space: nowrap;
+}
+
+.print-only-block {
+    display: none !important;
+}
+
 .axis-select-group select {
     border: none;
     outline: none;
@@ -1471,5 +1486,9 @@ body {
 
     .attr-sub-plot {
         height: 135px !important;
+    }
+
+    .print-only-block {
+        display: block !important;
     }
 }

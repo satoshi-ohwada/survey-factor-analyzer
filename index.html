@@ -318,6 +318,11 @@
                                 <span class="axis-badge-y">縦軸 (Y)</span>
                                 <select id="selectMapAxisY" title="縦軸に設定する因子"></select>
                             </div>
+                            <!-- 属性による絞り込み（属性列がある場合のみ表示） -->
+                            <div class="axis-select-group" id="attrFilterGroup" style="display: none;">
+                                <span class="axis-badge-attr">属性絞込</span>
+                                <select id="selectMapAttrFilter" title="特定の属性に絞り込んで比較"></select>
+                            </div>
                         </div>
                     </div>
                     <div id="chartFactorSpace"></div>
@@ -335,13 +340,13 @@
                     </div>
                 </div>
 
-                <!-- 図4: 属性別クロス集計 -->
+                <!-- 図4: 属性別クロス集計（画面およびレポートで表示） -->
                 <div id="crossTabCard" class="chart-card" style="margin-bottom: 20px;">
                     <div id="chartCrossTab"></div>
                 </div>
 
-                <!-- 図5: 属性別因子空間マップ比較（Small Multiples） -->
-                <div id="attrMultiplesCard" class="chart-card" style="margin-bottom: 20px;">
+                <!-- 図5: 属性別因子空間マップ比較（レポート/印刷時のみ全属性を並列出力） -->
+                <div id="attrMultiplesCard" class="chart-card print-only-block" style="margin-bottom: 20px;">
                     <div id="chartAttrMultiples"></div>
                 </div>
             </div>

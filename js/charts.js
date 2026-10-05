@@ -275,6 +275,7 @@ const ChartRenderer = {
             H = [],
             vocabulary = [],
             attributeCol = '',
+            filterAttrVal = '',
             onPointClick
         } = options;
 
@@ -290,52 +291,100 @@ const ChartRenderer = {
             xTitle = `横軸: 因子${xFactorIdx + 1}【${xTheme.label.replace(/^【|】$/g, '')}】得点`;
             yTitle = `縦軸: 因子${yFactorIdx + 1}【${yTheme.label.replace(/^【|】$/g, '')}】得点`;
 
-            // テーマごとにトレースを色分け
-            traces = themes.map((theme, tIdx) => {
-                const matchingResponses = [];
-                for (let i = 0; i < responsesWithTheme.length; i++) {
-                    const r = responsesWithTheme[i];
-                    if (r.primaryThemeId === theme.id) {
-                        const scoreX = W[i] ? W[i][xFactorIdx] : 0;
-                        const scoreY = W[i] ? W[i][yFactorIdx] : 0;
-                        const rawAttr = (r.row && attributeCol) ? r.row[attributeCol] : null;
-                        const attrVal = (rawAttr !== undefined && rawAttr !== null && String(rawAttr).trim() !== '')
-                            ? String(rawAttr).trim()
-                            : '';
+            const isFiltered = !!(attributeCol && filterAttrVal);
 
-                        matchingResponses.push({
-                            x: scoreX,
-                            y: scoreY,
-                            text: r.text,
-                            id: r.id,
-                            themeLabel: theme.label,
-                            attrVal: attrVal,
-                            row: r.row
-                        });
-                    }
-                }
+            // 全回答の基本情報を収集
+            const allResponsePoints = [];
+            for (let i = 0; i < responsesWithTheme.length; i++) {
+                const r = responsesWithTheme[i];
+                const scoreX = W[i] ? W[i][xFactorIdx] : 0;
+                const scoreY = W[i] ? W[i][yFactorIdx] : 0;
+                const rawAttr = (r.row && attributeCol) ? r.row[attributeCol] : null;
+                const attrVal = (rawAttr !== undefined && rawAttr !== null && String(rawAttr).trim() !== '')
+                    ? String(rawAttr).trim()
+                    : '（未設定）';
 
-                return {
-                    x: matchingResponses.map(p => p.x),
-                    y: matchingResponses.map(p => p.y),
-                    text: matchingResponses.map(p => {
-                        const short = p.text.length > 35 ? p.text.substring(0, 35) + '…' : p.text;
-                        const attrBadge = p.attrVal ? ` [${p.attrVal}]` : '';
-                        return `<b>${p.themeLabel}</b>${attrBadge}<br>${short}`;
-                    }),
-                    customdata: matchingResponses,
+                allResponsePoints.push({
+                    x: scoreX,
+                    y: scoreY,
+                    text: r.text,
+                    id: r.id,
+                    themeId: r.primaryThemeId,
+                    themeLabel: themes[r.primaryThemeId] ? themes[r.primaryThemeId].label : '',
+                    attrVal: attrVal,
+                    row: r.row
+                });
+            }
+
+            if (isFiltered) {
+                // 属性絞り込み時: 背景に全回答のゴーストプロットを敷き、該当属性のみ因子色でハイライト
+                const ghostTrace = {
+                    x: allResponsePoints.map(p => p.x),
+                    y: allResponsePoints.map(p => p.y),
                     mode: 'markers',
                     type: 'scatter',
-                    name: `因子${tIdx + 1}: ${theme.label.replace(/^【|】$/g, '')}`,
+                    name: '全体（比較用）',
                     marker: {
-                        size: 9,
-                        color: this.COLORS[tIdx % this.COLORS.length],
-                        opacity: 0.8,
-                        line: { color: '#ffffff', width: 1 }
+                        size: 5.5,
+                        color: '#CBD5E1',
+                        opacity: 0.4
                     },
-                    hoverinfo: 'text'
+                    hoverinfo: 'none',
+                    showlegend: true
                 };
-            });
+                traces.push(ghostTrace);
+
+                // 該当属性の回答をテーマごとにプロット
+                themes.forEach((theme, tIdx) => {
+                    const matched = allResponsePoints.filter(p => p.themeId === theme.id && p.attrVal === filterAttrVal);
+                    if (matched.length > 0) {
+                        traces.push({
+                            x: matched.map(p => p.x),
+                            y: matched.map(p => p.y),
+                            text: matched.map(p => {
+                                const short = p.text.length > 35 ? p.text.substring(0, 35) + '…' : p.text;
+                                return `<b>${p.themeLabel}</b> [${p.attrVal}]<br>${short}`;
+                            }),
+                            customdata: matched,
+                            mode: 'markers',
+                            type: 'scatter',
+                            name: `因子${tIdx + 1}: ${theme.label.replace(/^【|】$/g, '')} (${matched.length}件)`,
+                            marker: {
+                                size: 9.5,
+                                color: this.COLORS[tIdx % this.COLORS.length],
+                                opacity: 0.95,
+                                line: { color: '#ffffff', width: 1.5 }
+                            },
+                            hoverinfo: 'text'
+                        });
+                    }
+                });
+            } else {
+                // 通常時: テーマごとに全回答を色分け
+                traces = themes.map((theme, tIdx) => {
+                    const matched = allResponsePoints.filter(p => p.themeId === theme.id);
+                    return {
+                        x: matched.map(p => p.x),
+                        y: matched.map(p => p.y),
+                        text: matched.map(p => {
+                            const short = p.text.length > 35 ? p.text.substring(0, 35) + '…' : p.text;
+                            const attrBadge = p.attrVal && p.attrVal !== '（未設定）' ? ` [${p.attrVal}]` : '';
+                            return `<b>${p.themeLabel}</b>${attrBadge}<br>${short}`;
+                        }),
+                        customdata: matched,
+                        mode: 'markers',
+                        type: 'scatter',
+                        name: `因子${tIdx + 1}: ${theme.label.replace(/^【|】$/g, '')}`,
+                        marker: {
+                            size: 9,
+                            color: this.COLORS[tIdx % this.COLORS.length],
+                            opacity: 0.8,
+                            line: { color: '#ffffff', width: 1 }
+                        },
+                        hoverinfo: 'text'
+                    };
+                });
+            }
 
         } else {
             // --- ② 語の因子負荷量マップ ---

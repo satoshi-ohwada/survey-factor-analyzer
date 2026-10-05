@@ -15,6 +15,7 @@ const AppState = {
     mapMode: 'responses', // 'responses' (因子得点) または 'words' (因子負荷量)
     mapAxisX: 0,
     mapAxisY: 1,
+    mapAttrFilter: '', // '' (全属性) または特定の属性値 (例: '20代')
     loadedFileName: '',
 
     // プレビュー＆データ編集状態
@@ -89,6 +90,7 @@ function setupEventListeners() {
     });
     selectAttrCol.addEventListener('change', (e) => {
         AppState.attributeColumn = e.target.value || null;
+        AppState.mapAttrFilter = '';
         renderDataPreview();
     });
 
@@ -131,17 +133,28 @@ function setupEventListeners() {
         });
     }
 
+    // 属性による絞り込み変更
+    const selectMapAttrFilter = document.getElementById('selectMapAttrFilter');
+    if (selectMapAttrFilter) {
+        selectMapAttrFilter.addEventListener('change', (e) => {
+            AppState.mapAttrFilter = e.target.value;
+            updateFactorSpaceMap();
+        });
+    }
+
     // 因子空間マップのモード切替（回答者得点 vs 語の負荷量）
     btnMapModeResponses.addEventListener('click', () => {
         AppState.mapMode = 'responses';
         btnMapModeResponses.className = 'btn btn-sm btn-primary';
         btnMapModeWords.className = 'btn btn-sm';
+        setupAttrFilterSelector();
         updateFactorSpaceMap();
     });
     btnMapModeWords.addEventListener('click', () => {
         AppState.mapMode = 'words';
         btnMapModeWords.className = 'btn btn-sm btn-primary';
         btnMapModeResponses.className = 'btn btn-sm';
+        setupAttrFilterSelector();
         updateFactorSpaceMap();
     });
 
@@ -814,6 +827,8 @@ async function runFullPipeline() {
         return;
     }
 
+    AppState.mapAttrFilter = '';
+
     const btnRun = document.getElementById('btnRunAnalysis');
     const btnRunTop = document.getElementById('btnRunAnalysisTop');
     if (btnRun) btnRun.disabled = true;
@@ -925,20 +940,11 @@ function renderResults(validResponses, junkCount, result, tfidfData) {
     // 【図3】因子空間ポジショニングマップ
     updateFactorSpaceMap();
 
-    // 属性別分析セクション（属性列が指定されている場合: 図4クロス集計 ＆ 図5スモールマルチプルズ）
+    // 属性別分析セクション（属性列が指定されている場合: 図4クロス集計）
     const attrSection = document.getElementById('attributeAnalysisSection');
     if (AppState.attributeColumn) {
         if (attrSection) attrSection.style.display = 'block';
         ChartRenderer.renderCrossTabChart('chartCrossTab', result.responsesWithTheme, result.themes, AppState.attributeColumn);
-        ChartRenderer.renderAttributeSmallMultiples('chartAttrMultiples', {
-            xFactorIdx: AppState.mapAxisX,
-            yFactorIdx: AppState.mapAxisY,
-            themes: result.themes,
-            responsesWithTheme: result.responsesWithTheme,
-            W: result.W,
-            attributeCol: AppState.attributeColumn,
-            onPointClick: (pointData) => showResponseModal(pointData)
-        });
     } else {
         if (attrSection) attrSection.style.display = 'none';
     }
@@ -1036,6 +1042,69 @@ function setupAxisSelectors(themes) {
         }
         selectY.appendChild(optY);
     });
+
+    setupAttrFilterSelector();
+}
+
+/**
+ * 因子空間マップの属性絞り込みセレクタのセットアップ
+ */
+function setupAttrFilterSelector() {
+    const attrFilterGroup = document.getElementById('attrFilterGroup');
+    const selectAttrFilter = document.getElementById('selectMapAttrFilter');
+    if (!attrFilterGroup || !selectAttrFilter) return;
+
+    if (!AppState.attributeColumn || !AppState.analysisResult || AppState.mapMode === 'words') {
+        attrFilterGroup.style.display = 'none';
+        AppState.mapAttrFilter = '';
+        return;
+    }
+
+    attrFilterGroup.style.display = 'flex';
+    selectAttrFilter.innerHTML = '';
+
+    // 全属性表示用オプション
+    const optAll = document.createElement('option');
+    optAll.value = '';
+    optAll.textContent = '全属性（全体を表示）';
+    if (!AppState.mapAttrFilter) optAll.selected = true;
+    selectAttrFilter.appendChild(optAll);
+
+    // 属性ごとの集計とソート
+    const counts = {};
+    AppState.analysisResult.responsesWithTheme.forEach(r => {
+        const rawAttr = (r.row && AppState.attributeColumn) ? r.row[AppState.attributeColumn] : null;
+        const attrVal = (rawAttr !== undefined && rawAttr !== null && String(rawAttr).trim() !== '')
+            ? String(rawAttr).trim()
+            : '（未設定）';
+        counts[attrVal] = (counts[attrVal] || 0) + 1;
+    });
+
+    const ORDER_MAP = {
+        '大変不満': 1, '不満': 2, 'やや不満': 3, 'どちらともいえない': 4, '普通': 4, 'やや満足': 5, '満足': 6, '大変満足': 7,
+        '非常に不満': 1, '非常に満足': 7, '悪い': 1, 'やや悪い': 2, '良い': 4, '大変良い': 5,
+        '低': 1, '中': 2, '高': 3
+    };
+
+    const sortedAttrs = Object.keys(counts).sort((a, b) => {
+        if (a === '（未設定）') return 1;
+        if (b === '（未設定）') return -1;
+        if (ORDER_MAP[a] && ORDER_MAP[b]) return ORDER_MAP[a] - ORDER_MAP[b];
+        const numA = (a.match(/\d+/) || [])[0];
+        const numB = (b.match(/\d+/) || [])[0];
+        if (numA !== undefined && numB !== undefined && numA !== numB) {
+            return parseInt(numA, 10) - parseInt(numB, 10);
+        }
+        return a.localeCompare(b, 'ja');
+    });
+
+    sortedAttrs.forEach(attrVal => {
+        const opt = document.createElement('option');
+        opt.value = attrVal;
+        opt.textContent = `${attrVal} (N=${counts[attrVal]})`;
+        if (AppState.mapAttrFilter === attrVal) opt.selected = true;
+        selectAttrFilter.appendChild(opt);
+    });
 }
 
 /**
@@ -1056,9 +1125,11 @@ function updateFactorSpaceMap() {
         H,
         vocabulary,
         attributeCol: AppState.attributeColumn,
+        filterAttrVal: AppState.mapAttrFilter,
         onPointClick: (pointData) => showResponseModal(pointData)
     });
 
+    // レポート／印刷用（全属性並列スモールマルチプルズ）を裏で更新
     if (AppState.attributeColumn) {
         ChartRenderer.renderAttributeSmallMultiples('chartAttrMultiples', {
             xFactorIdx: AppState.mapAxisX,
