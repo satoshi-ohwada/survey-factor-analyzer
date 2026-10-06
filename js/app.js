@@ -838,7 +838,7 @@ function processParsedData(parsed, fileName) {
     document.getElementById('inputK').value = optimalK;
     AppState.kCount = optimalK;
 
-    configGrid.style.display = 'grid';
+    configGrid.style.display = 'block';
     const dictSection = document.getElementById('dictionarySection');
     if (dictSection) dictSection.style.display = 'block';
     if (runActionArea) runActionArea.style.display = 'flex';
@@ -2158,14 +2158,17 @@ function setupDictionaryEventListeners() {
 
     // アコーディオン開閉
     if (dictHeader && dictSection && dictBody) {
+        const dictAccordionIcon = document.getElementById('dictAccordionIcon');
         dictHeader.addEventListener('click', () => {
             const isOpen = dictSection.classList.contains('is-open');
             if (isOpen) {
                 dictSection.classList.remove('is-open');
                 dictBody.style.display = 'none';
+                if (dictAccordionIcon) dictAccordionIcon.textContent = '▼';
             } else {
                 dictSection.classList.add('is-open');
                 dictBody.style.display = 'block';
+                if (dictAccordionIcon) dictAccordionIcon.textContent = '▲';
             }
         });
         dictHeader.addEventListener('keydown', (e) => {

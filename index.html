@@ -92,52 +92,65 @@
                     </button>
                 </div>
 
-                <!-- 解析パラメータ設定（CSV読込後に表示） -->
-                <div id="configGrid" class="config-grid" style="display: none;">
-                    <div class="form-group">
-                        <label class="form-label" for="selectTextCol">
-                            自由記述の列（分析対象）
-                            <span class="badge-rec">自動判定</span>
-                        </label>
-                        <select id="selectTextCol" class="form-select"></select>
+                <!-- 解析パラメータ設定（CSV読込後に表示・視認性を強化） -->
+                <div id="configGrid" class="config-panel" style="display: none;">
+                    <div class="config-panel-header">
+                        <div class="config-panel-title">
+                            <span class="config-panel-icon">⚙️</span>
+                            <span>分析条件の設定</span>
+                        </div>
+                        <span class="config-panel-hint">※分析対象列・属性列・トピック数を確認・変更できます</span>
                     </div>
+                    <div class="config-fields-grid">
+                        <div class="form-group form-group-highlight">
+                            <label class="form-label" for="selectTextCol">
+                                <span class="form-label-text">① 自由記述の列（分析対象）</span>
+                                <span class="badge-rec">自動判定</span>
+                            </label>
+                            <select id="selectTextCol" class="form-select form-select-lg"></select>
+                            <span class="form-hint">テキストが入っているメインの列を選択</span>
+                        </div>
 
-                    <div class="form-group">
-                        <label class="form-label" for="selectAttrCol">
-                            属性の列（年代・満足度など・任意）
-                        </label>
-                        <select id="selectAttrCol" class="form-select">
-                            <option value="">（指定しない）</option>
-                        </select>
-                    </div>
+                        <div class="form-group form-group-highlight">
+                            <label class="form-label" for="selectAttrCol">
+                                <span class="form-label-text">② 属性の列（年代・満足度など）</span>
+                                <span class="badge-opt">任意</span>
+                            </label>
+                            <select id="selectAttrCol" class="form-select form-select-lg">
+                                <option value="">（指定しない）</option>
+                            </select>
+                            <span class="form-hint">クロス集計・属性比較を行う列</span>
+                        </div>
 
-                    <div class="form-group">
-                        <label class="form-label">
-                            見つけるトピックの数
-                            <span class="badge-rec" title="データ規模に応じた推奨値">おすすめ</span>
-                        </label>
-                        <div class="stepper">
-                            <button type="button" id="btnDecK" class="stepper-btn" style="border-radius: 6px 0 0 6px;">−</button>
-                            <input type="text" id="inputK" class="stepper-val" value="3" readonly>
-                            <button type="button" id="btnIncK" class="stepper-btn" style="border-radius: 0 6px 6px 0;">＋</button>
+                        <div class="form-group form-group-highlight">
+                            <label class="form-label">
+                                <span class="form-label-text">③ 見つけるトピックの数</span>
+                                <span class="badge-rec" title="データ規模に応じた推奨値">おすすめ</span>
+                            </label>
+                            <div class="stepper stepper-lg">
+                                <button type="button" id="btnDecK" class="stepper-btn" style="border-radius: 8px 0 0 8px;">−</button>
+                                <input type="text" id="inputK" class="stepper-val" value="3" readonly>
+                                <button type="button" id="btnIncK" class="stepper-btn" style="border-radius: 0 8px 8px 0;">＋</button>
+                            </div>
+                            <span class="form-hint">抽出するテーマの個数 (2〜8)</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- カスタム辞書・除外ワード設定セクション（アコーディオン） -->
-                <div id="dictionarySection" class="dictionary-accordion" style="display: none;">
+                <!-- カスタム辞書・除外ワード設定セクション（最初から展開表示、ヘッダーで開閉可能） -->
+                <div id="dictionarySection" class="dictionary-accordion is-open" style="display: none;">
                     <div id="dictionaryHeader" class="dict-header" role="button" tabindex="0" title="クリックして辞書設定を開閉">
                         <div class="dict-header-left">
-                            <span class="dict-icon">⚙️</span>
+                            <span class="dict-icon">📖</span>
                             <span class="dict-title">カスタム辞書・除外ワード設定（任意）</span>
                             <span id="dictRuleSummaryBadge" class="dict-badge">登録: 0件</span>
                         </div>
                         <div class="dict-header-right">
-                            <span class="dict-hint">複合語・除外語・表記ゆれ</span>
-                            <span id="dictAccordionIcon" class="dict-accordion-icon">▼</span>
+                            <span class="dict-hint">クリックで折りたたみ／展開</span>
+                            <span id="dictAccordionIcon" class="dict-accordion-icon">▲</span>
                         </div>
                     </div>
-                    <div id="dictionaryBody" class="dict-body" style="display: none;">
+                    <div id="dictionaryBody" class="dict-body" style="display: block;">
                         <div class="dict-intro-bar">
                             <span class="dict-intro-text">
                                 特定の業界用語や新語を1単語として扱ったり、アンケート共通の不要語を除外してトピックの解釈性を高めます。
