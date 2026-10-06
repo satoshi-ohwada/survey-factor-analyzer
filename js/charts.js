@@ -784,6 +784,20 @@ const ChartRenderer = {
                 name: theme.label,
                 type: 'bar',
                 orientation: 'h',
+                text: percentages.map(p => p >= 4 ? `${p}%` : ''),
+                textposition: 'inside',
+                insidetextanchor: 'middle',
+                textfont: {
+                    size: 12,
+                    color: '#FFFFFF',
+                    family: 'sans-serif'
+                },
+                insidetextfont: {
+                    size: 12,
+                    color: '#FFFFFF',
+                    family: 'sans-serif'
+                },
+                constraintext: 'inside',
                 marker: {
                     color: this.COLORS[tIdx % this.COLORS.length],
                     opacity: 0.9
