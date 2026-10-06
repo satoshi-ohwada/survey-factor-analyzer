@@ -737,12 +737,46 @@ const ChartRenderer = {
         const maxLabelLen = Math.max(...sortedAttrs.map(a => String(a).length), 4);
         const dynamicMarginL = Math.max(110, Math.min(260, maxLabelLen * 14 + 25));
 
-        const traces = themes.map((theme, tIdx) => {
-            const percentages = sortedAttrs.map(attr => {
-                const totalInAttr = Object.values(counts[attr] || {}).reduce((s, v) => s + v, 0);
-                const count = counts[attr]?.[theme.id] || 0;
-                return totalInAttr > 0 ? Math.round((count / totalInAttr) * 100) : 0;
+        // 各属性ごとに各テーマの割合（%）を最大剰余法で計算（合計を厳密に100%に揃え、帯の長さの不足・はみ出しを防止）
+        const attrThemePercentages = {};
+        sortedAttrs.forEach(attr => {
+            attrThemePercentages[attr] = {};
+            const totalInAttr = Object.values(counts[attr] || {}).reduce((s, v) => s + v, 0);
+
+            if (totalInAttr === 0) {
+                themes.forEach(t => { attrThemePercentages[attr][t.id] = 0; });
+                return;
+            }
+
+            // 1. 各テーマの生割合
+            const rawShares = themes.map(t => {
+                const count = counts[attr]?.[t.id] || 0;
+                return (count / totalInAttr) * 100;
             });
+
+            // 2. 切り捨て整数値と不足分の算出
+            const floorShares = rawShares.map(s => Math.floor(s));
+            const remainder = 100 - floorShares.reduce((a, b) => a + b, 0);
+
+            // 3. 端数（小数部分）が大きい順にソート（端数 > 0 のもののみ対象）
+            const remaindersWithIdx = rawShares.map((s, idx) => ({
+                idx,
+                rem: s - floorShares[idx]
+            }))
+            .filter(item => item.rem > 1e-9)
+            .sort((a, b) => b.rem - a.rem);
+
+            for (let i = 0; i < remainder && i < remaindersWithIdx.length; i++) {
+                floorShares[remaindersWithIdx[i].idx]++;
+            }
+
+            themes.forEach((t, i) => {
+                attrThemePercentages[attr][t.id] = floorShares[i];
+            });
+        });
+
+        const traces = themes.map((theme, tIdx) => {
+            const percentages = sortedAttrs.map(attr => attrThemePercentages[attr]?.[theme.id] || 0);
 
             return {
                 x: percentages,
