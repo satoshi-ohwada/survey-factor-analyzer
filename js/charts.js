@@ -369,6 +369,7 @@ const ChartRenderer = {
                     id: r.id,
                     themeId: r.primaryThemeId,
                     themeLabel: themes[r.primaryThemeId] ? themes[r.primaryThemeId].label : '',
+                    themeColor: this.COLORS[r.primaryThemeId % this.COLORS.length],
                     attrVal: attrVal,
                     row: r.row
                 });
@@ -400,8 +401,8 @@ const ChartRenderer = {
                             x: matched.map(p => p.x),
                             y: matched.map(p => p.y),
                             text: matched.map(p => {
-                                const short = p.text.length > 35 ? p.text.substring(0, 35) + '…' : p.text;
-                                return `<b>${p.themeLabel}</b> [${p.attrVal}]<br>${short}`;
+                                const attrBadge = p.attrVal && p.attrVal !== '（未設定）' ? ` [${p.attrVal}]` : '';
+                                return `<b>${p.themeLabel}</b>${attrBadge}<br><span style="font-size:10.5px; color:#CBD5E1;">スコア: (${p.x >= 0 ? '+' : ''}${p.x.toFixed(2)}, ${p.y >= 0 ? '+' : ''}${p.y.toFixed(2)})</span>`;
                             }),
                             customdata: matched,
                             mode: 'markers',
@@ -425,9 +426,8 @@ const ChartRenderer = {
                         x: matched.map(p => p.x),
                         y: matched.map(p => p.y),
                         text: matched.map(p => {
-                            const short = p.text.length > 35 ? p.text.substring(0, 35) + '…' : p.text;
                             const attrBadge = p.attrVal && p.attrVal !== '（未設定）' ? ` [${p.attrVal}]` : '';
-                            return `<b>${p.themeLabel}</b>${attrBadge}<br>${short}`;
+                            return `<b>${p.themeLabel}</b>${attrBadge}<br><span style="font-size:10.5px; color:#CBD5E1;">スコア: (${p.x >= 0 ? '+' : ''}${p.x.toFixed(2)}, ${p.y >= 0 ? '+' : ''}${p.y.toFixed(2)})</span>`;
                         }),
                         customdata: matched,
                         mode: 'markers',
@@ -484,8 +484,7 @@ const ChartRenderer = {
                     line: { color: '#ffffff', width: 1 }
                 },
                 hovertemplate: '<b>%{customdata.word}</b><br>' +
-                               `${xTheme.label.replace(/^【|】$/g, '')}関連度: %{x:.3f}<br>` +
-                               `${yTheme.label.replace(/^【|】$/g, '')}関連度: %{y:.3f}<extra></extra>`
+                               '<span style="font-size:10.5px; color:#CBD5E1;">関連度: (%{x:.3f}, %{y:.3f})</span><extra></extra>'
             }];
         }
 
@@ -499,19 +498,33 @@ const ChartRenderer = {
                 y: 0.98
             },
             showlegend: mode === 'responses',
+            hovermode: 'closest',
+            hoverdistance: 25,
             xaxis: {
                 title: { text: xTitle, font: { size: 11, color: '#475569' } },
                 showgrid: true,
                 zeroline: true,
                 zerolinecolor: '#CBD5E1',
-                gridcolor: '#F1F5F9'
+                gridcolor: '#F1F5F9',
+                showspikes: true,
+                spikemode: 'across',
+                spikesnap: 'cursor',
+                spikethickness: 1.2,
+                spikedash: 'dot',
+                spikecolor: '#6366F1'
             },
             yaxis: {
                 title: { text: yTitle, font: { size: 11, color: '#475569' } },
                 showgrid: true,
                 zeroline: true,
                 zerolinecolor: '#CBD5E1',
-                gridcolor: '#F1F5F9'
+                gridcolor: '#F1F5F9',
+                showspikes: true,
+                spikemode: 'across',
+                spikesnap: 'cursor',
+                spikethickness: 1.2,
+                spikedash: 'dot',
+                spikecolor: '#6366F1'
             },
             margin: { l: 55, r: 20, t: 40, b: 50 },
             height: 350,
@@ -525,8 +538,9 @@ const ChartRenderer = {
                 font: { size: 10 }
             },
             hoverlabel: {
-                bgcolor: '#1E293B',
-                font: { color: '#ffffff', size: 12 },
+                bgcolor: 'rgba(15, 23, 42, 0.92)',
+                bordercolor: '#6366F1',
+                font: { color: '#ffffff', size: 11.5 },
                 align: 'left'
             }
         };
@@ -546,15 +560,150 @@ const ChartRenderer = {
 
         Plotly.newPlot(containerId, traces, layout, config).then(() => {
             const el = document.getElementById(containerId);
-            if (el && onPointClick && mode === 'responses') {
-                el.removeAllListeners && el.removeAllListeners('plotly_click');
+            const detailPanel = document.getElementById('mapHoverDetailPanel');
+            if (!el) return;
+
+            // 新たに描画された際は以前のピン留め状態をリセット
+            if (detailPanel) {
+                delete detailPanel.dataset.pinned;
+            }
+
+            const safeEscape = (s) => {
+                if (s === null || s === undefined) return '';
+                return String(s)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            };
+
+            const resetDetailPanel = () => {
+                if (!detailPanel) return;
+                if (detailPanel.dataset.pinned === 'true') return;
+                if (mode === 'responses') {
+                    detailPanel.innerHTML = `
+                        <div class="map-hover-detail-placeholder">
+                            <span class="placeholder-icon">💡</span>
+                            <span class="placeholder-text">マップ上のデータ点にカーソルを合わせると、回答内容やスコアの詳細がここに表示されます（クリックで詳細モーダル表示）</span>
+                        </div>
+                    `;
+                } else {
+                    detailPanel.innerHTML = `
+                        <div class="map-hover-detail-placeholder">
+                            <span class="placeholder-icon">💡</span>
+                            <span class="placeholder-text">マップ上の単語にカーソルを合わせると、関連度や主トピックの詳細がここに表示されます</span>
+                        </div>
+                    `;
+                }
+            };
+
+            const updateDetailPanel = (pointData, isPinned = false) => {
+                if (!detailPanel || !pointData) return;
+                if (mode === 'responses') {
+                    const themeColor = pointData.themeColor || '#2563EB';
+                    const themeLabel = pointData.themeLabel || `トピック${(pointData.themeId || 0) + 1}`;
+                    const attrBadge = pointData.attrVal && pointData.attrVal !== '（未設定）' 
+                        ? `<span class="map-detail-attr-tag">${safeEscape(pointData.attrVal)}</span>` 
+                        : '';
+                    const scoreXStr = typeof pointData.x === 'number' ? (pointData.x >= 0 ? '+' : '') + pointData.x.toFixed(2) : '-';
+                    const scoreYStr = typeof pointData.y === 'number' ? (pointData.y >= 0 ? '+' : '') + pointData.y.toFixed(2) : '-';
+
+                    detailPanel.innerHTML = `
+                        <div class="map-hover-detail-card ${isPinned ? 'is-pinned' : ''}">
+                            <div class="map-hover-detail-header">
+                                <div class="map-hover-detail-tags">
+                                    <span class="map-detail-theme-tag" style="background-color: ${themeColor}18; color: ${themeColor}; border-color: ${themeColor}40;">
+                                        <span class="tag-dot" style="background-color: ${themeColor};"></span>
+                                        ${safeEscape(themeLabel)}
+                                    </span>
+                                    ${attrBadge}
+                                    ${isPinned ? '<button type="button" class="map-detail-pinned-tag btn-unpin-preview" title="固定表示を解除してリセット">📌 選択中 <span style="font-weight:normal; margin-left:2px;">✕</span></button>' : ''}
+                                </div>
+                                <div class="map-hover-detail-scores">
+                                    <span class="score-item"><span class="score-label">トピック${xFactorIdx + 1}スコア:</span> <b>${scoreXStr}</b></span>
+                                    <span class="score-divider">|</span>
+                                    <span class="score-item"><span class="score-label">トピック${yFactorIdx + 1}スコア:</span> <b>${scoreYStr}</b></span>
+                                    <span class="map-detail-action-hint">🖱 クリックで詳細モーダル</span>
+                                </div>
+                            </div>
+                            <div class="map-hover-detail-body">
+                                <span class="quote-mark">“</span>${safeEscape(pointData.text || '（テキストなし）')}<span class="quote-mark">”</span>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    const word = pointData.word;
+                    const primaryTheme = themes[pointData.primaryFactor] || { label: `トピック${pointData.primaryFactor + 1}` };
+                    const themeColor = this.COLORS[pointData.primaryFactor % this.COLORS.length];
+                    const scoreXStr = typeof pointData.x === 'number' ? pointData.x.toFixed(3) : '-';
+                    const scoreYStr = typeof pointData.y === 'number' ? pointData.y.toFixed(3) : '-';
+
+                    detailPanel.innerHTML = `
+                        <div class="map-hover-detail-card">
+                            <div class="map-hover-detail-header">
+                                <div class="map-hover-detail-tags">
+                                    <span class="map-detail-word-tag">${safeEscape(word)}</span>
+                                    <span class="map-detail-theme-tag" style="background-color: ${themeColor}18; color: ${themeColor}; border-color: ${themeColor}40;">
+                                        <span class="tag-dot" style="background-color: ${themeColor};"></span>
+                                        主トピック: ${safeEscape(primaryTheme.label)}
+                                    </span>
+                                </div>
+                                <div class="map-hover-detail-scores">
+                                    <span class="score-item"><span class="score-label">トピック${xFactorIdx + 1}関連度:</span> <b>${scoreXStr}</b></span>
+                                    <span class="score-divider">|</span>
+                                    <span class="score-item"><span class="score-label">トピック${yFactorIdx + 1}関連度:</span> <b>${scoreYStr}</b></span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            };
+
+            // パネル内の固定解除クリックリスナー
+            if (detailPanel) {
+                detailPanel.onclick = (e) => {
+                    if (e.target && e.target.closest('.btn-unpin-preview')) {
+                        delete detailPanel.dataset.pinned;
+                        resetDetailPanel();
+                    }
+                };
+            }
+
+            // ホバーイベントリスナーの登録
+            el.removeAllListeners && el.removeAllListeners('plotly_hover');
+            el.removeAllListeners && el.removeAllListeners('plotly_unhover');
+            el.removeAllListeners && el.removeAllListeners('plotly_click');
+
+            el.on('plotly_hover', (d) => {
+                if (d && d.points && d.points[0]) {
+                    const custom = d.points[0].customdata;
+                    if (custom) {
+                        updateDetailPanel(custom, false);
+                    }
+                }
+            });
+
+            el.on('plotly_unhover', () => {
+                resetDetailPanel();
+            });
+
+            if (onPointClick && mode === 'responses') {
                 el.on('plotly_click', (d) => {
                     if (d && d.points && d.points[0]) {
                         const custom = d.points[0].customdata;
-                        if (custom) onPointClick(custom);
+                        if (custom) {
+                            if (detailPanel) {
+                                detailPanel.dataset.pinned = 'true';
+                                updateDetailPanel(custom, true);
+                            }
+                            onPointClick(custom);
+                        }
                     }
                 });
             }
+
+            resetDetailPanel();
         });
     },
 
@@ -1093,7 +1242,13 @@ const ChartRenderer = {
                     zeroline: true,
                     zerolinecolor: '#E2E8F0',
                     tickfont: { size: 8, color: '#94A3B8' },
-                    fixedrange: true
+                    fixedrange: true,
+                    showspikes: true,
+                    spikemode: 'across',
+                    spikesnap: 'cursor',
+                    spikethickness: 1,
+                    spikedash: 'dot',
+                    spikecolor: '#94A3B8'
                 },
                 yaxis: {
                     range: rangeY,
@@ -1102,11 +1257,19 @@ const ChartRenderer = {
                     zeroline: true,
                     zerolinecolor: '#E2E8F0',
                     tickfont: { size: 8, color: '#94A3B8' },
-                    fixedrange: true
+                    fixedrange: true,
+                    showspikes: true,
+                    spikemode: 'across',
+                    spikesnap: 'cursor',
+                    spikethickness: 1,
+                    spikedash: 'dot',
+                    spikecolor: '#94A3B8'
                 },
+                hovermode: 'closest',
                 hoverlabel: {
-                    bgcolor: '#1E293B',
-                    font: { color: '#ffffff', size: 11 },
+                    bgcolor: 'rgba(15, 23, 42, 0.92)',
+                    bordercolor: '#6366F1',
+                    font: { color: '#ffffff', size: 10.5 },
                     align: 'left'
                 }
             };

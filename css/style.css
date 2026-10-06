@@ -1579,6 +1579,182 @@ body {
 }
 
 /* ========================================================
+   トピック空間マップ ホバー／選択詳細プレビューパネル
+   ======================================================== */
+.map-hover-detail-panel {
+    margin-top: 10px;
+    padding: 10px 14px;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: var(--radius-sm);
+    min-height: 72px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.map-hover-detail-placeholder {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #64748B;
+    font-size: 11.5px;
+    line-height: 1.5;
+    user-select: none;
+}
+
+.map-hover-detail-placeholder .placeholder-icon {
+    font-size: 15px;
+    flex-shrink: 0;
+}
+
+.map-hover-detail-card {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    animation: fadeIn 0.15s ease-out;
+}
+
+.map-hover-detail-card.is-pinned {
+    border-left: 3px solid #F59E0B;
+    padding-left: 8px;
+}
+
+.map-hover-detail-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px dashed #E2E8F0;
+}
+
+.map-hover-detail-tags {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.map-detail-theme-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+}
+
+.map-detail-theme-tag .tag-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.map-detail-word-tag {
+    font-size: 13px;
+    font-weight: 800;
+    color: #1E293B;
+    background: #FFFFFF;
+    border: 1px solid #CBD5E1;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.map-detail-attr-tag {
+    font-size: 11px;
+    font-weight: 600;
+    color: #475569;
+    background: #FFFFFF;
+    border: 1px solid #CBD5E1;
+    padding: 2px 7px;
+    border-radius: 4px;
+}
+
+.map-detail-pinned-tag {
+    font-size: 10px;
+    font-weight: 600;
+    color: #B45309;
+    background: #FEF3C7;
+    border: 1px solid #FDE68A;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.map-detail-pinned-tag.btn-unpin-preview {
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.map-detail-pinned-tag.btn-unpin-preview:hover {
+    background: #FDE68A;
+    color: #92400E;
+    border-color: #F59E0B;
+}
+
+.map-hover-detail-scores {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 11px;
+    color: #475569;
+}
+
+.map-hover-detail-scores .score-label {
+    color: #64748B;
+}
+
+.map-hover-detail-scores .score-divider {
+    color: #CBD5E1;
+}
+
+.map-detail-action-hint {
+    font-size: 10.5px;
+    color: var(--primary-color);
+    font-weight: 600;
+    margin-left: auto;
+    background: #EFF6FF;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.map-hover-detail-body {
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: #1E293B;
+    max-height: 60px;
+    overflow-y: auto;
+    word-break: break-word;
+    white-space: pre-wrap;
+    padding: 2px 0;
+}
+
+.map-hover-detail-body .quote-mark {
+    color: #94A3B8;
+    font-weight: 700;
+    margin: 0 2px;
+}
+
+/* ポジショニングマップ内の散布図ポイントのホバー強調 */
+#chartFactorSpace .scatterlayer .point {
+    cursor: pointer;
+    transition: transform 0.12s ease, stroke-width 0.12s ease;
+}
+
+#chartFactorSpace .scatterlayer .point:hover {
+    stroke: #0F172A !important;
+    stroke-width: 2.5px !important;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
+}
+
+/* ========================================================
    属性別分析（Small Multiples ＆ 属性バッジ）
    ======================================================== */
 .badge-attr {
@@ -1780,6 +1956,7 @@ body {
     .badge-rec,
     .theme-title span,
     .axis-switch-panel,
+    .map-hover-detail-panel,
     .stepper,
     .btn-toggle-group {
         display: none !important;
