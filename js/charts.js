@@ -44,6 +44,9 @@ const ChartRenderer = {
             values: values,
             hole: 0.46,
             domain: { x: [0, 1], y: [0.14, 1] },
+            sort: false,
+            direction: 'clockwise',
+            rotation: 90,
             textinfo: 'percent',
             textposition: 'inside',
             insidetextorientation: 'horizontal',
@@ -777,11 +780,12 @@ const ChartRenderer = {
 
         const traces = themes.map((theme, tIdx) => {
             const percentages = sortedAttrs.map(attr => attrThemePercentages[attr]?.[theme.id] || 0);
+            const cleanTitle = theme.label.replace(/^【|】$/g, '');
 
             return {
                 x: percentages,
                 y: sortedAttrs,
-                name: theme.label,
+                name: `因子${tIdx + 1}: ${cleanTitle}`,
                 type: 'bar',
                 orientation: 'h',
                 text: percentages.map(p => p >= 4 ? `${p}%` : ''),
@@ -806,6 +810,11 @@ const ChartRenderer = {
             };
         });
 
+        // 凡例行数に応じた動的高さおよび下余白の計算（X軸タイトルとの重なり防止）
+        const legendRows = Math.ceil(themes.length / 2);
+        const dynamicMarginB = Math.max(80, 60 + legendRows * 22);
+        const dynamicHeight = Math.max(290, sortedAttrs.length * 52 + 80 + legendRows * 28);
+
         const layout = {
             barmode: 'stack',
             title: {
@@ -813,7 +822,10 @@ const ChartRenderer = {
                 font: { size: 15, color: '#1E293B' }
             },
             xaxis: {
-                title: '割合 (%)',
+                title: {
+                    text: '割合 (%)',
+                    font: { size: 12, color: '#475569' }
+                },
                 range: [0, 100],
                 ticksuffix: '%',
                 fixedrange: true
@@ -824,17 +836,20 @@ const ChartRenderer = {
                 tickfont: { size: 12, color: '#334155' },
                 fixedrange: true
             },
-            margin: { l: dynamicMarginL, r: 30, t: 50, b: 50 },
-            height: Math.max(260, sortedAttrs.length * 48 + 100),
+            margin: { l: dynamicMarginL, r: 30, t: 50, b: dynamicMarginB },
+            height: dynamicHeight,
             paper_bgcolor: 'rgba(0,0,0,0)',
             plot_bgcolor: '#FAFAFC',
             legend: {
                 orientation: 'h',
-                y: -0.25,
+                yanchor: 'top',
+                y: -0.34,
                 x: 0.5,
                 xanchor: 'center',
+                font: { size: 11, color: '#334155' },
                 itemclick: false,
-                itemdoubleclick: false
+                itemdoubleclick: false,
+                traceorder: 'normal'
             }
         };
 
