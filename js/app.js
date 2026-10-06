@@ -12,7 +12,7 @@ const AppState = {
     attributeColumn: null,
     kCount: 3,
     analysisResult: null,
-    mapMode: 'responses', // 'responses' (因子得点) または 'words' (因子負荷量)
+    mapMode: 'responses', // 'responses' (因子得点) または 'words' (語の関連度)
     mapAxisX: 0,
     mapAxisY: 1,
     mapAttrFilter: '', // '' (全属性) または特定の属性値 (例: '20代')
@@ -1639,7 +1639,7 @@ function renderThemeCards(themes) {
             </div>
             <div class="theme-body-grid">
                 <div class="theme-chart-col">
-                    <div class="theme-chart-title">【因子負荷量（上位キーワード）】</div>
+                    <div class="theme-chart-title">【重要キーワード（関連度）】</div>
                     <div id="chart-kw-${theme.id}"></div>
                     <div class="card-keywords-toolbar">
                         <div class="card-keywords-header">
@@ -1982,11 +1982,11 @@ function showHelpModal() {
             <h4 style="margin-bottom:6px; color:#1E293B;">■ 各図の見方</h4>
             <ul style="margin-left:20px; margin-bottom:14px;">
                 <li><b>【図1】因子構成比ドーナツ:</b> 各潜在因子が回答全体の何％を占めているかをひと目で把握できます。</li>
-                <li><b>【図2】因子パス図:</b> 因子分析の象徴である構造図です。「潜在因子（楕円）」から「観測単語（四角）」へ伸びる矢印の太さと数値が<b>因子負荷量（関連の強さ）</b>を表します。</li>
+                <li><b>【図2】パス図:</b> 各潜在因子（楕円）から重要単語（四角）へ伸びる矢印の太さと数値が<b>関連度（関連の強さ、最大1.00）</b>を表します。</li>
                 <li><b>【図3】因子空間ポジショニングマップ:</b>
                     <ul>
                         <li><b>回答者の因子得点:</b> 各回答者が2つの因子をどれくらい強く持っているかをプロット。ホバーで回答文が読めます。</li>
-                        <li><b>語の因子負荷量:</b> 単語ごとの布置図。各語がどの因子軸に引っ張られているか（語同士の関係性）が分かります。</li>
+                        <li><b>語の関連度:</b> 単語ごとの布置図。各語がどの因子軸と強く関連しているか（語同士の近さ）が分かります。</li>
                     </ul>
                 </li>
                 <li><b>【図4】属性別クロス集計:</b> 年代や満足度ごとの因子比率を比較できます。</li>

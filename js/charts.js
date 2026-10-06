@@ -163,8 +163,17 @@ const ChartRenderer = {
         titleText.setAttribute('font-size', '13');
         titleText.setAttribute('font-weight', '700');
         titleText.setAttribute('fill', '#1E293B');
-        titleText.textContent = '【図2】因子パス図（潜在因子 → 観測単語）';
+        titleText.textContent = '【図2】パス図（潜在因子 → 重要単語の関連度）';
         svg.appendChild(titleText);
+
+        const noteText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        noteText.setAttribute('x', width - 15);
+        noteText.setAttribute('y', '22');
+        noteText.setAttribute('text-anchor', 'end');
+        noteText.setAttribute('font-size', '9.5');
+        noteText.setAttribute('fill', '#64748B');
+        noteText.textContent = '※数値は関連度（最大1.00）';
+        svg.appendChild(noteText);
 
         // 各因子の描画（左列：潜在因子、右列：観測単語）
         const factorX = 90;
@@ -436,15 +445,15 @@ const ChartRenderer = {
             }
 
         } else {
-            // --- ② 語の因子負荷量マップ ---
-            xTitle = `横軸: 因子${xFactorIdx + 1}【${xTheme.label.replace(/^【|】$/g, '')}】負荷量`;
-            yTitle = `縦軸: 因子${yFactorIdx + 1}【${yTheme.label.replace(/^【|】$/g, '')}】負荷量`;
+            // --- ② 語の関連度マップ ---
+            xTitle = `横軸: 因子${xFactorIdx + 1}【${xTheme.label.replace(/^【|】$/g, '')}】関連度`;
+            yTitle = `縦軸: 因子${yFactorIdx + 1}【${yTheme.label.replace(/^【|】$/g, '')}】関連度`;
 
-            // 各単語の負荷量座標 (H[xFactorIdx][j], H[yFactorIdx][j])
+            // 各単語の関連度座標 (H[xFactorIdx][j], H[yFactorIdx][j])
             const wordPoints = vocabulary.map((word, j) => {
                 const loadX = H[xFactorIdx] ? H[xFactorIdx][j] : 0;
                 const loadY = H[yFactorIdx] ? H[yFactorIdx][j] : 0;
-                // どちらの因子に強く負荷しているかで色付け
+                // どちらの因子に強く関連しているかで色付け
                 const primaryFactor = loadX >= loadY ? xFactorIdx : yFactorIdx;
                 return {
                     word,
@@ -454,7 +463,7 @@ const ChartRenderer = {
                 };
             });
 
-            // 負荷量が特に高い重要単語（上位25語）をラベル表示
+            // 関連度が特に高い重要単語（上位25語）をラベル表示
             const sortedByMagnitude = [...wordPoints].sort((a, b) => (b.x * b.x + b.y * b.y) - (a.x * a.x + a.y * a.y));
             const topWordsSet = new Set(sortedByMagnitude.slice(0, 20).map(w => w.word));
 
@@ -475,12 +484,12 @@ const ChartRenderer = {
                     line: { color: '#ffffff', width: 1 }
                 },
                 hovertemplate: '<b>%{customdata.word}</b><br>' +
-                               `${xTheme.label.replace(/^【|】$/g, '')}負荷量: %{x:.3f}<br>` +
-                               `${yTheme.label.replace(/^【|】$/g, '')}負荷量: %{y:.3f}<extra></extra>`
+                               `${xTheme.label.replace(/^【|】$/g, '')}関連度: %{x:.3f}<br>` +
+                               `${yTheme.label.replace(/^【|】$/g, '')}関連度: %{y:.3f}<extra></extra>`
             }];
         }
 
-        const modeLabel = mode === 'responses' ? '回答者得点' : '語の負荷量';
+        const modeLabel = mode === 'responses' ? '回答者得点' : '語の関連度';
         const layout = {
             title: {
                 text: `<b>【図3】因子空間ポジショニングマップ（${modeLabel}）</b> <span style="font-size:11px; font-weight:normal; color:#64748B;">[横: 因子${xFactorIdx + 1} × 縦: 因子${yFactorIdx + 1}]</span>`,
@@ -582,7 +591,7 @@ const ChartRenderer = {
                 showgrid: true,
                 gridcolor: '#F1F5F9',
                 zeroline: false,
-                title: { text: '負荷量', font: { size: 9.5, color: '#64748B' } },
+                title: { text: '関連度', font: { size: 9.5, color: '#64748B' } },
                 tickfont: { size: 9 },
                 fixedrange: true
             },
