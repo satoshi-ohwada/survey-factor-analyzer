@@ -1,5 +1,5 @@
 #!/bin/bash
-# アンケート自由記述 潜在因子分析ツール 起動スクリプト
+# アンケート自由記述 潜在因子 探索ツール 起動スクリプト
 PORT=8080
 echo "Starting Survey Factor Analyzer on http://localhost:$PORT ..."
 

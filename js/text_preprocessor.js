@@ -524,7 +524,7 @@ const TextPreprocessor = {
     generateRulesText(compoundWordsSet, stopWordsSet, synonymRulesMap) {
         const lines = [];
         lines.push("# ========================================================");
-        lines.push("# アンケート潜在因子分析ツール - 辞書・ルール設定ファイル");
+        lines.push("# アンケート潜在因子 探索ツール - 辞書・ルール設定ファイル");
         lines.push("# （text-analysis-test 共通フォーマット）");
         lines.push("#");
         lines.push("# 【使い方】");

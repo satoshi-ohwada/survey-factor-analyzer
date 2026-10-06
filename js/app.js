@@ -1930,10 +1930,10 @@ function updatePrintMetaInfo() {
         printPage1Label.textContent = `1 / ${totalPages} ページ (サマリー)`;
     }
     if (printPage2Title) {
-        printPage2Title.textContent = `アンケート自由記述 潜在因子分析レポート - 2 / ${totalPages} ページ（属性別クロス集計 ＆ 意見ポジショニング分布）`;
+        printPage2Title.textContent = `アンケート自由記述 潜在因子 探索レポート - 2 / ${totalPages} ページ（属性別クロス集計 ＆ 意見ポジショニング分布）`;
     }
     if (printLastPageTitle) {
-        printLastPageTitle.textContent = `アンケート自由記述 潜在因子分析レポート - ${totalPages} / ${totalPages} ページ（各因子の詳細 ＆ 生の声）`;
+        printLastPageTitle.textContent = `アンケート自由記述 潜在因子 探索レポート - ${totalPages} / ${totalPages} ページ（各因子の詳細 ＆ 生の声）`;
     }
 }
 
@@ -1973,7 +1973,7 @@ function showHelpModal() {
     const modalTitle = document.getElementById('modalTitle');
     const modalBody = document.getElementById('modalBody');
 
-    modalTitle.textContent = '📖 アンケート自由記述 潜在因子分析ツールの見方と使い方';
+    modalTitle.textContent = '📖 アンケート自由記述 潜在因子 探索ツールの見方と使い方';
     modalBody.innerHTML = `
         <div style="line-height:1.7;">
             <h4 style="margin-bottom:6px; color:#1E293B;">■ このツールについて</h4>
