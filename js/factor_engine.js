@@ -261,9 +261,40 @@ const FactorEngine = {
             });
         }
 
+        // 3.5. 全体シェア（回答数）の降順にテーマをソート＆再採番
+        // （「大きい順」と「因子番号順」を完全一致させ、ドーナツグラフ・帯グラフの直感性を最大化）
+        const sortedIndices = Array.from({ length: K }, (_, k) => k)
+            .sort((a, b) => {
+                const diffCount = themes[b].count - themes[a].count;
+                if (diffCount !== 0) return diffCount;
+                return themeScores[b] - themeScores[a];
+            });
+
+        const oldToNew = new Map();
+        sortedIndices.forEach((oldK, newK) => {
+            oldToNew.set(oldK, newK);
+        });
+
+        // テーマ配列を回答数降順で再構成し、id を 0..K-1 に再付番
+        const sortedThemes = sortedIndices.map((oldK, newK) => {
+            const t = themes[oldK];
+            t.id = newK;
+            return t;
+        });
+
+        // W行列の列、H行列の行を新因子順に並び替え
+        const sortedW = W.map(row => sortedIndices.map(oldK => row[oldK]));
+        const sortedH = sortedIndices.map(oldK => H[oldK]);
+
+        // responsesWithTheme の primaryThemeId と themeProbabilities を新インデックスに更新
+        responsesWithTheme.forEach(r => {
+            r.primaryThemeId = oldToNew.get(r.primaryThemeId);
+            r.themeProbabilities = sortedIndices.map(oldK => r.themeProbabilities[oldK]);
+        });
+
         // 4. 各テーマの全体シェア（％）の計算（最大剰余法により合計が厳密に100%になるよう調整）
         if (N > 0) {
-            const rawShares = themes.map(t => (t.count / N) * 100);
+            const rawShares = sortedThemes.map(t => (t.count / N) * 100);
             const floorShares = rawShares.map(s => Math.floor(s));
             let remainder = 100 - floorShares.reduce((a, b) => a + b, 0);
 
@@ -277,14 +308,14 @@ const FactorEngine = {
                 floorShares[remaindersWithIdx[i].idx]++;
             }
 
-            themes.forEach((t, i) => {
+            sortedThemes.forEach((t, i) => {
                 t.share = floorShares[i];
             });
         }
 
         // 5. 各テーマの代表回答をピックアップ
         // 8文字以上の回答を優先し、短文中心のデータでも欠落しないようフォールバック
-        themes.forEach(t => {
+        sortedThemes.forEach(t => {
             const pool = responsesWithTheme
                 .filter(r => r.primaryThemeId === t.id && r.hasMatchedWords);
 
@@ -319,14 +350,14 @@ const FactorEngine = {
         });
 
         // 6. 意見ポジショニングマップ用の2次元座標（PCA 2D投影）
-        const positioning2D = this.compute2DProjection(W, responsesWithTheme, themes);
+        const positioning2D = this.compute2DProjection(sortedW, responsesWithTheme, sortedThemes);
 
         return {
-            themes,
+            themes: sortedThemes,
             responsesWithTheme,
             positioning2D,
-            W,
-            H,
+            W: sortedW,
+            H: sortedH,
             vocabulary
         };
     },
