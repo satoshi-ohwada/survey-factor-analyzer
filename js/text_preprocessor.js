@@ -524,7 +524,7 @@ const TextPreprocessor = {
     generateRulesText(compoundWordsSet, stopWordsSet, synonymRulesMap) {
         const lines = [];
         lines.push("# ========================================================");
-        lines.push("# アンケート潜在因子 探索ツール - 辞書・ルール設定ファイル");
+        lines.push("# アンケート自由記述 潜在トピック探索ツール - 辞書・ルール設定ファイル");
         lines.push("# （text-analysis-test 共通フォーマット）");
         lines.push("#");
         lines.push("# 【使い方】");
@@ -546,7 +546,7 @@ const TextPreprocessor = {
         lines.push("");
 
         lines.push("# [除外ワード]");
-        lines.push("# 因子分析の重要キーワードやパス図から除外したい不要語（ストップワード）を1行に1つずつ記述します。");
+        lines.push("# トピック分析の重要キーワードやパス図から除外したい不要語（ストップワード）を1行に1つずつ記述します。");
         if (stopWordsSet && stopWordsSet.size > 0) {
             const sortedStopWords = Array.from(stopWordsSet).sort((a, b) => a.localeCompare(b, 'ja'));
             sortedStopWords.forEach(word => lines.push(word));

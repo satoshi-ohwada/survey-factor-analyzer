@@ -12,7 +12,7 @@ const AppState = {
     attributeColumn: null,
     kCount: 3,
     analysisResult: null,
-    mapMode: 'responses', // 'responses' (因子得点) または 'words' (語の関連度)
+    mapMode: 'responses', // 'responses' (回答者スコア) または 'words' (語の関連度)
     mapAxisX: 0,
     mapAxisY: 1,
     mapAttrFilter: '', // '' (全属性) または特定の属性値 (例: '20代')
@@ -56,7 +56,7 @@ function setupEventListeners() {
     const modalClose = document.getElementById('modalClose');
     const detailModal = document.getElementById('detailModal');
 
-    // 因子空間マップのコントロール
+    // トピック空間マップのコントロール
     const selectMapAxisX = document.getElementById('selectMapAxisX');
     const selectMapAxisY = document.getElementById('selectMapAxisY');
     const btnMapModeResponses = document.getElementById('btnMapModeResponses');
@@ -117,7 +117,7 @@ function setupEventListeners() {
         }
     });
 
-    // 因子空間マップの軸変更
+    // トピック空間マップの軸変更
     selectMapAxisX.addEventListener('change', (e) => {
         AppState.mapAxisX = parseInt(e.target.value, 10);
         updateFactorSpaceMap();
@@ -149,7 +149,7 @@ function setupEventListeners() {
         });
     }
 
-    // 因子空間マップのモード切替（回答者得点 vs 語の負荷量）
+    // トピック空間マップのモード切替（回答者スコア vs 語の関連度）
     btnMapModeResponses.addEventListener('click', () => {
         AppState.mapMode = 'responses';
         btnMapModeResponses.className = 'btn btn-sm btn-primary';
@@ -576,7 +576,7 @@ function updateRunButtons() {
             if (runHint) runHint.innerHTML = `※ 絞り込み条件（<b>${escapeHtml(filterDesc)}</b>）に合致した ${filteredRows.length}件 のみを対象に分析します`;
         } else {
             btnRun.innerHTML = `<span class="btn-icon">🚀</span><span class="btn-text">分析スタート</span>`;
-            if (runHint) runHint.textContent = `※設定とデータを確認したら、ここをクリックして分析（形態素解析・因子分解）を開始します`;
+            if (runHint) runHint.textContent = `※設定とデータを確認したら、ここをクリックして分析（形態素解析・トピック抽出）を開始します`;
         }
     }
     if (btnRunTop) {
@@ -1316,7 +1316,7 @@ async function runFullPipeline() {
 
         AppState.validResponses = validResponses;
 
-        showLoading('重要キーワードと潜在因子を計算中...');
+        showLoading('重要キーワードと潜在トピックを計算中...');
         // 3. TF-IDF 行列の構築
         const tfidfData = TextPreprocessor.buildTfIdfMatrix(validResponses, 70);
 
@@ -1325,7 +1325,7 @@ async function runFullPipeline() {
             return;
         }
 
-        // 4. 潜在因子・テーマ分析の実行 (NMF + 因子負荷量・得点)
+        // 4. 潜在トピック探索の実行 (NMF)
         const K = parseInt(document.getElementById('inputK').value, 10) || 3;
         AppState.kCount = K;
 
@@ -1380,12 +1380,12 @@ function renderResults(validResponses, junkCount, result, tfidfData, analyzedRow
     // 【表】テキスト全体の基本統計・特性プロファイルの描画
     renderTextStatsProfile(validResponses, junkCount, tfidfData, analyzedRowsCount);
 
-    // 【図1】潜在因子の全体構成比（ドーナツチャート）
+    // 【図1】潜在トピックの全体構成比（ドーナツチャート）
     ChartRenderer.renderDonutChart('chartDonut', result.themes, (themeIndex) => {
         scrollToThemeCard(themeIndex);
     });
 
-    // 【図2】因子パス図（潜在因子 → 観測単語）
+    // 【図2】パス図（トピック → 重要単語の関連度）
     ChartRenderer.renderPathDiagram('chartPathDiagram', result.themes, (themeIndex) => {
         scrollToThemeCard(themeIndex);
     });
@@ -1393,7 +1393,7 @@ function renderResults(validResponses, junkCount, result, tfidfData, analyzedRow
     // 軸セレクタのオプション生成
     setupAxisSelectors(result.themes);
 
-    // 【図3】因子空間ポジショニングマップ
+    // 【図3】トピック空間ポジショニングマップ
     updateFactorSpaceMap();
 
     // 属性別分析セクション（属性列が指定されている場合: 図4クロス集計）
@@ -1412,7 +1412,7 @@ function renderResults(validResponses, junkCount, result, tfidfData, analyzedRow
         if (multiplesEl) multiplesEl.innerHTML = '';
     }
 
-    // 【各因子の詳細カード】
+    // 【各トピックの詳細カード】
     renderThemeCards(result.themes);
 
     // スムーズスクロール
@@ -1472,20 +1472,20 @@ function renderTextStatsProfile(validResponses, junkCount, tfidfData, analyzedRo
 }
 
 /**
- * 因子空間マップの軸セレクタの更新
+ * トピック空間マップの軸セレクタの更新
  */
 function setupAxisSelectors(themes) {
     const selectX = document.getElementById('selectMapAxisX');
     const selectY = document.getElementById('selectMapAxisY');
 
-    // 因子数が減った場合の境界チェックとリセット
+    // トピック数が減った場合の境界チェックとリセット
     if (AppState.mapAxisX >= themes.length) {
         AppState.mapAxisX = 0;
     }
     if (AppState.mapAxisY >= themes.length) {
         AppState.mapAxisY = themes.length > 1 ? 1 : 0;
     }
-    // X軸とY軸が同一で、2つ以上の因子がある場合はY軸を別の因子に設定
+    // X軸とY軸が同一で、2つ以上のトピックがある場合はY軸を別のトピックに設定
     if (AppState.mapAxisX === AppState.mapAxisY && themes.length > 1) {
         AppState.mapAxisY = (AppState.mapAxisX + 1) % themes.length;
     }
@@ -1495,7 +1495,7 @@ function setupAxisSelectors(themes) {
 
     themes.forEach((theme, idx) => {
         const cleanTitle = theme.label.replace(/^【|】$/g, '');
-        const labelText = `因子${idx + 1}: ${cleanTitle}`;
+        const labelText = `トピック${idx + 1}: ${cleanTitle}`;
 
         const optX = document.createElement('option');
         optX.value = idx;
@@ -1506,7 +1506,7 @@ function setupAxisSelectors(themes) {
         const optY = document.createElement('option');
         optY.value = idx;
         optY.textContent = labelText;
-        // Y軸はデフォルトで「因子2」または「因子1以外」
+        // Y軸はデフォルトで「トピック2」または「トピック1以外」
         const defaultY = themes.length > 1 ? 1 : 0;
         if (idx === (AppState.mapAxisY < themes.length ? AppState.mapAxisY : defaultY)) {
             optY.selected = true;
@@ -1519,7 +1519,7 @@ function setupAxisSelectors(themes) {
 }
 
 /**
- * 因子空間マップの属性絞り込みセレクタのセットアップ
+ * トピック空間マップの属性絞り込みセレクタのセットアップ
  */
 function setupAttrFilterSelector() {
     const attrFilterGroup = document.getElementById('attrFilterGroup');
@@ -1565,7 +1565,7 @@ function setupAttrFilterSelector() {
 }
 
 /**
- * 因子空間ポジショニングマップの更新描画
+ * トピック空間ポジショニングマップの更新描画
  */
 function updateFactorSpaceMap() {
     if (!AppState.analysisResult) return;
@@ -1630,7 +1630,7 @@ function renderThemeCards(themes) {
         card.innerHTML = `
             <div class="theme-card-header">
                 <div class="theme-title-area">
-                    <span class="theme-index-badge" style="background:${color};">因子 ${idx + 1}</span>
+                    <span class="theme-index-badge" style="background:${color};">トピック ${idx + 1}</span>
                     <span class="theme-title" id="theme-title-${theme.id}" title="クリックして名前を変更">
                         ${escapeHtml(theme.label)} ✏️
                     </span>
@@ -1657,12 +1657,12 @@ function renderThemeCards(themes) {
                 </div>
                 <div class="theme-responses-col">
                     <div>
-                        <div class="responses-list-title">【この因子を強く反映している代表的な回答（抜粋）】</div>
+                        <div class="responses-list-title">【このトピックを強く反映している代表的な回答（抜粋）】</div>
                         ${responsesHtml}
                     </div>
                     <div class="theme-card-footer">
                         <button class="btn btn-sm" onclick="showAllThemeResponses(${theme.id})">
-                            🔍 この因子の全回答を見る (${theme.count}件)
+                            🔍 このトピックの全回答を見る (${theme.count}件)
                         </button>
                     </div>
                 </div>
@@ -1675,13 +1675,13 @@ function renderThemeCards(themes) {
         const titleEl = card.querySelector(`#theme-title-${theme.id}`);
         titleEl.addEventListener('click', () => {
             const currentText = theme.label.replace(/^【|】$/g, '');
-            const newName = prompt('因子の名称を編集してください:', currentText);
+            const newName = prompt('トピックの名称を編集してください:', currentText);
             if (newName && newName.trim() !== '') {
                 const cleanedName = newName.trim().replace(/^[【「\[]+|[】」\]]+$/g, '');
                 theme.label = `【${cleanedName}】`;
                 titleEl.innerHTML = `${escapeHtml(theme.label)} ✏️`;
 
-                // すべての図（ドーナツ、パス図、因子空間マップ、クロス集計）を連動再描画
+                // すべての図（ドーナツ、パス図、トピック空間マップ、クロス集計）を連動再描画
                 ChartRenderer.renderDonutChart('chartDonut', themes, scrollToThemeCard);
                 ChartRenderer.renderPathDiagram('chartPathDiagram', themes, scrollToThemeCard);
                 setupAxisSelectors(themes);
@@ -1754,7 +1754,7 @@ function showResponseModal(pointData) {
     modalBody.innerHTML = `
         <div style="margin-bottom: 12px; display:flex; align-items:center; flex-wrap:wrap; gap:8px;">
             <span class="badge-rec" style="font-size:12px; padding:4px 8px;">
-                主所属因子: ${escapeHtml(pointData.themeLabel)}
+                主所属トピック: ${escapeHtml(pointData.themeLabel)}
             </span>
             ${attrHtml}
         </div>
@@ -1804,7 +1804,7 @@ window.showAllThemeResponses = function(themeId) {
 
     modalBody.innerHTML = `
         <div style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
-            <span style="color:#64748B;">因子への適合度（因子得点割合）順に並んでいます</span>
+            <span style="color:#64748B;">トピックへの適合度（スコア割合）順に並んでいます</span>
             <button class="btn btn-sm" onclick="exportThemeCsv(${themeId})">📥 CSVダウンロード</button>
         </div>
         <div style="max-height: 50vh; overflow-y:auto; border:1px solid #E2E8F0; border-radius:6px;">
@@ -1843,7 +1843,7 @@ window.exportThemeCsv = function(themeId) {
     };
 
     const hasAttr = !!(AppState.attributeColumn && AppState.headers.includes(AppState.attributeColumn));
-    const headerRow = ['No', 'ID', '因子名'];
+    const headerRow = ['No', 'ID', 'トピック名'];
     if (hasAttr) headerRow.push(AppState.attributeColumn);
     headerRow.push('適合度(%)', '回答本文');
 
@@ -1870,7 +1870,7 @@ window.exportThemeCsv = function(themeId) {
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     const cleanFileName = theme.label.replace(/[【】\\/:*?"<>|]/g, '');
-    link.download = `因子_${cleanFileName}_回答一覧.csv`;
+    link.download = `トピック_${cleanFileName}_回答一覧.csv`;
     link.click();
 };
 
@@ -1930,10 +1930,10 @@ function updatePrintMetaInfo() {
         printPage1Label.textContent = `1 / ${totalPages} ページ (サマリー)`;
     }
     if (printPage2Title) {
-        printPage2Title.textContent = `アンケート自由記述 潜在因子 探索レポート - 2 / ${totalPages} ページ（属性別クロス集計 ＆ 意見ポジショニング分布）`;
+        printPage2Title.textContent = `アンケート自由記述 潜在トピック探索レポート - 2 / ${totalPages} ページ（属性別クロス集計 ＆ 意見ポジショニング分布）`;
     }
     if (printLastPageTitle) {
-        printLastPageTitle.textContent = `アンケート自由記述 潜在因子 探索レポート - ${totalPages} / ${totalPages} ページ（各因子の詳細 ＆ 生の声）`;
+        printLastPageTitle.textContent = `アンケート自由記述 潜在トピック探索レポート - ${totalPages} / ${totalPages} ページ（各トピックの詳細 ＆ 生の声）`;
     }
 }
 
@@ -1973,23 +1973,23 @@ function showHelpModal() {
     const modalTitle = document.getElementById('modalTitle');
     const modalBody = document.getElementById('modalBody');
 
-    modalTitle.textContent = '📖 アンケート自由記述 潜在因子 探索ツールの見方と使い方';
+    modalTitle.textContent = '📖 アンケート自由記述 潜在トピック探索ツールの見方と使い方';
     modalBody.innerHTML = `
         <div style="line-height:1.7;">
             <h4 style="margin-bottom:6px; color:#1E293B;">■ このツールについて</h4>
-            <p style="margin-bottom:12px;">アンケートの自由記述テキストから、統計の難しい知識がなくてもワンクリックで背後にある「潜在的な因子（意見テーマ）」を発見し、パス図や因子空間マップで可視化するツールです。</p>
+            <p style="margin-bottom:12px;">アンケートの自由記述テキストから、統計の難しい知識がなくてもワンクリックで背後にある「潜在的なトピック（話題・テーマ）」を発見し、パス図やトピック空間マップで可視化するツールです。</p>
             
             <h4 style="margin-bottom:6px; color:#1E293B;">■ 各図の見方</h4>
             <ul style="margin-left:20px; margin-bottom:14px;">
-                <li><b>【図1】因子構成比ドーナツ:</b> 各潜在因子が回答全体の何％を占めているかをひと目で把握できます。</li>
-                <li><b>【図2】パス図:</b> 各潜在因子（楕円）から重要単語（四角）へ伸びる矢印の太さと数値が<b>関連度（関連の強さ、最大1.00）</b>を表します。</li>
-                <li><b>【図3】因子空間ポジショニングマップ:</b>
+                <li><b>【図1】トピック構成比ドーナツ:</b> 各潜在トピックが回答全体の何％を占めているかをひと目で把握できます。</li>
+                <li><b>【図2】パス図:</b> 各トピック（楕円）から重要単語（四角）へ伸びる矢印の太さと数値が<b>関連度（関連の強さ、最大1.00）</b>を表します。</li>
+                <li><b>【図3】トピック空間ポジショニングマップ:</b>
                     <ul>
-                        <li><b>回答者の因子得点:</b> 各回答者が2つの因子をどれくらい強く持っているかをプロット。ホバーで回答文が読めます。</li>
-                        <li><b>語の関連度:</b> 単語ごとの布置図。各語がどの因子軸と強く関連しているか（語同士の近さ）が分かります。</li>
+                        <li><b>回答者スコア:</b> 各回答者が2つのトピックをどれくらい強く持っているかをプロット。ホバーで回答文が読めます。</li>
+                        <li><b>語の関連度:</b> 単語ごとの布置図。各語がどのトピック軸と強く関連しているか（語同士の近さ）が分かります。</li>
                     </ul>
                 </li>
-                <li><b>【図4】属性別クロス集計:</b> 年代や満足度ごとの因子比率を比較できます。</li>
+                <li><b>【図4】属性別クロス集計:</b> 年代や満足度ごとのトピック比率を比較できます。</li>
             </ul>
         </div>
     `;

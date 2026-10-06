@@ -1,7 +1,7 @@
 /**
  * チャート描画モジュール
  * Plotly.js および 動的SVGレンダラーを利用して
- * 因子構成比、因子パス図、因子空間マップ（因子得点・負荷量）、横棒グラフ、クロス集計を描画する
+ * トピック構成比、パス図、トピック空間マップ（回答者スコア・語の関連度）、横棒グラフ、クロス集計を描画する
  */
 const ChartRenderer = {
     // 洗練されたカラーパレット
@@ -27,11 +27,11 @@ const ChartRenderer = {
 
         const totalCount = themes.reduce((sum, t) => sum + (t.count || 0), 0);
 
-        // 凡例用ラベル（因子番号 ＋ 因子名 ＋ シェア%）
+        // 凡例用ラベル（トピック番号 ＋ トピック名 ＋ シェア%）
         const labels = themes.map((t, i) => {
             const pct = totalCount > 0 ? Math.round(((t.count || 0) / totalCount) * 100) : 0;
             const cleanTitle = t.label.replace(/^【|】$/g, '');
-            return `因子${i + 1}: ${cleanTitle} (${pct}%)`;
+            return `トピック${i + 1}: ${cleanTitle} (${pct}%)`;
         });
 
         const values = themes.map(t => t.count || 0);
@@ -71,13 +71,13 @@ const ChartRenderer = {
             y: 0.57
         }];
 
-        // 因子数に応じた凡例の高さ計算（ドーナツが小さくならないよう十分な高さを確保）
+        // トピック数に応じた凡例の高さ計算（ドーナツが小さくならないよう十分な高さを確保）
         const legendRows = Math.ceil(themes.length / 2);
         const dynamicHeight = Math.max(430, 370 + legendRows * 30);
 
         const layout = {
             title: {
-                text: '<b>【図1】潜在因子の全体構成比（シェア）</b>',
+                text: '<b>【図1】潜在トピックの全体構成比（シェア）</b>',
                 font: { size: 15, color: '#1E293B' },
                 x: 0.5,
                 xanchor: 'center'
@@ -124,8 +124,8 @@ const ChartRenderer = {
     },
 
     /**
-     * 【図2】因子分析パス図（Factor Path Diagram）をSVGで描画
-     * 潜在因子（楕円）から観測単語（四角）への因子負荷量パス（矢印・係数）を表現する
+     * 【図2】パス図（Path Diagram）をSVGで描画
+     * トピック（楕円）から重要単語（四角）への関連度パス（矢印・係数）を表現する
      * @param {string} containerId 
      * @param {any[]} themes 
      * @param {(themeId: number) => void} onFactorClick 
@@ -136,7 +136,7 @@ const ChartRenderer = {
         container.innerHTML = '';
 
         const K = themes.length;
-        // 高さの動的計算（因子数に応じて調整）
+        // 高さの動的計算（トピック数に応じて調整）
         const height = Math.max(380, K * 75 + 40);
         const width = 520;
 
@@ -163,7 +163,7 @@ const ChartRenderer = {
         titleText.setAttribute('font-size', '13');
         titleText.setAttribute('font-weight', '700');
         titleText.setAttribute('fill', '#1E293B');
-        titleText.textContent = '【図2】パス図（潜在因子 → 重要単語の関連度）';
+        titleText.textContent = '【図2】パス図（トピック → 重要単語の関連度）';
         svg.appendChild(titleText);
 
         const noteText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -175,7 +175,7 @@ const ChartRenderer = {
         noteText.textContent = '※数値は関連度（最大1.00）';
         svg.appendChild(noteText);
 
-        // 各因子の描画（左列：潜在因子、右列：観測単語）
+        // 各トピックの描画（左列：トピック、右列：観測単語）
         const factorX = 90;
         const wordX = 430;
         const factorYStep = (height - 60) / K;
@@ -189,7 +189,7 @@ const ChartRenderer = {
             const color = this.COLORS[idx % this.COLORS.length];
             const fy = 50 + idx * factorYStep + factorYStep / 2;
 
-            // 1. 潜在因子ノード（楕円）
+            // 1. トピックノード（楕円）
             const factorG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             factorG.style.cursor = 'pointer';
             factorG.onclick = () => onFactorClick && onFactorClick(theme.id);
@@ -204,7 +204,7 @@ const ChartRenderer = {
             ellipse.setAttribute('stroke-width', '2.5');
             factorG.appendChild(ellipse);
 
-            // 因子ラベル（2行）
+            // トピックラベル（2行）
             const fLabel1 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             fLabel1.setAttribute('x', factorX);
             fLabel1.setAttribute('y', fy - 5);
@@ -212,7 +212,7 @@ const ChartRenderer = {
             fLabel1.setAttribute('font-size', '11');
             fLabel1.setAttribute('font-weight', '700');
             fLabel1.setAttribute('fill', color);
-            fLabel1.textContent = `因子${idx + 1} (${theme.share}%)`;
+            fLabel1.textContent = `トピック${idx + 1} (${theme.share}%)`;
             factorG.appendChild(fLabel1);
 
             const fLabel2 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -239,7 +239,7 @@ const ChartRenderer = {
                 const relWeight = Math.round((kw.weight / maxWeight) * 100) / 100;
                 const pathWidth = Math.max(1.2, Math.min(3.5, relWeight * 3.5));
 
-                // 因子ノード右端 (factorX + 75, fy) から 単語ノード左端 (wordX - 45, wy) へのベジェ曲線
+                // トピックノード右端 (factorX + 75, fy) から 単語ノード左端 (wordX - 45, wy) へのベジェ曲線
                 const startX = factorX + 75;
                 const startY = fy;
                 const endX = wordX - 45;
@@ -317,14 +317,14 @@ const ChartRenderer = {
     },
 
     /**
-     * 【図3】因子空間ポジショニングマップを描画
-     * PCAではなく、純粋な因子分析の因子軸（因子得点 または 因子負荷量）で描画する
+     * 【図3】トピック空間ポジショニングマップを描画
+     * 各トピック軸（回答者スコア または 語の関連度）で描画する
      * @param {string} containerId 
      * @param {object} options 
      */
     renderFactorSpaceMap(containerId, options) {
         const {
-            mode = 'responses', // 'responses' (因子得点) または 'words' (因子負荷量)
+            mode = 'responses', // 'responses' (回答者スコア) または 'words' (語の関連度)
             xFactorIdx = 0,
             yFactorIdx = 1,
             themes = [],
@@ -337,17 +337,17 @@ const ChartRenderer = {
             onPointClick
         } = options;
 
-        const xTheme = themes[xFactorIdx] || { label: `因子${xFactorIdx + 1}` };
-        const yTheme = themes[yFactorIdx] || { label: `因子${yFactorIdx + 1}` };
+        const xTheme = themes[xFactorIdx] || { label: `トピック${xFactorIdx + 1}` };
+        const yTheme = themes[yFactorIdx] || { label: `トピック${yFactorIdx + 1}` };
 
         let traces = [];
         let xTitle = '';
         let yTitle = '';
 
         if (mode === 'responses') {
-            // --- ① 回答者の因子得点マップ ---
-            xTitle = `横軸: 因子${xFactorIdx + 1}【${xTheme.label.replace(/^【|】$/g, '')}】得点`;
-            yTitle = `縦軸: 因子${yFactorIdx + 1}【${yTheme.label.replace(/^【|】$/g, '')}】得点`;
+            // --- ① 回答者のトピックスコアマップ ---
+            xTitle = `横軸: トピック${xFactorIdx + 1}【${xTheme.label.replace(/^【|】$/g, '')}】スコア`;
+            yTitle = `縦軸: トピック${yFactorIdx + 1}【${yTheme.label.replace(/^【|】$/g, '')}】スコア`;
 
             const isFiltered = !!(attributeCol && filterAttrVal);
 
@@ -375,7 +375,7 @@ const ChartRenderer = {
             }
 
             if (isFiltered) {
-                // 属性絞り込み時: 背景に全回答のゴーストプロットを敷き、該当属性のみ因子色でハイライト
+                // 属性絞り込み時: 背景に全回答のゴーストプロットを敷き、該当属性のみトピック色でハイライト
                 const ghostTrace = {
                     x: allResponsePoints.map(p => p.x),
                     y: allResponsePoints.map(p => p.y),
@@ -406,7 +406,7 @@ const ChartRenderer = {
                             customdata: matched,
                             mode: 'markers',
                             type: 'scatter',
-                            name: `因子${tIdx + 1}: ${theme.label.replace(/^【|】$/g, '')} (${matched.length}件)`,
+                            name: `トピック${tIdx + 1}: ${theme.label.replace(/^【|】$/g, '')} (${matched.length}件)`,
                             marker: {
                                 size: 9.5,
                                 color: this.COLORS[tIdx % this.COLORS.length],
@@ -432,7 +432,7 @@ const ChartRenderer = {
                         customdata: matched,
                         mode: 'markers',
                         type: 'scatter',
-                        name: `因子${tIdx + 1}: ${theme.label.replace(/^【|】$/g, '')}`,
+                        name: `トピック${tIdx + 1}: ${theme.label.replace(/^【|】$/g, '')}`,
                         marker: {
                             size: 9,
                             color: this.COLORS[tIdx % this.COLORS.length],
@@ -446,14 +446,14 @@ const ChartRenderer = {
 
         } else {
             // --- ② 語の関連度マップ ---
-            xTitle = `横軸: 因子${xFactorIdx + 1}【${xTheme.label.replace(/^【|】$/g, '')}】関連度`;
-            yTitle = `縦軸: 因子${yFactorIdx + 1}【${yTheme.label.replace(/^【|】$/g, '')}】関連度`;
+            xTitle = `横軸: トピック${xFactorIdx + 1}【${xTheme.label.replace(/^【|】$/g, '')}】関連度`;
+            yTitle = `縦軸: トピック${yFactorIdx + 1}【${yTheme.label.replace(/^【|】$/g, '')}】関連度`;
 
             // 各単語の関連度座標 (H[xFactorIdx][j], H[yFactorIdx][j])
             const wordPoints = vocabulary.map((word, j) => {
                 const loadX = H[xFactorIdx] ? H[xFactorIdx][j] : 0;
                 const loadY = H[yFactorIdx] ? H[yFactorIdx][j] : 0;
-                // どちらの因子に強く関連しているかで色付け
+                // どちらのトピックに強く関連しているかで色付け
                 const primaryFactor = loadX >= loadY ? xFactorIdx : yFactorIdx;
                 return {
                     word,
@@ -489,10 +489,10 @@ const ChartRenderer = {
             }];
         }
 
-        const modeLabel = mode === 'responses' ? '回答者得点' : '語の関連度';
+        const modeLabel = mode === 'responses' ? '回答者スコア' : '語の関連度';
         const layout = {
             title: {
-                text: `<b>【図3】因子空間ポジショニングマップ（${modeLabel}）</b> <span style="font-size:11px; font-weight:normal; color:#64748B;">[横: 因子${xFactorIdx + 1} × 縦: 因子${yFactorIdx + 1}]</span>`,
+                text: `<b>【図3】トピック空間ポジショニングマップ（${modeLabel}）</b> <span style="font-size:11px; font-weight:normal; color:#64748B;">[横: トピック${xFactorIdx + 1} × 縦: トピック${yFactorIdx + 1}]</span>`,
                 font: { size: 12.5, color: '#1E293B' },
                 x: 0.02,
                 xanchor: 'left',
@@ -536,7 +536,7 @@ const ChartRenderer = {
             displaylogo: false,
             toImageButtonOptions: {
                 format: 'png',
-                filename: `【図3】因子空間ポジショニングマップ（因子${xFactorIdx + 1}×因子${yFactorIdx + 1}_${modeLabel}）`,
+                filename: `【図3】トピック空間ポジショニングマップ（トピック${xFactorIdx + 1}×トピック${yFactorIdx + 1}_${modeLabel}）`,
                 height: 550,
                 width: 750,
                 scale: 2
@@ -794,7 +794,7 @@ const ChartRenderer = {
             return {
                 x: percentages,
                 y: sortedAttrs,
-                name: `因子${tIdx + 1}: ${cleanTitle}`,
+                name: `トピック${tIdx + 1}: ${cleanTitle}`,
                 type: 'bar',
                 orientation: 'h',
                 text: percentages.map(p => p >= 4 ? `${p}%` : ''),
@@ -827,7 +827,7 @@ const ChartRenderer = {
         const layout = {
             barmode: 'stack',
             title: {
-                text: `<b>【図4】属性別因子傾向（${attributeCol} ごとの因子内訳）</b>`,
+                text: `<b>【図4】属性別トピック傾向（${attributeCol} ごとのトピック内訳）</b>`,
                 font: { size: 15, color: '#1E293B' }
             },
             xaxis: {
@@ -883,7 +883,7 @@ const ChartRenderer = {
     },
 
     /**
-     * 属性別因子空間マップ（スモールマルチプルズ / Small Multiples）を描画
+     * 属性別トピック空間マップ（スモールマルチプルズ / Small Multiples）を描画
      * 各属性の小散布図を並べ、背景に全体のゴーストプロットを敷いて偏りを可視化
      * @param {string} containerId 
      * @param {object} options 
@@ -920,8 +920,8 @@ const ChartRenderer = {
                 .replace(/'/g, '&#039;');
         };
 
-        const xTheme = themes[xFactorIdx] || { label: `因子${xFactorIdx + 1}` };
-        const yTheme = themes[yFactorIdx] || { label: `因子${yFactorIdx + 1}` };
+        const xTheme = themes[xFactorIdx] || { label: `トピック${xFactorIdx + 1}` };
+        const yTheme = themes[yFactorIdx] || { label: `トピック${yFactorIdx + 1}` };
         const xClean = xTheme.label.replace(/^【|】$/g, '');
         const yClean = yTheme.label.replace(/^【|】$/g, '');
 
@@ -984,12 +984,12 @@ const ChartRenderer = {
         headerEl.className = 'attr-multiples-top-header';
         headerEl.innerHTML = `
             <div class="attr-multiples-title">
-                <b>【図5】属性別因子空間マップ比較（${safeHtml(attributeCol)} ごとの意見ポジショニング分布）</b>
+                <b>【図5】属性別トピック空間マップ比較（${safeHtml(attributeCol)} ごとの意見ポジショニング分布）</b>
             </div>
             <div class="attr-multiples-legend">
                 <span class="legend-ghost-item"><span class="legend-dot-ghost"></span> 全体の分布（背景影）</span>
-                <span class="legend-highlight-item"><span class="legend-dot-color"></span> 各属性の回答（因子色）</span>
-                <span class="legend-axis-info">横軸: 因子${xFactorIdx + 1}【${safeHtml(xClean)}】 │ 縦軸: 因子${yFactorIdx + 1}【${safeHtml(yClean)}】</span>
+                <span class="legend-highlight-item"><span class="legend-dot-color"></span> 各属性の回答（トピック色）</span>
+                <span class="legend-axis-info">横軸: トピック${xFactorIdx + 1}【${safeHtml(xClean)}】 │ 縦軸: トピック${yFactorIdx + 1}【${safeHtml(yClean)}】</span>
             </div>
         `;
         wrapper.appendChild(headerEl);
@@ -1004,7 +1004,7 @@ const ChartRenderer = {
             const points = attrGroups[attrName];
             const count = points.length;
 
-            // この属性で最も多い因子を計算
+            // この属性で最も多いトピックを計算
             const themeCounts = {};
             points.forEach(p => {
                 themeCounts[p.primaryThemeId] = (themeCounts[p.primaryThemeId] || 0) + 1;
@@ -1058,7 +1058,7 @@ const ChartRenderer = {
                 showlegend: false
             };
 
-            // トレース2: 当該属性の回答プロット（主所属因子の色で強調）
+            // トレース2: 当該属性の回答プロット（主所属トピックの色で強調）
             const attrTrace = {
                 x: points.map(p => p.x),
                 y: points.map(p => p.y),

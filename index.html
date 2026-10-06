@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>アンケート自由記述 潜在因子 探索ツール</title>
+    <title>アンケート自由記述 潜在トピック探索ツール</title>
     <link rel="icon" type="image/png" href="icon.png">
     <link rel="apple-touch-icon" href="icon.png">
     <link rel="stylesheet" href="css/style.css">
@@ -20,7 +20,7 @@
             <div class="logo-area">
                 <img src="icon.png" alt="FACT" style="width: 34px; height: 34px; border-radius: 7px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); flex-shrink: 0;">
                 <div>
-                    <h1 class="logo-title">アンケート自由記述 潜在因子 探索ツール</h1>
+                    <h1 class="logo-title">アンケート自由記述 潜在トピック探索ツール</h1>
                 </div>
             </div>
             <div class="header-actions">
@@ -113,7 +113,7 @@
 
                     <div class="form-group">
                         <label class="form-label">
-                            見つけるテーマの数
+                            見つけるトピックの数
                             <span class="badge-rec" title="データ規模に応じた推奨値">おすすめ</span>
                         </label>
                         <div class="stepper">
@@ -140,7 +140,7 @@
                     <div id="dictionaryBody" class="dict-body" style="display: none;">
                         <div class="dict-intro-bar">
                             <span class="dict-intro-text">
-                                特定の業界用語や新語を1単語として扱ったり、アンケート共通の不要語を除外して因子の解釈性を高めます。
+                                特定の業界用語や新語を1単語として扱ったり、アンケート共通の不要語を除外してトピックの解釈性を高めます。
                             </span>
                             <div class="dict-toolbar">
                                 <button type="button" id="btnImportRules" class="btn btn-xs btn-outline" title="テキストファイルから設定を読み込みます">
@@ -301,11 +301,11 @@
 
                 <!-- 最下部の独立した分析実行エリア（一番下） -->
                 <div id="runActionArea" class="run-action-area" style="display: none;">
-                    <button id="btnRunAnalysis" class="btn btn-cta-large" type="button" title="設定とデータを確認後、クリックして因子分析を実行">
+                    <button id="btnRunAnalysis" class="btn btn-cta-large" type="button" title="設定とデータを確認後、クリックして潜在トピック探索を実行">
                         <span class="btn-icon">🚀</span>
                         <span class="btn-text">分析スタート</span>
                     </button>
-                    <div class="run-action-hint">※設定とデータを確認したら、ここをクリックして分析（形態素解析・因子分解）を開始します</div>
+                    <div class="run-action-hint">※設定とデータを確認したら、ここをクリックして分析（形態素解析・トピック抽出）を開始します</div>
                 </div>
             </div>
         </section>
@@ -316,13 +316,13 @@
             <div class="print-only" style="margin-bottom: 10px;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1E293B; padding-bottom: 6px; margin-bottom: 10px;">
                     <div>
-                        <h1 style="font-size: 16pt; font-weight: 800; color: #1E293B; margin: 0; line-height: 1.2;">アンケート自由記述 潜在因子 探索レポート</h1>
+                        <h1 style="font-size: 16pt; font-weight: 800; color: #1E293B; margin: 0; line-height: 1.2;">アンケート自由記述 潜在トピック探索レポート</h1>
                         <div style="font-size: 9pt; color: #64748B; margin-top: 3px;">
                             分析対象: <b id="printFileName" style="color:#1E293B;">-</b> │ 出力日時: <span id="printDate">-</span> │ 有効回答: <b id="printValidCount">-</b> 件<span id="printFilterWrapper" style="display: none;"> │ 絞り込み条件: <b id="printFilterConditions" style="color:#2563EB;">-</b></span>
                         </div>
                     </div>
                     <div style="text-align: right;">
-                        <div style="font-size: 9.5pt; font-weight: 700; color: #2563EB;">Survey Factor Analyzer</div>
+                        <div style="font-size: 9.5pt; font-weight: 700; color: #2563EB;">Survey Topic Explorer</div>
                         <div id="printPage1Label" style="font-size: 8pt; color: #64748B;">1 / 2 ページ (サマリー)</div>
                     </div>
                 </div>
@@ -345,14 +345,14 @@
                     <span class="stat-item">分析対象データ件数: <b id="statTotalRows" class="stat-val">0</b> 件<span id="statFilterNote" style="font-size: 11px; color: #2563EB; font-weight: normal; margin-left: 4px;"></span></span>
                     <span class="stat-item">有効回答（テキスト有）: <b id="statValidRows" class="stat-val">0</b> 件</span>
                     <span class="stat-item">除外（定型「なし」等）: <b id="statJunkRows" class="stat-val" style="color:#64748B;">0</b> 件</span>
-                    <span class="stat-item">抽出された主要テーマ: <b id="statThemesCount" class="stat-val">0</b> つ</span>
+                    <span class="stat-item">抽出された主要トピック: <b id="statThemesCount" class="stat-val">0</b> 個</span>
                 </div>
                 <div style="font-size: 12px; color: var(--text-muted);">
-                    ※テーマ名はクリックして編集できます
+                    ※トピック名はクリックして編集できます
                 </div>
             </div>
 
-            <!-- 上段グリッド：【表1】テキスト全体の基本統計・特性 ＆ 【図1】因子構成比 -->
+            <!-- 上段グリッド：【表1】テキスト全体の基本統計・特性 ＆ 【図1】トピック構成比 -->
             <div class="charts-grid" style="margin-bottom: 24px;">
                 <!-- 表1: テキスト全体の基本統計・特性プロファイル -->
                 <div class="chart-card" id="statsCard">
@@ -408,27 +408,27 @@
                     </div>
                 </div>
 
-                <!-- 図1: テーマ構成比ドーナツチャート -->
+                <!-- 図1: トピック構成比ドーナツチャート -->
                 <div class="chart-card">
                     <div id="chartDonut"></div>
                 </div>
             </div>
 
-            <!-- 中段グリッド：【図2】パス図 ＆ 【図3】因子空間ポジショニングマップ -->
+            <!-- 中段グリッド：【図2】パス図 ＆ 【図3】トピック空間ポジショニングマップ -->
             <div class="charts-grid" style="margin-bottom: 24px;">
-                <!-- 図2: パス図（潜在因子 → 重要単語の関連度） -->
+                <!-- 図2: パス図（トピック → 重要単語の関連度） -->
                 <div class="chart-card" style="overflow-x: auto;">
                     <div id="chartPathDiagram"></div>
                 </div>
 
-                <!-- 図3: 因子空間ポジショニングマップ -->
+                <!-- 図3: トピック空間ポジショニングマップ -->
                 <div class="chart-card">
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color);">
                         <div style="font-size: 13px; font-weight: 700; color: var(--text-main);">
-                            🎯【図3】因子空間ポジショニングマップ
+                            🎯【図3】トピック空間ポジショニングマップ
                         </div>
                         <div style="display: flex; gap: 4px;">
-                            <button type="button" id="btnMapModeResponses" class="btn btn-sm btn-primary" style="padding: 3px 8px; font-size: 11px;">回答者得点</button>
+                            <button type="button" id="btnMapModeResponses" class="btn btn-sm btn-primary" style="padding: 3px 8px; font-size: 11px;">回答者スコア</button>
                             <button type="button" id="btnMapModeWords" class="btn btn-sm" style="padding: 3px 8px; font-size: 11px;">語の関連度</button>
                         </div>
                     </div>
@@ -437,23 +437,23 @@
                         <div class="axis-switch-panel-header">
                             <div class="axis-switch-title">
                                 <span>🔄</span>
-                                <span>比較する軸（因子）の切り替え</span>
+                                <span>比較する軸（トピック）の切り替え</span>
                             </div>
                             <div class="axis-switch-hint">
-                                ※ 任意の2つの因子を選んで、相関や回答者の分布を観察できます
+                                ※ 任意の2つのトピックを選んで、相関や回答者の分布を観察できます
                             </div>
                         </div>
                         <div class="axis-switch-controls">
                             <div class="axis-select-group">
                                 <span class="axis-badge-x">横軸 (X)</span>
-                                <select id="selectMapAxisX" title="横軸に設定する因子"></select>
+                                <select id="selectMapAxisX" title="横軸に設定するトピック"></select>
                             </div>
-                            <button type="button" id="btnSwapAxes" class="btn-swap-axis" title="横軸と縦軸の因子を入れ替える">
+                            <button type="button" id="btnSwapAxes" class="btn-swap-axis" title="横軸と縦軸のトピックを入れ替える">
                                 ⇄ 軸を入れ替え
                             </button>
                             <div class="axis-select-group">
                                 <span class="axis-badge-y">縦軸 (Y)</span>
-                                <select id="selectMapAxisY" title="縦軸に設定する因子"></select>
+                                <select id="selectMapAxisY" title="縦軸に設定するトピック"></select>
                             </div>
                             <!-- 属性による絞り込み（属性列がある場合のみ表示） -->
                             <div class="axis-select-group" id="attrFilterGroup" style="display: none;">
@@ -472,7 +472,7 @@
                 <div class="print-page-break"></div>
                 <div class="print-only" style="margin-bottom: 8px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #CBD5E1; padding-bottom: 4px;">
-                        <span id="printPage2Title" style="font-size: 8.5pt; color: #64748B;">アンケート自由記述 潜在因子 探索レポート - 2 / 3 ページ（属性別クロス集計 ＆ 意見ポジショニング分布）</span>
+                        <span id="printPage2Title" style="font-size: 8.5pt; color: #64748B;">アンケート自由記述 潜在トピック探索レポート - 2 / 3 ページ（属性別クロス集計 ＆ 意見ポジショニング分布）</span>
                         <span id="printDate2" style="font-size: 8.5pt; color: #64748B;"></span>
                     </div>
                 </div>
@@ -482,25 +482,25 @@
                     <div id="chartCrossTab"></div>
                 </div>
 
-                <!-- 図5: 属性別因子空間マップ比較（レポート/印刷時のみ全属性を並列出力） -->
+                <!-- 図5: 属性別トピック空間マップ比較（レポート/印刷時のみ全属性を並列出力） -->
                 <div id="attrMultiplesCard" class="chart-card print-only-block" style="margin-bottom: 20px;">
                     <div id="chartAttrMultiples"></div>
                 </div>
             </div>
 
-            <!-- 印刷用改ページ (最終ページ: 各因子の詳細 ＆ 生の声) -->
+            <!-- 印刷用改ページ (最終ページ: 各トピックの詳細 ＆ 生の声) -->
             <div class="print-page-break"></div>
             <div class="print-only" style="margin-bottom: 8px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #CBD5E1; padding-bottom: 4px;">
-                    <span id="printLastPageTitle" style="font-size: 8.5pt; color: #64748B;">アンケート自由記述 潜在因子 探索レポート - 2 / 2 ページ（各因子の詳細 ＆ 生の声）</span>
+                    <span id="printLastPageTitle" style="font-size: 8.5pt; color: #64748B;">アンケート自由記述 潜在トピック探索レポート - 2 / 2 ページ（各トピックの詳細 ＆ 生の声）</span>
                     <span id="printDateLast" style="font-size: 8.5pt; color: #64748B;"></span>
                 </div>
             </div>
 
-            <!-- テーマ詳細セクション（各因子の重要単語 ＆ 代表回答） -->
+            <!-- トピック詳細セクション（各トピックの重要単語 ＆ 代表回答） -->
             <div class="themes-section">
                 <h2 class="themes-section-title">
-                    📋【表2】発見された潜在因子の詳細（重要単語 ＆ 生の声）
+                    📋【表2】発見された潜在トピックの詳細（重要単語 ＆ 生の声）
                 </h2>
                 <div id="themeCardsList" class="theme-cards-list"></div>
             </div>

@@ -1,7 +1,7 @@
 /**
- * 潜在因子・テーマ分析エンジン
- * NMF (Non-negative Matrix Factorization) による潜在トピック・因子の抽出と
- * PCAによる2次元ポジショニング座標の計算を行う
+ * 潜在トピック・テーマ分析エンジン
+ * NMF (Non-negative Matrix Factorization) による潜在トピックの抽出と
+ * 2次元ポジショニング座標の計算を行う
  */
 const FactorEngine = {
     /**
@@ -22,7 +22,7 @@ const FactorEngine = {
      * NMF (非負値行列因子分解) を実行
      * 行列 V (N x M) を W (N x K) と H (K x M) に分解する
      * @param {number[][]} V 入力TF-IDF行列 (N x M)
-     * @param {number} K 因子数
+     * @param {number} K トピック数
      * @param {number} maxIter 最大反復回数 (デフォルト100)
      * @returns {{ W: number[][], H: number[][] }}
      */
@@ -165,7 +165,7 @@ const FactorEngine = {
     },
 
     /**
-     * 潜在因子・テーマ分析の全体処理を実行
+     * 潜在トピック・テーマ分析の全体処理を実行
      * @param {Array<{id: any, text: string, row: object}>} responses 
      * @param {string[]} vocabulary 語彙リスト
      * @param {number[][]} V TF-IDF行列
@@ -238,7 +238,7 @@ const FactorEngine = {
             if (hasMatchedWords) {
                 confidence = maxScore / sumScore;
             } else {
-                // 特徴語を含まない文は、特定因子に偏らせずインデックスを分散
+                // 特徴語を含まない文は、特定トピックに偏らせずインデックスを分散
                 assignedThemeId = i % K;
                 confidence = 0;
             }
@@ -262,7 +262,7 @@ const FactorEngine = {
         }
 
         // 3.5. 全体シェア（回答数）の降順にテーマをソート＆再採番
-        // （「大きい順」と「因子番号順」を完全一致させ、ドーナツグラフ・帯グラフの直感性を最大化）
+        // （「大きい順」と「トピック番号順」を完全一致させ、ドーナツグラフ・帯グラフの直感性を最大化）
         const sortedIndices = Array.from({ length: K }, (_, k) => k)
             .sort((a, b) => {
                 const diffCount = themes[b].count - themes[a].count;
@@ -282,7 +282,7 @@ const FactorEngine = {
             return t;
         });
 
-        // W行列の列、H行列の行を新因子順に並び替え
+        // W行列の列、H行列の行を新トピック順に並び替え
         const sortedW = W.map(row => sortedIndices.map(oldK => row[oldK]));
         const sortedH = sortedIndices.map(oldK => H[oldK]);
 
