@@ -46,7 +46,7 @@ const ChartRenderer = {
             domain: { x: [0, 1], y: [0.14, 1] },
             sort: false,
             direction: 'clockwise',
-            rotation: 90,
+            rotation: 0,
             textinfo: 'percent',
             textposition: 'inside',
             insidetextorientation: 'horizontal',
