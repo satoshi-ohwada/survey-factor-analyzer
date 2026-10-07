@@ -1148,6 +1148,7 @@ function renderDataPreview() {
     });
 
     const totalCount = AppState.rawRows.length;
+    const filteredCount = allAssessed.length;
     const problemItems = allAssessed.filter(item => item.quality.isProblem);
     const validItems = allAssessed.filter(item => !item.quality.isProblem);
     const problemCount = problemItems.length;
@@ -1193,6 +1194,7 @@ function renderDataPreview() {
 
     // 2. 表示対象リストの決定（品質フィルター反映）
     let itemsToDisplay = AppState.previewFilterWarning ? problemItems : allAssessed;
+    const displayCount = itemsToDisplay.length;
 
     // 3. 表示モード（先頭5件 vs 全件・ページネーション）
     let pageItems = [];
@@ -1200,7 +1202,7 @@ function renderDataPreview() {
         pageItems = itemsToDisplay.slice(0, 5);
         if (previewPagination) previewPagination.style.display = 'none';
         if (previewShowingInfo) {
-            previewShowingInfo.textContent = `先頭 ${pageItems.length} 件を表示中 (対象: ${filteredCount} 件 / 全 ${totalCount} 件)`;
+            previewShowingInfo.textContent = `先頭 ${pageItems.length} 件を表示中 (対象: ${displayCount} 件 / 全 ${totalCount} 件)`;
         }
     } else {
         // 全行表示モード（50件/ページ）
@@ -1223,7 +1225,7 @@ function renderDataPreview() {
 
         const showStart = itemsToDisplay.length > 0 ? (startIdx + 1) : 0;
         if (previewShowingInfo) {
-            previewShowingInfo.textContent = `${showStart}〜${endIdx} 件を表示中 (対象: ${filteredCount} 件 / 全 ${totalCount} 件)`;
+            previewShowingInfo.textContent = `${showStart}〜${endIdx} 件を表示中 (対象: ${displayCount} 件 / 全 ${totalCount} 件)`;
         }
     }
 
