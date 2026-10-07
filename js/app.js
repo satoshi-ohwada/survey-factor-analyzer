@@ -69,19 +69,56 @@ function setupEventListeners() {
         }
     });
 
-    // ドラッグ＆ドロップ
+    // ウィンドウ全体でのドラッグ＆ドロップによる意図しないファイルオープン（ページ離脱）を防止
+    window.addEventListener('dragover', (e) => {
+        e.preventDefault();
+    }, false);
+    window.addEventListener('drop', (e) => {
+        e.preventDefault();
+    }, false);
+
+    // ドロップゾーンのドラッグ＆ドロップ
+    let dragCounter = 0;
+    dropZone.addEventListener('dragenter', (e) => {
+        e.preventDefault();
+        dragCounter++;
+        dropZone.classList.add('dragover');
+    });
     dropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
+        if (e.dataTransfer) {
+            e.dataTransfer.dropEffect = 'copy';
+        }
         dropZone.classList.add('dragover');
     });
     dropZone.addEventListener('dragleave', () => {
-        dropZone.classList.remove('dragover');
+        dragCounter--;
+        if (dragCounter <= 0) {
+            dragCounter = 0;
+            dropZone.classList.remove('dragover');
+        }
     });
     dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
+        dragCounter = 0;
         dropZone.classList.remove('dragover');
-        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-            handleFileUpload(e.dataTransfer.files[0]);
+
+        let file = null;
+        if (e.dataTransfer) {
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                file = e.dataTransfer.files[0];
+            } else if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+                const item = e.dataTransfer.items[0];
+                if (item.kind === 'file') {
+                    file = item.getAsFile();
+                }
+            }
+        }
+
+        if (file) {
+            handleFileUpload(file);
+        } else {
+            alert('ドロップされたファイルを読み取れませんでした。もう一度お試しいただくか、「クリックして選択」からファイルを選択してください。');
         }
     });
 
@@ -936,13 +973,16 @@ function hideLoading() {
  */
 async function handleFileUpload(file) {
     showLoading('ファイルを読み込み中...');
+    const fileInput = document.getElementById('csvFileInput');
     try {
         const parsed = await CsvParser.parse(file);
         processParsedData(parsed, file.name);
     } catch (err) {
-        alert('ファイルの読み込みに失敗しました: ' + err.message);
+        console.error('ファイルの読み込みエラー詳細:', err);
+        alert(`ファイルの読み込みに失敗しました:\n${err.message}\n\n※ 対応形式: Excel (.xlsx, .xls), CSV, TSV, テキスト (.txt)\n※ 文字コードは UTF-8 および Shift_JIS (CP932) に対応しています。`);
     } finally {
         hideLoading();
+        if (fileInput) fileInput.value = '';
     }
 }
 

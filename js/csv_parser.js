@@ -6,7 +6,7 @@
 const CsvParser = {
     /**
      * Fileまたは文字列をパースする
-     * @param {File|string} input 
+     * @param {File|Blob|string} input 
      * @returns {Promise<{headers: string[], rows: object[], fileName?: string}>}
      */
     async parse(input) {
@@ -14,39 +14,159 @@ const CsvParser = {
             return this.parseTextContent(input, 'input.txt');
         }
 
-        if (input instanceof File) {
+        // input が File または Blob、またはファイルライクオブジェクトの場合
+        const isFileLike = input && (
+            (typeof File !== 'undefined' && input instanceof File) || 
+            (typeof Blob !== 'undefined' && input instanceof Blob) || 
+            (typeof input === 'object' && (typeof input.slice === 'function' || typeof input.arrayBuffer === 'function' || Boolean(input.name)))
+        );
+
+        if (isFileLike) {
+            const fileName = input.name || 'uploaded_file';
+            const lowerName = fileName.toLowerCase();
+            const isExcel = lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls') || (input.type && input.type.includes('spreadsheet'));
+
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
+
                 reader.onload = (e) => {
-                    const buffer = e.target.result;
-                    let text = '';
                     try {
-                        // まずは厳密なUTF-8としてデコード
-                        const utf8Decoder = new TextDecoder('utf-8', { fatal: true });
-                        text = utf8Decoder.decode(buffer);
-                    } catch (err) {
-                        // UTF-8で不正なバイト列の場合はShift_JISにフォールバック
-                        console.log('UTF-8 decoding failed, falling back to Shift_JIS');
-                        const sjisDecoder = new TextDecoder('shift-jis');
-                        text = sjisDecoder.decode(buffer);
-                    }
-
-                    // 先頭のBOM (\uFEFF) を確実に除去
-                    text = text.replace(/^\uFEFF/, '');
-
-                    try {
-                        const result = this.parseTextContent(text, input.name);
-                        resolve(result);
-                    } catch (pErr) {
-                        reject(pErr);
+                        const buffer = e.target.result;
+                        if (isExcel) {
+                            const result = this.parseExcelBuffer(buffer, fileName);
+                            resolve(result);
+                        } else {
+                            // テキスト（CSV, TSV, TXT）
+                            let text = '';
+                            try {
+                                const utf8Decoder = new TextDecoder('utf-8', { fatal: true });
+                                text = utf8Decoder.decode(buffer);
+                            } catch (err) {
+                                try {
+                                    const sjisDecoder = new TextDecoder('shift-jis');
+                                    text = sjisDecoder.decode(buffer);
+                                } catch (sjisErr) {
+                                    // どちらも失敗した場合は非厳密UTF-8でフォールバック
+                                    const fallbackDecoder = new TextDecoder('utf-8', { fatal: false });
+                                    text = fallbackDecoder.decode(buffer);
+                                }
+                            }
+                            text = text.replace(/^\uFEFF/, '');
+                            const result = this.parseTextContent(text, fileName);
+                            resolve(result);
+                        }
+                    } catch (parseErr) {
+                        reject(parseErr);
                     }
                 };
-                reader.onerror = (err) => reject(err);
+
+                reader.onerror = () => {
+                    reject(new Error('ファイルの読み取りに失敗しました (FileReaderエラー)'));
+                };
+
                 reader.readAsArrayBuffer(input);
             });
         }
 
         throw new Error('サポートされていない入力形式です');
+    },
+
+    /**
+     * Excelファイル (.xlsx, .xls) のバイナリバッファをパース
+     * @param {ArrayBuffer} buffer 
+     * @param {string} fileName 
+     * @returns {{headers: string[], rows: object[], fileName: string}}
+     */
+    parseExcelBuffer(buffer, fileName = '') {
+        if (typeof XLSX === 'undefined') {
+            throw new Error('Excel解析ライブラリ (XLSX) が読み込まれていません。画面を再読み込みしてください。');
+        }
+
+        const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
+        if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+            throw new Error('Excelファイル内にシートが見つかりませんでした');
+        }
+
+        // シートの自動選択（データ行数が最も多いシートを優先、または第1シート）
+        let bestSheetName = workbook.SheetNames[0];
+        let maxDataLength = 0;
+        let bestData = null;
+
+        for (const sheetName of workbook.SheetNames) {
+            const ws = workbook.Sheets[sheetName];
+            const rawData = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', blankrows: false });
+            if (rawData && rawData.length > maxDataLength) {
+                maxDataLength = rawData.length;
+                bestSheetName = sheetName;
+                bestData = rawData;
+            }
+        }
+
+        if (!bestData || bestData.length === 0) {
+            throw new Error('Excelシート内にデータが見つかりませんでした');
+        }
+
+        // 先頭の有効な行を探す（ヘッダー行）
+        let headerRowIdx = 0;
+        while (headerRowIdx < bestData.length && (!bestData[headerRowIdx] || bestData[headerRowIdx].every(c => String(c).trim() === ''))) {
+            headerRowIdx++;
+        }
+
+        if (headerRowIdx >= bestData.length) {
+            throw new Error('Excelシート内に有効な行が見つかりませんでした');
+        }
+
+        const rawHeaderRow = bestData[headerRowIdx];
+
+        // 1列のみでヘッダーが長い場合、プレーンテキスト形式として処理
+        const nonEmptyCells = rawHeaderRow.filter(c => String(c).trim() !== '');
+        if (nonEmptyCells.length === 1 && String(nonEmptyCells[0]).length > 25) {
+            const lines = [];
+            for (let r = headerRowIdx; r < bestData.length; r++) {
+                const cell = bestData[r] && bestData[r][0] !== undefined ? String(bestData[r][0]).trim() : '';
+                if (cell.length > 0) lines.push(cell);
+            }
+            return this.parsePlainText(lines);
+        }
+
+        const headerRow = rawHeaderRow.map((c, i) => {
+            const str = String(c !== undefined && c !== null ? c : '').trim();
+            return str.length > 0 ? str : `列${i + 1}`;
+        });
+
+        // 列名の重複解消
+        const headerCounts = {};
+        const headers = headerRow.map(h => {
+            if (!headerCounts[h]) {
+                headerCounts[h] = 1;
+                return h;
+            } else {
+                headerCounts[h]++;
+                return `${h}_${headerCounts[h]}`;
+            }
+        });
+
+        const rows = [];
+        for (let r = headerRowIdx + 1; r < bestData.length; r++) {
+            const rowArr = bestData[r];
+            if (!rowArr || rowArr.every(c => String(c).trim() === '')) continue;
+            const rowObj = {};
+            headers.forEach((h, cIdx) => {
+                const val = rowArr[cIdx] !== undefined && rowArr[cIdx] !== null ? String(rowArr[cIdx]).trim() : '';
+                rowObj[h] = val;
+            });
+            rows.push(rowObj);
+        }
+
+        if (rows.length === 0) {
+            throw new Error('有効なデータ行が見つかりませんでした');
+        }
+
+        return {
+            headers,
+            rows,
+            fileName: fileName || `${bestSheetName}.xlsx`
+        };
     },
 
     /**

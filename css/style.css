@@ -155,9 +155,14 @@ body {
     transition: all 0.2s ease;
 }
 
+.drop-zone * {
+    pointer-events: none;
+}
+
 .drop-zone:hover, .drop-zone.dragover {
     border-color: var(--primary-color);
     background: var(--primary-light);
+    transform: scale(1.005);
 }
 
 .drop-icon {

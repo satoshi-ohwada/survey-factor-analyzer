@@ -8,6 +8,7 @@
     <link rel="apple-touch-icon" href="icon.png">
     <link rel="stylesheet" href="css/style.css">
     <!-- 外部・自前ライブラリ群 -->
+    <script src="lib/xlsx.full.min.js"></script>
     <script src="lib/papaparse.min.js"></script>
     <script src="lib/kuromoji/kuromoji.js"></script>
     <script src="lib/plotly.min.js"></script>
@@ -44,7 +45,7 @@
                 <!-- データ入力方法の切り替えタブ -->
                 <div class="data-input-tabs">
                     <button type="button" id="tabInputFile" class="data-input-tab active">
-                        📁 ファイルから読み込み (CSV / TSV / TXT)
+                        📁 ファイルから読み込み (Excel / CSV / TSV / TXT)
                     </button>
                     <button type="button" id="tabInputPaste" class="data-input-tab">
                         📋 Excel等からコピー＆ペースト
@@ -55,9 +56,9 @@
                 <div id="dropZoneWrapper">
                     <div id="dropZone" class="drop-zone" onclick="document.getElementById('csvFileInput').click();">
                         <div class="drop-icon">📁</div>
-                        <div class="drop-text">ここにアンケートファイル (CSV / TSV / TXT) をドラッグ＆ドロップ</div>
-                        <div class="drop-subtext">またはクリックして選択（1行1回答のテキストファイルもそのまま読み込めます / UTF-8・Shift_JIS自動判定）</div>
-                        <input type="file" id="csvFileInput" accept=".csv, .tsv, .txt" style="display: none;">
+                        <div class="drop-text">ここにアンケートファイル (Excel .xlsx / CSV / TSV / TXT) をドラッグ＆ドロップ</div>
+                        <div class="drop-subtext">またはクリックして選択（Excel・CSV・1行1回答のテキストに対応 / UTF-8・Shift_JIS自動判定）</div>
+                        <input type="file" id="csvFileInput" accept=".csv, .tsv, .txt, .xlsx, .xls" style="display: none;">
                     </div>
                 </div>
 
