@@ -536,17 +536,30 @@ function isRowMatchFilter(row, col, filterVal) {
 }
 
 /**
- * 現在の列フィルターを適用した行一覧を取得
+ * 現在の列フィルターを適用し、かつ分析対象（自由記述）が有効な行一覧を取得
+ * （分析対象列が空欄あるいは記号・無効回答の行は自動的に除外）
  */
 function getFilteredRows() {
     const activeFilters = Object.entries(AppState.columnFilters).filter(([_, v]) => {
         if (Array.isArray(v)) return v.length > 0;
         return v !== undefined && v !== null && v !== '';
     });
-    if (activeFilters.length === 0) return AppState.rawRows;
 
     return AppState.rawRows.filter(r => {
-        return activeFilters.every(([col, val]) => isRowMatchFilter(r, col, val));
+        // 1. 各列のオートフィルター条件を満たすか判定
+        const matchColFilters = activeFilters.every(([col, val]) => isRowMatchFilter(r, col, val));
+        if (!matchColFilters) return false;
+
+        // 2. 分析対象列（自由記述列）が空欄・記号等の無効回答の行は自動的に除外
+        if (AppState.textColumn) {
+            const rawText = r[AppState.textColumn];
+            const textStr = (rawText !== undefined && rawText !== null) ? String(rawText).trim() : '';
+            if (TextPreprocessor.isJunkResponse(textStr)) {
+                return false;
+            }
+        }
+
+        return true;
     });
 }
 
@@ -602,10 +615,16 @@ function updateRunButtons() {
         return `${c}＝${vStr}`;
     }).join('; ');
 
+    const totalRaw = AppState.rawRows.length;
+    const hasExcluded = filteredRows.length < totalRaw;
+
     if (btnRun) {
         if (isFiltered) {
             btnRun.innerHTML = `<span class="btn-icon">🚀</span><span class="btn-text">絞り込んだ ${filteredRows.length}件 で分析スタート</span>`;
-            if (runHint) runHint.innerHTML = `※ 絞り込み条件（<b>${escapeHtml(filterDesc)}</b>）に合致した ${filteredRows.length}件 のみを対象に分析します`;
+            if (runHint) runHint.innerHTML = `※ 絞り込み条件（<b>${escapeHtml(filterDesc)}</b>）に合致した有効な ${filteredRows.length}件 のみを対象に分析します`;
+        } else if (hasExcluded) {
+            btnRun.innerHTML = `<span class="btn-icon">🚀</span><span class="btn-text">有効な ${filteredRows.length}件 で分析スタート</span>`;
+            if (runHint) runHint.textContent = `※ 空欄・記号等の無効データを除外した有効な ${filteredRows.length}件（全${totalRaw}件中）を対象に分析を開始します`;
         } else {
             btnRun.innerHTML = `<span class="btn-icon">🚀</span><span class="btn-text">分析スタート</span>`;
             if (runHint) runHint.textContent = `※設定とデータを確認したら、ここをクリックして分析（形態素解析・トピック抽出）を開始します`;
@@ -614,6 +633,8 @@ function updateRunButtons() {
     if (btnRunTop) {
         if (isFiltered) {
             btnRunTop.textContent = `🚀 ${filteredRows.length}件を分析`;
+        } else if (hasExcluded) {
+            btnRunTop.textContent = `🚀 有効な${filteredRows.length}件を分析`;
         } else {
             btnRunTop.textContent = `🚀 分析スタート`;
         }
@@ -1087,16 +1108,19 @@ function renderDataPreview() {
     });
 
     const totalCount = AppState.rawRows.length;
-    const filteredCount = allAssessed.length;
     const problemItems = allAssessed.filter(item => item.quality.isProblem);
+    const validItems = allAssessed.filter(item => !item.quality.isProblem);
     const problemCount = problemItems.length;
+    const validCount = validItems.length;
     const emptyCount = allAssessed.filter(item => item.quality.status === 'empty').length;
     const junkCount = problemCount - emptyCount;
 
     // バッジとアラートの更新
     if (previewStatsBadge) {
-        if (activeFilters.length > 0) {
-            previewStatsBadge.textContent = `全 ${totalCount} 件中 ${filteredCount} 件`;
+        if (problemCount > 0) {
+            previewStatsBadge.textContent = `分析対象: ${validCount} 件 (自動除外: ${problemCount} 件 / 全 ${totalCount} 件)`;
+        } else if (activeFilters.length > 0) {
+            previewStatsBadge.textContent = `全 ${totalCount} 件中 ${validCount} 件`;
         } else {
             previewStatsBadge.textContent = `全 ${totalCount} 件`;
         }
@@ -1107,9 +1131,12 @@ function renderDataPreview() {
         if (warningAlert) warningAlert.style.display = 'flex';
         if (successAlert) successAlert.style.display = 'none';
         if (warningDesc) {
-            warningDesc.innerHTML = `選択中の自由記述列に、空欄または分析対象外となる回答が <b>${problemCount}件</b> あります（空欄: ${emptyCount}件, 定型無効・極短文等: ${junkCount}件）。<br><span style="color:#B45309;">※ このままでも分析実行時に自動除外されますが、下の表でクリックして直接テキストを修正・補完するか、不要な行はチェックして一括削除または右端の 🗑️ で削除できます。</span>`;
+            warningDesc.innerHTML = `選択中の自由記述列で、空欄や記号・無効回答の <b>${problemCount}件</b> を分析対象から<b>自動的に除外</b>しました（有効な <b>${validCount}件</b> を分析対象とします）。<br><span style="color:#64748B;">※ 自動除外された行（空欄: ${emptyCount}件, 記号・定型等: ${junkCount}件）の内容を確認・編集したい場合は、上の「⚠️ 対象外の行 (${problemCount})」ボタンをクリックしてください。</span>`;
         }
-        if (btnFilterWarnings) btnFilterWarnings.style.display = 'inline-flex';
+        if (btnFilterWarnings) {
+            btnFilterWarnings.style.display = 'inline-flex';
+            btnFilterWarnings.innerHTML = `⚠️ 対象外の行 (<span id="warningRowCount">${problemCount}</span>)`;
+        }
     } else {
         if (warningAlert) warningAlert.style.display = 'none';
         if (successAlert) successAlert.style.display = 'flex';
@@ -1232,7 +1259,8 @@ function renderDataPreview() {
                 tbodyHtml += `<td class="cell-editable ${colClass}" contenteditable="true" data-row-idx="${item.idx}" data-col="${escapeHtml(h)}" title="クリックして編集">${escapeHtml(textVal)}</td>`;
             });
 
-            tbodyHtml += `<td style="text-align:center;"><span class="badge-status ${badgeClass}" id="badgeStatus_${item.idx}" title="${escapeHtml(item.quality.detail)}">${item.quality.label}</span></td>`;
+            const statusLabel = isProblem ? `対象外: ${item.quality.label}` : item.quality.label;
+            tbodyHtml += `<td style="text-align:center;"><span class="badge-status ${badgeClass}" id="badgeStatus_${item.idx}" title="${escapeHtml(item.quality.detail)}">${statusLabel}</span></td>`;
             tbodyHtml += `<td style="text-align:center;"><button type="button" class="btn-row-del" data-row-idx="${item.idx}" title="この行を削除">🗑️</button></td>`;
             tbodyHtml += '</tr>';
         });
@@ -1308,14 +1336,18 @@ function updateRowAndAlertsAfterEdit(rowIdx) {
             ? (quality.status === 'empty' ? 'badge-status-empty' : 'badge-status-junk')
             : 'badge-status-valid';
         badge.className = `badge-status ${badgeClass}`;
-        badge.textContent = quality.label;
+        badge.textContent = quality.isProblem ? `対象外: ${quality.label}` : quality.label;
         badge.title = quality.detail;
     }
 
     // 現在の表示対象（絞り込み中データ）の問題件数を再集計
     let problemCount = 0;
     let emptyCount = 0;
-    const currentRows = getFilteredRows();
+    const activeFilters = Object.entries(AppState.columnFilters).filter(([_, v]) => {
+        if (Array.isArray(v)) return v.length > 0;
+        return v !== undefined && v !== null && v !== '';
+    });
+    const currentRows = AppState.rawRows.filter(r => activeFilters.every(([col, val]) => isRowMatchFilter(r, col, val)));
     currentRows.forEach(r => {
         const q = TextPreprocessor.checkQuality(r[AppState.textColumn]);
         if (q.isProblem) {
@@ -1324,12 +1356,25 @@ function updateRowAndAlertsAfterEdit(rowIdx) {
         }
     });
     const junkCount = problemCount - emptyCount;
+    const validCount = currentRows.length - problemCount;
+    const totalCount = AppState.rawRows.length;
 
     const warningAlert = document.getElementById('previewWarningAlert');
     const successAlert = document.getElementById('previewSuccessAlert');
     const warningDesc = document.getElementById('previewWarningDesc');
     const warningRowCount = document.getElementById('warningRowCount');
     const btnFilterWarnings = document.getElementById('btnFilterWarnings');
+    const previewStatsBadge = document.getElementById('previewStatsBadge');
+
+    if (previewStatsBadge) {
+        if (problemCount > 0) {
+            previewStatsBadge.textContent = `分析対象: ${validCount} 件 (自動除外: ${problemCount} 件 / 全 ${totalCount} 件)`;
+        } else if (activeFilters.length > 0) {
+            previewStatsBadge.textContent = `全 ${totalCount} 件中 ${validCount} 件`;
+        } else {
+            previewStatsBadge.textContent = `全 ${totalCount} 件`;
+        }
+    }
 
     if (warningRowCount) warningRowCount.textContent = problemCount;
 
@@ -1337,9 +1382,12 @@ function updateRowAndAlertsAfterEdit(rowIdx) {
         if (warningAlert) warningAlert.style.display = 'flex';
         if (successAlert) successAlert.style.display = 'none';
         if (warningDesc) {
-            warningDesc.innerHTML = `選択中の自由記述列に、空欄または分析対象外となる回答が <b>${problemCount}件</b> あります（空欄: ${emptyCount}件, 定型無効・極短文等: ${junkCount}件）。<br><span style="color:#B45309;">※ このままでも分析実行時に自動除外されますが、下の表でクリックして直接テキストを修正・補完するか、不要な行は右端の 🗑️ で削除できます。</span>`;
+            warningDesc.innerHTML = `選択中の自由記述列で、空欄や記号・無効回答の <b>${problemCount}件</b> を分析対象から<b>自動的に除外</b>しました（有効な <b>${validCount}件</b> を分析対象とします）。<br><span style="color:#64748B;">※ 自動除外された行（空欄: ${emptyCount}件, 記号・定型等: ${junkCount}件）の内容を確認・編集したい場合は、上の「⚠️ 対象外の行 (${problemCount})」ボタンをクリックしてください。</span>`;
         }
-        if (btnFilterWarnings) btnFilterWarnings.style.display = 'inline-flex';
+        if (btnFilterWarnings) {
+            btnFilterWarnings.style.display = 'inline-flex';
+            btnFilterWarnings.innerHTML = `⚠️ 対象外の行 (<span id="warningRowCount">${problemCount}</span>)`;
+        }
     } else {
         if (warningAlert) warningAlert.style.display = 'none';
         if (successAlert) successAlert.style.display = 'flex';
@@ -1355,6 +1403,7 @@ function updateRowAndAlertsAfterEdit(rowIdx) {
         renderDataPreview();
     }
 
+    updateRunButtons();
     markDataDirty();
 }
 

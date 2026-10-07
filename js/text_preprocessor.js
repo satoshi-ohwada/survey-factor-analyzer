@@ -31,9 +31,14 @@ const TextPreprocessor = {
 
     // 無意味な回答（行全体がこれに該当する場合はスキップ）
     JUNK_RESPONSES: new Set([
+        // 日本語定型無効・無回答・空欄相当表記
         'なし', '特になし', '特にありません', 'ありません', 'ない', 'とくになし',
-        '特にない', '無し', '特に無し', '特になし。', 'なし。', '特にありません。',
-        'ありません。', '無', 'ー', '-', '―', 'N/A', 'na', 'none', 'nothing'
+        '特にない', '無し', '特に無し', '無', '無回答', '未記入', '未入力', '無記入',
+        '回答なし', '回答無', '回答不可', '特記なし', '特記無', '特段なし', '特になしです',
+        '特にありませんでした', 'ありませんでした', '特にないです', 'ないです',
+        '不明', '不詳', '該当なし', '該当項目なし', '該当者なし', '対象外', '同上', '〃',
+        // 英語定型・欠損値表現（小文字正規化して照合）
+        'na', 'n/a', 'none', 'nothing', 'null', 'nan', 'undefined', 'nil'
     ]),
 
     /**
@@ -116,29 +121,31 @@ const TextPreprocessor = {
             return { status: 'empty', label: '空欄', isProblem: true, detail: '空白のみです（分析から除外されます）' };
         }
 
-        const cleaned = textStr.replace(/[\s\r\n\t。、・]/g, '');
+        const cleaned = textStr.replace(/[\s\r\n\t　。、・,.()（）「」『』【】\[\]]/g, '');
         if (cleaned.length === 0) {
-            return { status: 'empty', label: '空白のみ', isProblem: true, detail: 'スペース・改行記号のみです（分析から除外されます）' };
+            return { status: 'empty', label: '記号・空白のみ', isProblem: true, detail: '記号や空白のみのため分析対象外です' };
         }
 
-        // 定型スキップ単語に合致する場合
-        if (this.JUNK_RESPONSES.has(cleaned)) {
-            return { status: 'junk', label: '定型無効', isProblem: true, detail: '「なし」「特になし」等の定型回答です（分析から除外されます）' };
+        const lowerCleaned = cleaned.toLowerCase();
+
+        // 記号・ハイフンのみ（例: ---, ***, ///, ――, ・・・ など）
+        if (/^[^\p{L}\p{N}]+$/u.test(cleaned)) {
+            return { status: 'junk', label: '記号のみ', isProblem: true, detail: '記号・ハイフンのみのため分析対象外です' };
+        }
+
+        // 定型スキップ単語・欠損値表記に合致する場合
+        if (this.JUNK_RESPONSES.has(cleaned) || this.JUNK_RESPONSES.has(lowerCleaned)) {
+            return { status: 'junk', label: '定型無効', isProblem: true, detail: '「なし」「特になし」「N/A」等の定型回答のため分析対象外です' };
         }
 
         // 数字のみ（例: 999, 0, 99 などコード番号）
         if (/^[0-9０-９]+$/.test(cleaned)) {
-            return { status: 'junk', label: '数値コード', isProblem: true, detail: 'アンケートコード等の数値のみです（分析から除外されます）' };
-        }
-
-        // 記号・ハイフンのみ（例: ---, ***, /// など）
-        if (/^[^\p{L}\p{N}]+$/u.test(cleaned)) {
-            return { status: 'junk', label: '記号のみ', isProblem: true, detail: '記号・ハイフンのみです（分析から除外されます）' };
+            return { status: 'junk', label: '数値コード', isProblem: true, detail: 'アンケートコード等の数値のみのため分析対象外です' };
         }
 
         // 文字数が極端に短い（1文字のみ）
         if (cleaned.length <= 1) {
-            return { status: 'junk', label: '極短文', isProblem: true, detail: '1文字以下のため分析から除外されます' };
+            return { status: 'junk', label: '極短文', isProblem: true, detail: '1文字以下のため分析対象外です' };
         }
 
         return { status: 'valid', label: '正常', isProblem: false, detail: '有効なテキストです' };
