@@ -62,14 +62,26 @@ const ChartRenderer = {
             }
         }];
 
-        // ドーナツ中央に合計件数を表示（domain.y の中心 y=0.57 に配置）
-        const annotations = [{
-            font: { size: 12, color: '#64748B' },
-            showarrow: false,
-            text: `合計<br><b style="font-size:18px; color:#1E293B;">${totalCount.toLocaleString()}件</b>`,
-            x: 0.5,
-            y: 0.57
-        }];
+        // ドーナツ中央に合計と件数をバランス良く配置（上段に「合計」ラベル、下段に「件数」を分離して上下の重心・間隔を最適化）
+        const annotations = [
+            {
+                font: { size: 12, color: '#64748B', family: 'sans-serif' },
+                showarrow: false,
+                text: '合計',
+                x: 0.5,
+                y: 0.605,
+                xanchor: 'center',
+                yanchor: 'middle'
+            },
+            {
+                showarrow: false,
+                text: `<b style="font-size:20px; color:#0F172A; font-family:sans-serif;">${totalCount.toLocaleString()}</b><span style="font-size:12px; font-weight:600; color:#475569;"> 件</span>`,
+                x: 0.5,
+                y: 0.540,
+                xanchor: 'center',
+                yanchor: 'middle'
+            }
+        ];
 
         // トピック数に応じた凡例の高さ計算（ドーナツが小さくならないよう十分な高さを確保）
         const legendRows = Math.ceil(themes.length / 2);
