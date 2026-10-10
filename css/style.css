@@ -1495,6 +1495,12 @@ body {
     flex-direction: column;
     box-shadow: var(--shadow-lg);
     overflow: hidden;
+    transition: max-width 0.2s ease;
+}
+
+.modal-content.modal-content-lg {
+    max-width: 960px;
+    width: 95%;
 }
 
 .modal-header {
@@ -1522,6 +1528,8 @@ body {
     padding: 20px;
     overflow-y: auto;
     font-size: 13px;
+    scrollbar-width: thin;
+    scrollbar-color: #94A3B8 #F1F5F9;
 }
 
 .modal-footer {
@@ -1529,6 +1537,68 @@ body {
     border-top: 1px solid var(--border-color);
     display: flex;
     justify-content: flex-end;
+}
+
+/* 全回答一覧テーブルコンテナ：横に常にスライダー（スクロールバー）を表示し、マウス操作可能にする */
+.theme-responses-table-container {
+    max-height: 55vh;
+    overflow-y: scroll; /* 常に垂直スクロールバー（スライダー）の領域を明示・表示 */
+    border: 1px solid #CBD5E1;
+    border-radius: var(--radius-md);
+    background: #FFFFFF;
+    scrollbar-gutter: stable;
+    scrollbar-width: auto; /* Firefoxで細くならず標準幅でスライダーを維持 */
+    scrollbar-color: #64748B #F1F5F9;
+}
+
+/* WebKit / Chromium / Edge / Safari 等のスクロールバー（スライダー）の常時明示・操作性向上 */
+.theme-responses-table-container::-webkit-scrollbar,
+.modal-body::-webkit-scrollbar {
+    width: 14px; /* マウスで掴みやすい十分な幅 */
+    height: 14px;
+}
+
+.theme-responses-table-container::-webkit-scrollbar-track,
+.modal-body::-webkit-scrollbar-track {
+    background: #F1F5F9;
+    border-left: 1px solid #E2E8F0;
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.theme-responses-table-container::-webkit-scrollbar-thumb,
+.modal-body::-webkit-scrollbar-thumb {
+    background: #94A3B8;
+    border-radius: 7px;
+    border: 3px solid #F1F5F9; /* つまみの周囲に余白を作りスライダーとして視認性を高める */
+    cursor: grab;
+}
+
+.theme-responses-table-container::-webkit-scrollbar-thumb:hover,
+.modal-body::-webkit-scrollbar-thumb:hover {
+    background: #64748B;
+    cursor: grab;
+}
+
+.theme-responses-table-container::-webkit-scrollbar-thumb:active,
+.modal-body::-webkit-scrollbar-thumb:active {
+    background: #334155;
+    cursor: grabbing;
+}
+
+/* アプリケーション全体のスクロールバー基本設定 */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+::-webkit-scrollbar-track {
+    background: #F8FAFC;
+}
+::-webkit-scrollbar-thumb {
+    background: #CBD5E1;
+    border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #94A3B8;
 }
 
 /* ローディングスピナー */

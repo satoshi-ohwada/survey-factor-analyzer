@@ -244,12 +244,21 @@ function setupEventListeners() {
     });
 
     // モーダルクローズ
-    modalClose.addEventListener('click', () => {
-        detailModal.style.display = 'none';
-    });
+    function closeDetailModal() {
+        if (detailModal) {
+            detailModal.style.display = 'none';
+            const modalContent = detailModal.querySelector('.modal-content');
+            if (modalContent) {
+                modalContent.classList.remove('modal-content-lg');
+            }
+        }
+    }
+    window.closeDetailModal = closeDetailModal;
+
+    modalClose.addEventListener('click', closeDetailModal);
     detailModal.addEventListener('click', (e) => {
         if (e.target === detailModal) {
-            detailModal.style.display = 'none';
+            closeDetailModal();
         }
     });
 
@@ -2019,6 +2028,10 @@ function scrollToThemeCard(themeIndex) {
  */
 function showResponseModal(pointData) {
     const modal = document.getElementById('detailModal');
+    const modalContent = modal.querySelector('.modal-content');
+    if (modalContent) {
+        modalContent.classList.remove('modal-content-lg');
+    }
     const modalTitle = document.getElementById('modalTitle');
     const modalBody = document.getElementById('modalBody');
 
@@ -2054,13 +2067,17 @@ window.showAllThemeResponses = function(themeId) {
         .sort((a, b) => b.confidence - a.confidence);
 
     const modal = document.getElementById('detailModal');
+    const modalContent = modal.querySelector('.modal-content');
+    if (modalContent) {
+        modalContent.classList.add('modal-content-lg');
+    }
     const modalTitle = document.getElementById('modalTitle');
     const modalBody = document.getElementById('modalBody');
 
     modalTitle.textContent = `${theme.label} の全回答一覧（${matchedResponses.length}件）`;
 
     const hasAttr = !!AppState.attributeColumn;
-    const attrHeaderHtml = hasAttr ? `<th style="padding:8px; width:110px;">${escapeHtml(AppState.attributeColumn)}</th>` : '';
+    const attrHeaderHtml = hasAttr ? `<th style="padding:10px 8px; width:120px;">${escapeHtml(AppState.attributeColumn)}</th>` : '';
 
     const rowsHtml = matchedResponses.map((r, i) => {
         const rawAttr = (hasAttr && r.row) ? r.row[AppState.attributeColumn] : '';
@@ -2071,7 +2088,7 @@ window.showAllThemeResponses = function(themeId) {
             <tr style="border-bottom:1px solid #E2E8F0;">
                 <td style="padding:10px 8px; font-weight:700; color:#64748B;">${i + 1}</td>
                 ${attrCellHtml}
-                <td style="padding:10px 8px; color:#1E293B; white-space: pre-wrap; word-break: break-word;">${escapeHtml(r.text)}</td>
+                <td style="padding:10px 8px; color:#1E293B; white-space: pre-wrap; word-break: break-word; line-height: 1.5;">${escapeHtml(r.text)}</td>
                 <td style="padding:10px 8px; text-align:right; font-weight:600; color:#2563EB;">
                     ${Math.round(r.confidence * 100)}%
                 </td>
@@ -2080,18 +2097,18 @@ window.showAllThemeResponses = function(themeId) {
     }).join('');
 
     modalBody.innerHTML = `
-        <div style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
-            <span style="color:#64748B;">トピックへの適合度（スコア割合）順に並んでいます</span>
+        <div style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <span style="color:#64748B; font-size:13px;">トピックへの適合度（スコア割合）順に並んでいます（右横のスライダーをマウスで動かして上下に移動できます）</span>
             <button class="btn btn-sm" onclick="exportThemeCsv(${themeId})">📥 CSVダウンロード</button>
         </div>
-        <div style="max-height: 50vh; overflow-y:auto; border:1px solid #E2E8F0; border-radius:6px;">
+        <div class="theme-responses-table-container" tabindex="0">
             <table style="width:100%; border-collapse:collapse; text-align:left;">
-                <thead style="background:#F1F5F9; position:sticky; top:0;">
+                <thead style="background:#F1F5F9; position:sticky; top:0; z-index:2; box-shadow: 0 1px 2px rgba(0,0,0,0.06);">
                     <tr>
-                        <th style="padding:8px; width:40px;">#</th>
+                        <th style="padding:10px 8px; width:45px;">#</th>
                         ${attrHeaderHtml}
-                        <th style="padding:8px;">回答文</th>
-                        <th style="padding:8px; width:80px; text-align:right;">適合度</th>
+                        <th style="padding:10px 8px;">回答文</th>
+                        <th style="padding:10px 8px; width:85px; text-align:right;">適合度</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -2253,6 +2270,10 @@ function printA4Report() {
  */
 function showHelpModal() {
     const modal = document.getElementById('detailModal');
+    const modalContent = modal.querySelector('.modal-content');
+    if (modalContent) {
+        modalContent.classList.remove('modal-content-lg');
+    }
     const modalTitle = document.getElementById('modalTitle');
     const modalBody = document.getElementById('modalBody');
 
