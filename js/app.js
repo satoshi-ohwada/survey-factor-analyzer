@@ -241,10 +241,7 @@ function setupEventListeners() {
     });
 
     window.addEventListener('afterprint', () => {
-        document.body.classList.remove('is-printing');
-        document.querySelectorAll('.js-plotly-plot').forEach(el => {
-            try { Plotly.Plots.resize(el); } catch (e) {}
-        });
+        cleanupPrintState();
     });
 
     // ヘルプ
@@ -2302,34 +2299,128 @@ function updatePrintMetaInfo() {
     }
 }
 
+let currentPrintRestoreFn = null;
+
+/**
+ * 印刷用に全Plotlyグラフを高精細PNG画像に一時置換する
+ * （数万件のSVGベクターによるPDF肥大化・印刷スプーラーのフリーズ・メモリ不足を防止）
+ * @returns {Promise<Function>} 復元関数
+ */
+async function rasterizeChartsForPrint() {
+    const plots = Array.from(document.querySelectorAll('.js-plotly-plot'));
+    const restoreTasks = [];
+
+    const tasks = plots.map(async (plotEl) => {
+        // 表示されていないグラフはスキップ
+        if (plotEl.offsetParent === null && !plotEl.closest('.print-only-block') && !plotEl.closest('#attributeAnalysisSection')) {
+            return;
+        }
+
+        const rect = plotEl.getBoundingClientRect();
+        const width = plotEl.clientWidth || Math.round(rect.width) || 600;
+        const height = plotEl.clientHeight || Math.round(rect.height) || 350;
+
+        if (width <= 0 || height <= 0) return;
+
+        try {
+            const dataUrl = await Plotly.toImage(plotEl, {
+                format: 'png',
+                width: width,
+                height: height,
+                scale: 2 // 300dpi相当の高精細印刷用
+            });
+
+            const img = document.createElement('img');
+            img.src = dataUrl;
+            img.className = 'print-rasterized-chart';
+
+            const originalChildren = Array.from(plotEl.children);
+            originalChildren.forEach(child => {
+                child.style.display = 'none';
+            });
+
+            plotEl.appendChild(img);
+
+            restoreTasks.push(() => {
+                if (img.parentNode === plotEl) {
+                    plotEl.removeChild(img);
+                }
+                originalChildren.forEach(child => {
+                    child.style.display = '';
+                });
+            });
+        } catch (err) {
+            console.warn('グラフのラスタライズ化スキップ:', err);
+        }
+    });
+
+    await Promise.all(tasks);
+
+    return () => {
+        restoreTasks.forEach(task => task());
+    };
+}
+
+/**
+ * 印刷状態のクリーンアップ・元のインタラクティブ表示へ復元
+ */
+function cleanupPrintState() {
+    if (currentPrintRestoreFn) {
+        currentPrintRestoreFn();
+        currentPrintRestoreFn = null;
+    }
+    document.body.classList.remove('is-printing');
+    document.querySelectorAll('.js-plotly-plot').forEach(el => {
+        try { Plotly.Plots.resize(el); } catch (e) {}
+    });
+}
+
 /**
  * A4レポート出力 (印刷 / PDF保存)
  */
-function printA4Report() {
+async function printA4Report() {
     const resultsContainer = document.getElementById('resultsContainer');
     if (!resultsContainer || resultsContainer.style.display === 'none') {
         alert('分析を実行してからレポート出力を行ってください');
         return;
     }
 
-    updatePrintMetaInfo();
+    if (document.body.classList.contains('is-printing')) {
+        return;
+    }
 
-    // 印刷直前にis-printingクラスを付与し、非表示だった図5（スモールマルチプルズ）を可視化・レイアウト確定
+    updatePrintMetaInfo();
     document.body.classList.add('is-printing');
 
-    showToast('💡 レポートは「A4縦」で作成されています。印刷設定の【レイアウト】は「縦」をご指定ください（直接印刷できない場合は「PDFに保存」をご利用ください）', 7000);
+    showLoading('印刷用レポートを軽量化処理中 (グラフの高速ラスタライズ)...');
 
-    // DOMの展開を待ってから全Plotlyグラフ（図5の小散布図を含む）を正確な幅にリサイズ
-    setTimeout(() => {
+    try {
+        await new Promise(resolve => setTimeout(resolve, 80));
+
         document.querySelectorAll('.js-plotly-plot').forEach(el => {
             try { Plotly.Plots.resize(el); } catch (e) {}
         });
 
-        // リサイズ完了後に印刷ダイアログを起動
+        await new Promise(resolve => setTimeout(resolve, 60));
+
+        // SVGベクターを軽量高精細画像（PNG）に一括変換
+        currentPrintRestoreFn = await rasterizeChartsForPrint();
+    } catch (e) {
+        console.error('ラスタライズ処理エラー:', e);
+    } finally {
+        hideLoading();
+    }
+
+    showToast('💡 レポートは「A4縦」で作成されています。印刷設定の【レイアウト】は「縦」をご指定ください', 6000);
+
+    setTimeout(() => {
+        window.print();
+
+        // afterprint が発火しなかった環境用のフォールバックタイマー
         setTimeout(() => {
-            window.print();
-        }, 120);
-    }, 60);
+            cleanupPrintState();
+        }, 12000);
+    }, 150);
 }
 
 /**

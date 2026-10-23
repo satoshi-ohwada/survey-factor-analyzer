@@ -3132,3 +3132,12 @@ body.is-printing .attr-sub-plot svg.main-svg {
     }
 }
 
+/* 印刷用ラスタライズ画像スタイル（ベクター肥大化防止） */
+.print-rasterized-chart {
+    display: block;
+    width: 100% !important;
+    height: auto !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+
