@@ -1667,6 +1667,7 @@ async function runFullPipeline() {
         hideLoading();
     }
 }
+window.runFullPipeline = runFullPipeline;
 
 /**
  * 分析結果のUI描画
@@ -2998,6 +2999,19 @@ function attachKwExcludeHandlers(parentEl) {
 }
 
 /**
+ * トピックIDに応じたテーマカラーを取得
+ * @param {number} themeId 
+ * @returns {string} カラーコード (HEX)
+ */
+function getThemeColor(themeId) {
+    if (typeof ChartRenderer !== 'undefined' && ChartRenderer.COLORS && ChartRenderer.COLORS.length > 0) {
+        return ChartRenderer.COLORS[themeId % ChartRenderer.COLORS.length];
+    }
+    return '#2563EB';
+}
+window.getThemeColor = getThemeColor;
+
+/**
  * トピック関連キーワード詳細モーダルを開く
  * @param {number} themeId 
  */
@@ -3027,7 +3041,10 @@ function openThemeKeywordsModal(themeId) {
     const filterInput = document.getElementById('kwModalFilterInput');
     if (filterInput) filterInput.value = '';
 
-    // 左カラム: 上位横棒グラフの描画
+    // モーダルを先に表示してDOMの寸法を確定させる
+    modal.style.display = 'flex';
+
+    // 左カラム: 上位横棒グラフの描画（表示確定後にレンダリング＆リサイズ）
     setTimeout(() => {
         ChartRenderer.renderKeywordModalChart('kwModalBarChart', theme.keywords, color, 20);
     }, 50);
@@ -3049,8 +3066,6 @@ function openThemeKeywordsModal(themeId) {
             exportThemeKeywordsCsv(theme);
         };
     }
-
-    modal.style.display = 'flex';
 }
 window.openThemeKeywordsModal = openThemeKeywordsModal;
 

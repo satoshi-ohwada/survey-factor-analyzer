@@ -778,7 +778,9 @@ const ChartRenderer = {
             doubleClick: false
         };
 
-        Plotly.react(containerId, data, layout, config);
+        Plotly.react(containerId, data, layout, config).then(() => {
+            Plotly.Plots.resize(el);
+        }).catch(() => {});
     },
 
     /**
@@ -839,7 +841,9 @@ const ChartRenderer = {
             doubleClick: false
         };
 
-        Plotly.react(containerId, data, layout, config);
+        Plotly.react(containerId, data, layout, config).then(() => {
+            Plotly.Plots.resize(el);
+        }).catch(() => {});
     },
 
     /**
