@@ -170,9 +170,10 @@ const FactorEngine = {
      * @param {string[]} vocabulary 語彙リスト
      * @param {number[][]} V TF-IDF行列
      * @param {number} K テーマ数
+     * @param {Record<string, number>} [wordDocCounts] 単語の出現回答数マップ
      * @returns {object} 分析結果オブジェクト
      */
-    analyze(responses, vocabulary, V, K) {
+    analyze(responses, vocabulary, V, K, wordDocCounts = {}) {
         const N = responses.length;
         const M = vocabulary.length;
 
@@ -187,24 +188,26 @@ const FactorEngine = {
         // 1. NMFの実行
         const { W, H } = this.runNMF(V, K, 80);
 
-        // 2. 各テーマの重要単語（上位7単語）を抽出
+        // 2. 各テーマの重要単語（上位30単語）を抽出
         const themes = [];
         for (let k = 0; k < K; k++) {
             const wordWeights = vocabulary.map((word, idx) => ({
                 word,
-                weight: H[k][idx]
+                weight: H[k][idx],
+                docCount: wordDocCounts[word] || 0
             }));
 
             // 重み降順ソート
             wordWeights.sort((a, b) => b.weight - a.weight);
 
-            const topWords = wordWeights.slice(0, 7);
+            const topWords = wordWeights.slice(0, 30);
             const titleKeywords = topWords.slice(0, 3).map(w => w.word);
 
             themes.push({
                 id: k,
                 label: `【${titleKeywords.join('・')}】`,
                 keywords: topWords,
+                allKeywords: wordWeights,
                 count: 0,
                 share: 0,
                 representativeResponses: []

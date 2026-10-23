@@ -724,9 +724,14 @@ const ChartRenderer = {
      * @param {string} containerId 
      * @param {Array<{word: string, weight: number}>} keywords 
      * @param {string} color 
+     * @param {number} [limit=6] 表示件数
      */
-    renderKeywordBarChart(containerId, keywords, color = '#2563EB') {
-        const reversed = [...keywords].slice(0, 6).reverse(); // 上位を上に表示
+    renderKeywordBarChart(containerId, keywords, color = '#2563EB', limit = 6) {
+        const el = document.getElementById(containerId);
+        if (!el || !keywords) return;
+
+        const count = Math.min(limit, keywords.length);
+        const reversed = [...keywords].slice(0, count).reverse(); // 上位を上に表示
         const yWords = reversed.map(k => k.word);
         const xWeights = reversed.map(k => k.weight);
 
@@ -743,9 +748,12 @@ const ChartRenderer = {
             hoverinfo: 'x+y'
         }];
 
+        // 表示件数に応じた高さの動的調整（件数が多い場合は高さを拡張）
+        const calculatedHeight = Math.max(145, count * 22 + 25);
+
         const layout = {
-            margin: { l: 65, r: 15, t: 8, b: 24 },
-            height: 145,
+            margin: { l: 75, r: 15, t: 8, b: 24 },
+            height: calculatedHeight,
             paper_bgcolor: 'rgba(0,0,0,0)',
             plot_bgcolor: 'rgba(0,0,0,0)',
             xaxis: {
@@ -770,7 +778,68 @@ const ChartRenderer = {
             doubleClick: false
         };
 
-        Plotly.newPlot(containerId, data, layout, config);
+        Plotly.react(containerId, data, layout, config);
+    },
+
+    /**
+     * 関連キーワード詳細モーダル用・詳細横棒グラフを描画
+     * @param {string} containerId 
+     * @param {Array<{word: string, weight: number}>} keywords 
+     * @param {string} color 
+     * @param {number} [limit=20] 
+     */
+    renderKeywordModalChart(containerId, keywords, color = '#2563EB', limit = 20) {
+        const el = document.getElementById(containerId);
+        if (!el || !keywords) return;
+
+        const count = Math.min(limit, keywords.length);
+        const reversed = [...keywords].slice(0, count).reverse();
+        const yWords = reversed.map(k => k.word);
+        const xWeights = reversed.map(k => k.weight);
+
+        const data = [{
+            type: 'bar',
+            x: xWeights,
+            y: yWords,
+            orientation: 'h',
+            marker: {
+                color: color,
+                opacity: 0.88,
+                line: { color: '#ffffff', width: 1 }
+            },
+            hovertemplate: '<b>%{y}</b><br>関連度: %{x:.4f}<extra></extra>'
+        }];
+
+        const calculatedHeight = Math.max(320, count * 24 + 40);
+
+        const layout = {
+            margin: { l: 85, r: 20, t: 15, b: 35 },
+            height: calculatedHeight,
+            paper_bgcolor: '#FFFFFF',
+            plot_bgcolor: '#F8FAFC',
+            xaxis: {
+                showgrid: true,
+                gridcolor: '#E2E8F0',
+                zeroline: false,
+                title: { text: 'トピック関連度スコア', font: { size: 11, color: '#475569' } },
+                tickfont: { size: 10 },
+                fixedrange: true
+            },
+            yaxis: {
+                autorange: true,
+                tickfont: { size: 11, color: '#1E293B' },
+                fixedrange: true
+            },
+            font: { size: 11, family: 'sans-serif' }
+        };
+
+        const config = {
+            responsive: true,
+            displayModeBar: false,
+            doubleClick: false
+        };
+
+        Plotly.react(containerId, data, layout, config);
     },
 
     /**

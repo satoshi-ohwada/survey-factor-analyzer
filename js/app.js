@@ -271,6 +271,20 @@ function setupEventListeners() {
         }
     });
 
+    // 関連キーワード詳細モーダルの閉じるイベント
+    const themeKeywordsModal = document.getElementById('themeKeywordsModal');
+    const btnKwModalClose = document.getElementById('btnKwModalClose');
+    if (btnKwModalClose) {
+        btnKwModalClose.addEventListener('click', closeThemeKeywordsModal);
+    }
+    if (themeKeywordsModal) {
+        themeKeywordsModal.addEventListener('click', (e) => {
+            if (e.target === themeKeywordsModal) {
+                closeThemeKeywordsModal();
+            }
+        });
+    }
+
     // データプレビュー操作コントロール
     const btnPreviewLimit = document.getElementById('btnPreviewLimit');
     const btnPreviewAll = document.getElementById('btnPreviewAll');
@@ -1637,7 +1651,7 @@ async function runFullPipeline() {
         const K = parseInt(document.getElementById('inputK').value, 10) || 3;
         AppState.kCount = K;
 
-        const result = FactorEngine.analyze(validResponses, tfidfData.vocabulary, tfidfData.matrix, K);
+        const result = FactorEngine.analyze(validResponses, tfidfData.vocabulary, tfidfData.matrix, K, tfidfData.wordDocCounts);
         AppState.analysisResult = result;
 
         showLoading('図とパス図を描画中...');
@@ -1953,19 +1967,24 @@ function renderThemeCards(themes) {
             </div>
             <div class="theme-body-grid">
                 <div class="theme-chart-col">
-                    <div class="theme-chart-title">【重要キーワード（関連度）】</div>
+                    <div class="theme-chart-header">
+                        <span class="theme-chart-title">【重要キーワード（関連度）】</span>
+                        <button type="button" class="btn-kw-expand" id="btn-kw-expand-${theme.id}" data-theme-id="${theme.id}" data-expanded="false" title="表示単語数を切り替えます">
+                            ＋ さらに表示 (12語)
+                        </button>
+                    </div>
                     <div id="chart-kw-${theme.id}"></div>
                     <div class="card-keywords-toolbar">
                         <div class="card-keywords-header">
                             <span>💡 単語を除外（クリックで除外＆自動再計算）:</span>
                         </div>
-                        <div class="card-kw-tags">
-                            ${theme.keywords.slice(0, 8).map(kw => `
-                                <span class="card-kw-tag" title="「${escapeHtml(kw.word)}」を除外ワードに追加して再分析">
-                                    <span>${escapeHtml(kw.word)}</span>
-                                    <button type="button" class="card-kw-exclude-btn" data-word="${escapeHtml(kw.word)}" title="「${escapeHtml(kw.word)}」を除外">✕</button>
-                                </span>
-                            `).join('')}
+                        <div class="card-kw-tags" id="kw-tags-${theme.id}">
+                            ${renderKwTagsHtml(theme.keywords, 6)}
+                        </div>
+                        <div class="card-kw-more-bar">
+                            <button type="button" class="btn btn-xs btn-outline btn-open-kw-modal" data-theme-id="${theme.id}" title="上位30件の単語ランキング表・詳細グラフを確認">
+                                📊 全関連単語一覧・詳細 (${theme.keywords.length}語)
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -2010,28 +2029,45 @@ function renderThemeCards(themes) {
             }
         });
 
-        // 重要キーワードの除外ボタン（ワンクリック除外＆自動再分析）
-        const kwExcludeBtns = card.querySelectorAll('.card-kw-exclude-btn');
-        kwExcludeBtns.forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                const word = btn.getAttribute('data-word');
-                if (!word) return;
+        // 重要キーワードの除外ボタンのイベント登録
+        const tagsContainer = card.querySelector(`#kw-tags-${theme.id}`);
+        if (tagsContainer) {
+            attachKwExcludeHandlers(tagsContainer);
+        }
 
-                if (confirm(`単語「${word}」を除外ワード（ストップワード）に追加して再分析しますか？`)) {
-                    AppState.customStopWords.add(word);
-                    saveCustomRulesToStorage();
-                    renderCustomRulesUI();
-                    showToast(`「${word}」を除外ワードに追加して再計算中...`);
-                    await runFullPipeline();
-                    showToast(`「${word}」を除外して再分析が完了しました`);
+        // 「＋ さらに表示 (12語)」トグルボタン
+        const expandBtn = card.querySelector(`#btn-kw-expand-${theme.id}`);
+        if (expandBtn) {
+            expandBtn.addEventListener('click', () => {
+                const isExpanded = expandBtn.getAttribute('data-expanded') === 'true';
+                const newExpanded = !isExpanded;
+                expandBtn.setAttribute('data-expanded', String(newExpanded));
+
+                const targetLimit = newExpanded ? 12 : 6;
+                expandBtn.textContent = newExpanded ? '− 6語に戻す' : '＋ さらに表示 (12語)';
+
+                // 棒グラフ再描画
+                ChartRenderer.renderKeywordBarChart(`chart-kw-${theme.id}`, theme.keywords, color, targetLimit);
+
+                // タグ再描画
+                if (tagsContainer) {
+                    tagsContainer.innerHTML = renderKwTagsHtml(theme.keywords, targetLimit);
+                    attachKwExcludeHandlers(tagsContainer);
                 }
             });
-        });
+        }
 
-        // 重要キーワード横棒グラフの描画
+        // 「📊 全関連単語一覧・詳細」モーダルボタン
+        const openModalBtn = card.querySelector(`.btn-open-kw-modal[data-theme-id="${theme.id}"]`);
+        if (openModalBtn) {
+            openModalBtn.addEventListener('click', () => {
+                openThemeKeywordsModal(theme.id);
+            });
+        }
+
+        // 重要キーワード横棒グラフの初期描画（6語）
         setTimeout(() => {
-            ChartRenderer.renderKeywordBarChart(`chart-kw-${theme.id}`, theme.keywords, color);
+            ChartRenderer.renderKeywordBarChart(`chart-kw-${theme.id}`, theme.keywords, color, 6);
         }, 50);
     });
 }
@@ -2918,5 +2954,203 @@ function getSelectedPosNames() {
     if (AppState.selectedPos.intj) names.push('感動詞');
     return names;
 }
+
+/**
+ * トピックカード内のキーワードタグHTMLを生成
+ * @param {Array<{word: string, weight: number}>} keywords 
+ * @param {number} limit 
+ * @returns {string}
+ */
+function renderKwTagsHtml(keywords, limit = 6) {
+    if (!keywords) return '';
+    return keywords.slice(0, limit).map(kw => `
+        <span class="card-kw-tag" title="「${escapeHtml(kw.word)}」を除外ワードに追加して再分析">
+            <span>${escapeHtml(kw.word)}</span>
+            <button type="button" class="card-kw-exclude-btn" data-word="${escapeHtml(kw.word)}" title="「${escapeHtml(kw.word)}」を除外">✕</button>
+        </span>
+    `).join('');
+}
+
+/**
+ * キーワード除外ボタンのクリックイベントをバインド
+ * @param {HTMLElement} parentEl 
+ */
+function attachKwExcludeHandlers(parentEl) {
+    if (!parentEl) return;
+    const btns = parentEl.querySelectorAll('.card-kw-exclude-btn, .btn-kw-table-exclude');
+    btns.forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const word = btn.getAttribute('data-word');
+            if (!word) return;
+
+            if (confirm(`単語「${word}」を除外ワード（ストップワード）に追加して再分析しますか？`)) {
+                AppState.customStopWords.add(word);
+                saveCustomRulesToStorage();
+                renderCustomRulesUI();
+                showToast(`「${word}」を除外ワードに追加して再計算中...`);
+                closeThemeKeywordsModal();
+                await runFullPipeline();
+                showToast(`「${word}」を除外して再分析が完了しました`);
+            }
+        });
+    });
+}
+
+/**
+ * トピック関連キーワード詳細モーダルを開く
+ * @param {number} themeId 
+ */
+function openThemeKeywordsModal(themeId) {
+    if (!AppState.analysisResult || !AppState.analysisResult.themes) return;
+    const theme = AppState.analysisResult.themes.find(t => t.id === themeId);
+    if (!theme) return;
+
+    const modal = document.getElementById('themeKeywordsModal');
+    if (!modal) return;
+
+    const color = getThemeColor(theme.id);
+    const badge = document.getElementById('kwModalTopicBadge');
+    if (badge) {
+        badge.textContent = `トピック ${theme.id + 1}`;
+        badge.style.background = color;
+    }
+
+    const titleEl = document.getElementById('kwModalTitle');
+    if (titleEl) {
+        titleEl.textContent = `${theme.label} 関連キーワード詳細`;
+    }
+
+    const countEl = document.getElementById('kwModalWordCount');
+    if (countEl) countEl.textContent = theme.keywords.length;
+
+    const filterInput = document.getElementById('kwModalFilterInput');
+    if (filterInput) filterInput.value = '';
+
+    // 左カラム: 上位横棒グラフの描画
+    setTimeout(() => {
+        ChartRenderer.renderKeywordModalChart('kwModalBarChart', theme.keywords, color, 20);
+    }, 50);
+
+    // 右カラム: テーブル描画
+    renderKwModalTable(theme.keywords, '');
+
+    // 検索入力時のインクリメンタルフィルタ
+    if (filterInput) {
+        filterInput.oninput = (e) => {
+            renderKwModalTable(theme.keywords, e.target.value.trim());
+        };
+    }
+
+    // CSVエクスポートボタン
+    const exportBtn = document.getElementById('btnExportKwCsv');
+    if (exportBtn) {
+        exportBtn.onclick = () => {
+            exportThemeKeywordsCsv(theme);
+        };
+    }
+
+    modal.style.display = 'flex';
+}
+window.openThemeKeywordsModal = openThemeKeywordsModal;
+
+/**
+ * キーワード詳細モーダルのテーブル行を描画
+ * @param {Array<{word: string, weight: number, docCount?: number}>} keywords 
+ * @param {string} filterQuery 
+ */
+function renderKwModalTable(keywords, filterQuery = '') {
+    const tbody = document.getElementById('kwModalTableBody');
+    if (!tbody || !keywords) return;
+
+    let filtered = keywords;
+    if (filterQuery) {
+        const q = filterQuery.toLowerCase();
+        filtered = keywords.filter(k => k.word.toLowerCase().includes(q));
+    }
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #94A3B8; padding: 24px;">一致する単語がありません</td></tr>`;
+        return;
+    }
+
+    const maxWeight = keywords[0]?.weight || 1;
+
+    tbody.innerHTML = filtered.map((k, idx) => {
+        const rank = idx + 1;
+        const rankClass = rank === 1 ? 'kw-rank-1' : (rank === 2 ? 'kw-rank-2' : (rank === 3 ? 'kw-rank-3' : ''));
+        const percent = Math.min(100, Math.max(4, Math.round((k.weight / maxWeight) * 100)));
+        const docCountText = (k.docCount !== undefined && k.docCount > 0) ? `${k.docCount}件` : '-';
+
+        return `
+            <tr>
+                <td style="text-align: center;">
+                    <span class="kw-rank-badge ${rankClass}">${rank}</span>
+                </td>
+                <td style="font-weight: 600;">
+                    ${escapeHtml(k.word)}
+                </td>
+                <td>
+                    <div class="kw-score-bar-wrap" title="関連度: ${k.weight.toFixed(4)}">
+                        <div class="kw-score-bar-bg">
+                            <div class="kw-score-bar-fill" style="width: ${percent}%;"></div>
+                        </div>
+                        <span class="kw-score-val">${k.weight.toFixed(3)}</span>
+                    </div>
+                </td>
+                <td style="text-align: right; color: #64748B;">
+                    ${docCountText}
+                </td>
+                <td style="text-align: center;">
+                    <button type="button" class="btn-kw-table-exclude" data-word="${escapeHtml(k.word)}" title="「${escapeHtml(k.word)}」を除外ワードに追加して再分析">
+                        🚫 除外
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    attachKwExcludeHandlers(tbody);
+}
+
+/**
+ * 関連キーワード詳細モーダルを閉じる
+ */
+function closeThemeKeywordsModal() {
+    const modal = document.getElementById('themeKeywordsModal');
+    if (modal) modal.style.display = 'none';
+}
+window.closeThemeKeywordsModal = closeThemeKeywordsModal;
+
+/**
+ * トピックの関連キーワード一覧をCSVダウンロード
+ * @param {object} theme 
+ */
+function exportThemeKeywordsCsv(theme) {
+    if (!theme || !theme.keywords) return;
+    const rows = [
+        ['順位', '単語', '関連度スコア', '出現回答件数']
+    ];
+    theme.keywords.forEach((k, idx) => {
+        rows.push([
+            idx + 1,
+            k.word,
+            k.weight.toFixed(6),
+            k.docCount || 0
+        ]);
+    });
+
+    const csvContent = '\uFEFF' + rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `トピック${theme.id + 1}_関連単語一覧.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
 
 
