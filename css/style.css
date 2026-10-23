@@ -2245,6 +2245,11 @@ body {
 }
 
 @media print {
+    *, *::before, *::after {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
     @page {
         size: A4 portrait;
         margin: 10mm 12mm 10mm 12mm;
@@ -2279,7 +2284,8 @@ body {
     .axis-switch-panel,
     .map-hover-detail-panel,
     .stepper,
-    .btn-toggle-group {
+    .btn-toggle-group,
+    .toast-notification {
         display: none !important;
     }
 
@@ -2347,7 +2353,7 @@ body {
         min-width: 0 !important;
         max-width: 240px !important;
         width: 240px !important;
-        overflow: hidden !important;
+        overflow: visible !important;
         padding: 4px 6px !important;
         background: #F8FAFC !important;
         border: 1px solid #E2E8F0 !important;
@@ -2363,7 +2369,7 @@ body {
 
     .theme-responses-col {
         min-width: 0 !important;
-        overflow: hidden !important;
+        overflow: visible !important;
     }
 
     .response-item {
@@ -2443,7 +2449,7 @@ body {
         min-width: 0 !important;
         max-width: 100% !important;
         box-sizing: border-box !important;
-        overflow: hidden !important;
+        overflow: visible !important;
     }
 
     .attr-multiples-card-header {
@@ -2470,7 +2476,7 @@ body {
         max-width: 100% !important;
         min-width: 0 !important;
         height: 135px !important;
-        overflow: hidden !important;
+        overflow: visible !important;
     }
 
     .attr-sub-plot .js-plotly-plot,
@@ -2509,14 +2515,14 @@ body.is-printing .attr-multiples-card {
     min-width: 0 !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
-    overflow: hidden !important;
+    overflow: visible !important;
 }
 
 body.is-printing .attr-sub-plot {
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
-    overflow: hidden !important;
+    overflow: visible !important;
 }
 
 body.is-printing .attr-sub-plot .js-plotly-plot,

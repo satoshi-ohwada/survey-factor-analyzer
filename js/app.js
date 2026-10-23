@@ -2317,6 +2317,8 @@ function printA4Report() {
     // 印刷直前にis-printingクラスを付与し、非表示だった図5（スモールマルチプルズ）を可視化・レイアウト確定
     document.body.classList.add('is-printing');
 
+    showToast('💡 プリンターで直接印刷できない場合は、印刷画面の送信先を「PDFに保存」にしてPDFから印刷してください', 6000);
+
     // DOMの展開を待ってから全Plotlyグラフ（図5の小散布図を含む）を正確な幅にリサイズ
     setTimeout(() => {
         document.querySelectorAll('.js-plotly-plot').forEach(el => {
