@@ -23,6 +23,15 @@ const AppState = {
     customCompoundWords: new Set(),
     customSynonymRules: new Map(),
 
+    // 形態素解析の抽出品詞選択状態
+    selectedPos: {
+        noun: true,
+        verb: true,
+        adj: true,
+        adv: false,
+        intj: false
+    },
+
     // プレビュー＆データ編集状態
     previewMode: 'limit', // 'limit' (先頭5行) または 'all' (全行表示)
     previewPage: 1,
@@ -444,6 +453,9 @@ function setupEventListeners() {
 
     // カスタム辞書・除外ワード設定の初期化
     setupDictionaryEventListeners();
+
+    // 形態素解析の抽出品詞選択の初期化
+    setupPosEventListeners();
 }
 
 /**
@@ -1545,6 +1557,13 @@ async function runFullPipeline() {
 
     AppState.mapAttrFilter = '';
 
+    // 形態素解析の抽出品詞のバリデーション（最低1つ選択必須）
+    const hasAnyPos = Object.values(AppState.selectedPos).some(v => v);
+    if (!hasAnyPos) {
+        alert('形態素解析で抽出する品詞を少なくとも1つ選択してください。');
+        return;
+    }
+
     const btnRun = document.getElementById('btnRunAnalysis');
     const btnRunTop = document.getElementById('btnRunAnalysisTop');
     if (btnRun) btnRun.disabled = true;
@@ -1561,6 +1580,9 @@ async function runFullPipeline() {
             compoundWords: AppState.customCompoundWords,
             synonymRules: AppState.customSynonymRules
         });
+
+        // 形態素解析の抽出品詞フィルターをセット
+        TextPreprocessor.setPosFilter(AppState.selectedPos);
 
         showLoading('アンケートテキストを前処理中...');
         // 2. 絞り込み条件（オートフィルター）を満たす行を取得
@@ -1580,8 +1602,8 @@ async function runFullPipeline() {
             if (TextPreprocessor.isJunkResponse(textStr)) {
                 junkCount++;
             } else {
-                // 形態素解析で名詞・動詞・形容詞などの有効語が1つ以上抽出できるか判定
-                const tokens = TextPreprocessor.tokenize(textStr);
+                // 形態素解析で指定品詞の有効語が1つ以上抽出できるか判定
+                const tokens = TextPreprocessor.tokenize(textStr, AppState.selectedPos);
                 if (tokens.length === 0) {
                     // 挨拶文・定型句など、分析対象となる特徴語が抽出できない回答
                     junkCount++;
@@ -1603,8 +1625,8 @@ async function runFullPipeline() {
         AppState.validResponses = validResponses;
 
         showLoading('重要キーワードと潜在トピックを計算中...');
-        // 3. TF-IDF 行列の構築
-        const tfidfData = TextPreprocessor.buildTfIdfMatrix(validResponses, 70);
+        // 3. TF-IDF 行列の構築（指定された品詞に基づく）
+        const tfidfData = TextPreprocessor.buildTfIdfMatrix(validResponses, 70, AppState.selectedPos);
 
         if (tfidfData.vocabulary.length < 3) {
             alert('有効なキーワードが十分に抽出できませんでした。除外条件や単語を確認してください。');
@@ -1662,6 +1684,12 @@ function renderResults(validResponses, junkCount, result, tfidfData, analyzedRow
     document.getElementById('statValidRows').textContent = validCount.toLocaleString();
     document.getElementById('statJunkRows').textContent = junkCount.toLocaleString();
     document.getElementById('statThemesCount').textContent = result.themes.length;
+
+    const posNamesText = getSelectedPosNames().join('・');
+    const statPosList = document.getElementById('statPosList');
+    if (statPosList) statPosList.textContent = posNamesText || 'なし';
+    const printPosList = document.getElementById('printPosList');
+    if (printPosList) printPosList.textContent = posNamesText || 'なし';
 
     // 【表】テキスト全体の基本統計・特性プロファイルの描画
     renderTextStatsProfile(validResponses, junkCount, tfidfData, analyzedRowsCount);
@@ -2798,4 +2826,97 @@ function openRulesImportModal(text) {
 
     if (modal) modal.style.display = 'flex';
 }
+
+/**
+ * 形態素解析の抽出品詞選択イベントリスナーの登録
+ */
+function setupPosEventListeners() {
+    const posCheckboxes = document.querySelectorAll('.pos-checkbox');
+    const btnPosReset = document.getElementById('btnPosReset');
+    const btnPosSelectAll = document.getElementById('btnPosSelectAll');
+
+    posCheckboxes.forEach(cb => {
+        cb.addEventListener('change', () => {
+            const posKey = cb.dataset.pos;
+            if (!posKey) return;
+
+            // 最低1つ選択のバリデーション
+            const checkedCount = Array.from(posCheckboxes).filter(c => c.checked).length;
+            if (checkedCount === 0) {
+                alert('形態素解析で抽出する品詞を少なくとも1つ選択してください。');
+                cb.checked = true;
+                return;
+            }
+
+            AppState.selectedPos[posKey] = cb.checked;
+            TextPreprocessor.setPosFilter(AppState.selectedPos);
+
+            const parentChip = cb.closest('.pos-chip');
+            if (parentChip) {
+                if (cb.checked) {
+                    parentChip.classList.add('is-checked');
+                } else {
+                    parentChip.classList.remove('is-checked');
+                }
+            }
+
+            // 分析結果表示中なら再分析案内バナーを表示
+            markDataDirty();
+        });
+    });
+
+    if (btnPosReset) {
+        btnPosReset.addEventListener('click', () => {
+            AppState.selectedPos = { noun: true, verb: true, adj: true, adv: false, intj: false };
+            TextPreprocessor.setPosFilter(AppState.selectedPos);
+            updatePosUI();
+            markDataDirty();
+        });
+    }
+
+    if (btnPosSelectAll) {
+        btnPosSelectAll.addEventListener('click', () => {
+            AppState.selectedPos = { noun: true, verb: true, adj: true, adv: true, intj: true };
+            TextPreprocessor.setPosFilter(AppState.selectedPos);
+            updatePosUI();
+            markDataDirty();
+        });
+    }
+}
+
+/**
+ * 品詞選択UIのチェック状態とスタイルを AppState.selectedPos に同期
+ */
+function updatePosUI() {
+    const posCheckboxes = document.querySelectorAll('.pos-checkbox');
+    posCheckboxes.forEach(cb => {
+        const posKey = cb.dataset.pos;
+        if (posKey && AppState.selectedPos[posKey] !== undefined) {
+            cb.checked = AppState.selectedPos[posKey];
+            const parentChip = cb.closest('.pos-chip');
+            if (parentChip) {
+                if (cb.checked) {
+                    parentChip.classList.add('is-checked');
+                } else {
+                    parentChip.classList.remove('is-checked');
+                }
+            }
+        }
+    });
+}
+
+/**
+ * 選択されている品詞の名称リストを取得
+ * @returns {string[]}
+ */
+function getSelectedPosNames() {
+    const names = [];
+    if (AppState.selectedPos.noun) names.push('名詞');
+    if (AppState.selectedPos.verb) names.push('動詞');
+    if (AppState.selectedPos.adj) names.push('形容詞');
+    if (AppState.selectedPos.adv) names.push('副詞');
+    if (AppState.selectedPos.intj) names.push('感動詞');
+    return names;
+}
+
 

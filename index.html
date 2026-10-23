@@ -100,7 +100,7 @@
                             <span class="config-panel-icon">⚙️</span>
                             <span>分析条件の設定</span>
                         </div>
-                        <span class="config-panel-hint">※分析対象列・属性列・トピック数を確認・変更できます</span>
+                        <span class="config-panel-hint">※分析対象列・属性列・トピック数・抽出する品詞を確認・変更できます</span>
                     </div>
                     <div class="config-fields-grid">
                         <div class="form-group form-group-highlight">
@@ -134,6 +134,76 @@
                                 <button type="button" id="btnIncK" class="stepper-btn" style="border-radius: 0 8px 8px 0;">＋</button>
                             </div>
                             <span class="form-hint">抽出するテーマの個数 (2〜8)</span>
+                        </div>
+                    </div>
+
+                    <!-- ④ 抽出する品詞の設定 -->
+                    <div class="config-pos-section">
+                        <div class="config-pos-header">
+                            <div class="config-pos-title-wrap">
+                                <span class="form-label-text">④ 抽出する品詞（形態素解析）</span>
+                                <span class="badge-rec">複数選択可</span>
+                            </div>
+                            <div class="config-pos-quick-actions">
+                                <button type="button" id="btnPosReset" class="btn-pos-quick" title="初期設定（名詞・動詞・形容詞）に戻します">標準に戻す</button>
+                                <button type="button" id="btnPosSelectAll" class="btn-pos-quick" title="すべての品詞を選択します">すべて選択</button>
+                            </div>
+                        </div>
+                        <div class="pos-checkbox-group" id="posCheckboxGroup">
+                            <label class="pos-chip is-checked" for="posNoun" title="一般名詞・固有名詞・サ変接続・複合語を抽出します">
+                                <input type="checkbox" id="posNoun" class="pos-checkbox" data-pos="noun" checked>
+                                <div class="pos-chip-body">
+                                    <div class="pos-chip-header">
+                                        <span class="pos-chip-icon">🏷️</span>
+                                        <span class="pos-chip-label">名詞</span>
+                                    </div>
+                                    <span class="pos-chip-sub">一般・固有名詞・複合語</span>
+                                </div>
+                            </label>
+
+                            <label class="pos-chip is-checked" for="posVerb" title="動詞の自立語（基本形）を抽出します">
+                                <input type="checkbox" id="posVerb" class="pos-checkbox" data-pos="verb" checked>
+                                <div class="pos-chip-body">
+                                    <div class="pos-chip-header">
+                                        <span class="pos-chip-icon">🏃</span>
+                                        <span class="pos-chip-label">動詞</span>
+                                    </div>
+                                    <span class="pos-chip-sub">自立語（基本形）</span>
+                                </div>
+                            </label>
+
+                            <label class="pos-chip is-checked" for="posAdj" title="形容詞の自立語（基本形）を抽出します">
+                                <input type="checkbox" id="posAdj" class="pos-checkbox" data-pos="adj" checked>
+                                <div class="pos-chip-body">
+                                    <div class="pos-chip-header">
+                                        <span class="pos-chip-icon">✨</span>
+                                        <span class="pos-chip-label">形容詞</span>
+                                    </div>
+                                    <span class="pos-chip-sub">自立語（基本形）</span>
+                                </div>
+                            </label>
+
+                            <label class="pos-chip" for="posAdv" title="副詞を抽出します">
+                                <input type="checkbox" id="posAdv" class="pos-checkbox" data-pos="adv">
+                                <div class="pos-chip-body">
+                                    <div class="pos-chip-header">
+                                        <span class="pos-chip-icon">⚡</span>
+                                        <span class="pos-chip-label">副詞</span>
+                                    </div>
+                                    <span class="pos-chip-sub">修飾・強調など</span>
+                                </div>
+                            </label>
+
+                            <label class="pos-chip" for="posIntj" title="感動詞を抽出します">
+                                <input type="checkbox" id="posIntj" class="pos-checkbox" data-pos="intj">
+                                <div class="pos-chip-body">
+                                    <div class="pos-chip-header">
+                                        <span class="pos-chip-icon">💬</span>
+                                        <span class="pos-chip-label">感動詞</span>
+                                    </div>
+                                    <span class="pos-chip-sub">挨拶・感嘆など</span>
+                                </div>
+                            </label>
                         </div>
                     </div>
                 </div>
@@ -332,7 +402,7 @@
                     <div>
                         <h1 style="font-size: 16pt; font-weight: 800; color: #1E293B; margin: 0; line-height: 1.2;">アンケート自由記述 潜在トピック探索レポート</h1>
                         <div style="font-size: 9pt; color: #64748B; margin-top: 3px;">
-                            分析対象: <b id="printFileName" style="color:#1E293B;">-</b> │ 出力日時: <span id="printDate">-</span> │ 有効回答: <b id="printValidCount">-</b> 件<span id="printFilterWrapper" style="display: none;"> │ 絞り込み条件: <b id="printFilterConditions" style="color:#2563EB;">-</b></span>
+                            分析対象: <b id="printFileName" style="color:#1E293B;">-</b> │ 出力日時: <span id="printDate">-</span> │ 有効回答: <b id="printValidCount">-</b> 件 │ 抽出品詞: <b id="printPosList" style="color:#2563EB;">-</b><span id="printFilterWrapper" style="display: none;"> │ 絞り込み条件: <b id="printFilterConditions" style="color:#2563EB;">-</b></span>
                         </div>
                     </div>
                     <div style="text-align: right;">
@@ -360,6 +430,7 @@
                     <span class="stat-item">有効回答（テキスト有）: <b id="statValidRows" class="stat-val">0</b> 件</span>
                     <span class="stat-item">除外（定型「なし」等）: <b id="statJunkRows" class="stat-val" style="color:#64748B;">0</b> 件</span>
                     <span class="stat-item">抽出された主要トピック: <b id="statThemesCount" class="stat-val">0</b> 個</span>
+                    <span class="stat-item">抽出品詞: <b id="statPosList" class="stat-val" style="color:#2563EB;">-</b></span>
                 </div>
                 <div style="font-size: 12px; color: var(--text-muted);">
                     ※トピック名はクリックして編集できます

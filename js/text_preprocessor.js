@@ -29,6 +29,24 @@ const TextPreprocessor = {
     customCompoundWords: new Set(),
     customSynonymRules: new Map(),
 
+    // 形態素解析で抽出対象とする品詞フィルター
+    posFilter: {
+        noun: true,   // 名詞（一般、固有名詞、サ変接続、形容動詞語幹など）
+        verb: true,   // 動詞（自立語・基本形）
+        adj: true,    // 形容詞（自立語・基本形）
+        adv: false,   // 副詞
+        intj: false   // 感動詞
+    },
+
+    /**
+     * 抽出対象の品詞フィルターを設定
+     * @param {object} filter 
+     */
+    setPosFilter(filter) {
+        if (!filter) return;
+        this.posFilter = Object.assign({}, this.posFilter, filter);
+    },
+
     // 無意味な回答（行全体がこれに該当する場合はスキップ）
     JUNK_RESPONSES: new Set([
         // 日本語定型無効・無回答・空欄相当表記
@@ -233,15 +251,19 @@ const TextPreprocessor = {
     },
 
     /**
-     * 単一のテキスト文を形態素解析し、単語リスト（名詞・動詞・形容詞・複合語）を返す
+     * 単一のテキスト文を形態素解析し、単語リスト（指定された品詞・複合語）を返す
      * 1. ユーザー定義複合語・同義語置換の適用
      * 2. 連続する名詞の自動結合
-     * 3. ストップワード（標準＋カスタム除外語）のフィルタリング
+     * 3. 選択された品詞（名詞・動詞・形容詞・副詞・感動詞）の抽出
+     * 4. ストップワード（標準＋カスタム除外語）のフィルタリング
      * @param {string} text 
+     * @param {object} [posFilter] 品詞フィルター設定（省略時は this.posFilter を使用）
      * @returns {string[]}
      */
-    tokenize(text) {
+    tokenize(text, posFilter = null) {
         if (!this.tokenizer || !text) return [];
+
+        const filter = Object.assign({}, this.posFilter, posFilter || {});
 
         let tokens = this.tokenizer.tokenize(text);
 
@@ -270,9 +292,12 @@ const TextPreprocessor = {
             // ユーザー登録の複合語または同義語置換されたトークンの場合（独立した1単語として確定）
             if (posDetail === '複合語' || posDetail === '同義語') {
                 flushCompoundNoun();
-                const word = basicForm;
-                if (word.length >= 2 && !this.isStopWord(word)) {
-                    resultWords.push(word);
+                // 複合語・同義語は名詞扱い（名詞が有効な場合に抽出）
+                if (filter.noun) {
+                    const word = basicForm;
+                    if (word.length >= 2 && !this.isStopWord(word)) {
+                        resultWords.push(word);
+                    }
                 }
                 continue;
             }
@@ -283,18 +308,39 @@ const TextPreprocessor = {
                     flushCompoundNoun();
                     continue;
                 }
-                // 連続名詞として蓄積
-                compoundNoun += t.surface_form;
+                if (filter.noun) {
+                    // 連続名詞として蓄積
+                    compoundNoun += t.surface_form;
+                } else {
+                    flushCompoundNoun();
+                }
             } else {
                 // 名詞以外が来たら複合名詞を確定
                 flushCompoundNoun();
 
-                // 動詞または形容詞の場合（自立語のみ）
-                if (pos === '動詞' || pos === '形容詞') {
+                // 動詞の場合（自立語のみ）
+                if (filter.verb && pos === '動詞') {
                     if (posDetail === '自立' || posDetail === '*') {
                         if (basicForm.length >= 2 && !this.isStopWord(basicForm)) {
                             resultWords.push(basicForm);
                         }
+                    }
+                } else if (filter.adj && pos === '形容詞') {
+                    // 形容詞の場合（自立語のみ）
+                    if (posDetail === '自立' || posDetail === '*') {
+                        if (basicForm.length >= 2 && !this.isStopWord(basicForm)) {
+                            resultWords.push(basicForm);
+                        }
+                    }
+                } else if (filter.adv && pos === '副詞') {
+                    // 副詞の場合
+                    if (basicForm.length >= 2 && !this.isStopWord(basicForm)) {
+                        resultWords.push(basicForm);
+                    }
+                } else if (filter.intj && pos === '感動詞') {
+                    // 感動詞の場合
+                    if (basicForm.length >= 2 && !this.isStopWord(basicForm)) {
+                        resultWords.push(basicForm);
                     }
                 }
             }
@@ -308,6 +354,7 @@ const TextPreprocessor = {
      * 全回答のテキストを処理し、文書-単語行列およびTF-IDFを計算する
      * @param {Array<{id: any, text: string, row: object}>} validResponses 
      * @param {number} maxVocabSize 最大語彙数（デフォルト60）
+     * @param {object} [posFilter] 品詞フィルター設定
      * @returns {{
      *   vocabulary: string[],
      *   matrix: number[][],
@@ -315,14 +362,16 @@ const TextPreprocessor = {
      *   docWordLists: string[][]
      * }}
      */
-    buildTfIdfMatrix(validResponses, maxVocabSize = 60) {
+    buildTfIdfMatrix(validResponses, maxVocabSize = 60, posFilter = null) {
         const N = validResponses.length;
         if (N === 0) {
             return { vocabulary: [], matrix: [], wordDocCounts: {}, docWordLists: [] };
         }
 
+        const filter = posFilter || this.posFilter;
+
         // 1. 各回答の単語リストを抽出
-        const docWordLists = validResponses.map(r => this.tokenize(r.text));
+        const docWordLists = validResponses.map(r => this.tokenize(r.text, filter));
 
         // 2. 単語の文書頻度 (DF) をカウント
         const docFreq = {};
