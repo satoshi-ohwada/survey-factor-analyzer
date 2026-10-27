@@ -2417,9 +2417,13 @@ async function rasterizeChartsForPrint() {
             return;
         }
 
+        const isSubPlot = plotEl.classList.contains('attr-sub-plot');
+        const defaultW = isSubPlot ? 320 : 600;
+        const defaultH = isSubPlot ? 145 : 350;
+
         const rect = plotEl.getBoundingClientRect();
-        const width = plotEl.clientWidth || Math.round(rect.width) || 600;
-        const height = plotEl.clientHeight || Math.round(rect.height) || 350;
+        const width = plotEl.clientWidth || Math.round(rect.width) || defaultW;
+        const height = isSubPlot ? (plotEl.clientHeight || 145) : (plotEl.clientHeight || Math.round(rect.height) || defaultH);
 
         if (width <= 0 || height <= 0) return;
 

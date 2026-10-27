@@ -1315,8 +1315,8 @@ const ChartRenderer = {
             };
 
             const layout = {
-                margin: { l: 22, r: 8, t: 6, b: 20 },
-                height: 185,
+                margin: { l: 26, r: 8, t: 6, b: 20 },
+                height: 145,
                 autosize: true,
                 paper_bgcolor: 'rgba(0,0,0,0)',
                 plot_bgcolor: '#FAFAFC',
@@ -1326,7 +1326,7 @@ const ChartRenderer = {
                     gridcolor: '#F1F5F9',
                     zeroline: true,
                     zerolinecolor: '#E2E8F0',
-                    tickfont: { size: 8, color: '#94A3B8' },
+                    tickfont: { size: 7.5, color: '#94A3B8' },
                     fixedrange: true,
                     showspikes: true,
                     spikemode: 'across',
@@ -1341,7 +1341,7 @@ const ChartRenderer = {
                     gridcolor: '#F1F5F9',
                     zeroline: true,
                     zerolinecolor: '#E2E8F0',
-                    tickfont: { size: 8, color: '#94A3B8' },
+                    tickfont: { size: 7.5, color: '#94A3B8' },
                     fixedrange: true,
                     showspikes: true,
                     spikemode: 'across',

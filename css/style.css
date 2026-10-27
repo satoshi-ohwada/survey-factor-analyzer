@@ -2183,18 +2183,23 @@ body {
     background: #FFFFFF;
     border: 1px solid #E2E8F0;
     border-radius: var(--radius-sm);
-    padding: 10px 12px 6px 12px;
+    padding: 8px 10px 4px 10px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
     transition: transform 0.15s ease, box-shadow 0.15s ease;
     min-width: 0;
     overflow: hidden;
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
 }
 
 .attr-sub-plot {
     width: 100%;
+    height: 145px;
     min-width: 0;
     overflow: hidden;
+    box-sizing: border-box;
+    flex: 1;
 }
 
 .attr-sub-plot .js-plotly-plot,
@@ -2203,6 +2208,7 @@ body {
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
+    height: 100% !important;
 }
 
 .attr-sub-plot svg.main-svg {
@@ -2218,42 +2224,52 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 4px;
-    padding-bottom: 4px;
+    gap: 6px;
+    margin-bottom: 2px;
+    padding-bottom: 3px;
     border-bottom: 1px solid #F1F5F9;
+    white-space: nowrap;
+    overflow: hidden;
+    min-width: 0;
 }
 
 .attr-card-title-group {
     display: flex;
     align-items: center;
     gap: 6px;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .attr-card-name {
-    font-size: 13.5px;
+    font-size: 13px;
     font-weight: 700;
     color: #1E293B;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .attr-card-count {
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 600;
     color: #64748B;
     background: #F1F5F9;
-    padding: 1px 6px;
+    padding: 1px 5px;
     border-radius: 10px;
+    flex-shrink: 0;
 }
 
 .attr-card-top-factor {
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 600;
-    padding: 1px 7px;
+    padding: 1px 6px;
     border-radius: 4px;
-}
-
-.attr-sub-plot {
-    width: 100%;
-    height: 185px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 55%;
+    flex-shrink: 0;
 }
 
 /* ========================================================
@@ -2470,34 +2486,71 @@ body {
         min-width: 0 !important;
         max-width: 100% !important;
         box-sizing: border-box !important;
-        overflow: visible !important;
+        overflow: hidden !important;
+        display: flex !important;
+        flex-direction: column !important;
     }
 
     .attr-multiples-card-header {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
         margin-bottom: 2px !important;
         padding-bottom: 2px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        min-width: 0 !important;
+        border-bottom: 1px solid #F1F5F9 !important;
+    }
+
+    .attr-card-title-group {
+        display: flex !important;
+        align-items: center !important;
+        gap: 4px !important;
+        min-width: 0 !important;
+        overflow: hidden !important;
     }
 
     .attr-card-name {
         font-size: 8.5pt !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
     }
 
     .attr-card-count {
         font-size: 7.5pt !important;
         padding: 0 4px !important;
+        flex-shrink: 0 !important;
     }
 
     .attr-card-top-factor {
         font-size: 7.5pt !important;
         padding: 0 4px !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        max-width: 50% !important;
+        flex-shrink: 0 !important;
     }
 
     .attr-sub-plot {
         width: 100% !important;
         max-width: 100% !important;
         min-width: 0 !important;
-        height: 135px !important;
-        overflow: visible !important;
+        height: 145px !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+        flex: 1 !important;
+    }
+
+    .attr-sub-plot .print-rasterized-chart {
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
+        object-fit: contain !important;
+        display: block !important;
     }
 
     .attr-sub-plot .js-plotly-plot,
@@ -2506,6 +2559,7 @@ body {
         width: 100% !important;
         max-width: 100% !important;
         min-width: 0 !important;
+        height: 100% !important;
     }
 
     .attr-sub-plot svg.main-svg {
@@ -2540,14 +2594,28 @@ body.is-printing .attr-multiples-card {
     min-width: 0 !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
-    overflow: visible !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
 }
 
 body.is-printing .attr-sub-plot {
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
-    overflow: visible !important;
+    height: 145px !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    flex: 1 !important;
+}
+
+body.is-printing .attr-sub-plot .print-rasterized-chart {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    object-fit: contain !important;
+    display: block !important;
 }
 
 body.is-printing .attr-sub-plot .js-plotly-plot,
@@ -2556,6 +2624,7 @@ body.is-printing .attr-sub-plot .svg-container {
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
+    height: 100% !important;
 }
 
 body.is-printing .attr-sub-plot svg.main-svg {
