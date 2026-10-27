@@ -977,15 +977,24 @@ const ChartRenderer = {
         // 属性の自然順序ソート（評価尺度・数値・未設定対応）
         const sortedAttrs = this.sortAttributeValues(attrValues);
 
-        // ラベルの最大文字長さに応じた左余白の動的計算（見切れ防止: 最小110px〜最大260px）
-        const maxLabelLen = Math.max(...sortedAttrs.map(a => String(a).length), 4);
-        const dynamicMarginL = Math.max(110, Math.min(260, maxLabelLen * 14 + 25));
+        // 各属性の回答数 N の集計
+        const attrTotals = {};
+        sortedAttrs.forEach(attr => {
+            attrTotals[attr] = Object.values(counts[attr] || {}).reduce((s, v) => s + v, 0);
+        });
+
+        // Y軸表示用ラベル（各属性に N数を付与）
+        const sortedAttrLabels = sortedAttrs.map(attr => `${attr} (N=${attrTotals[attr].toLocaleString()})`);
+
+        // ラベルの最大文字長さに応じた左余白の動的計算（見切れ防止: 最小120px〜最大280px）
+        const maxLabelLen = Math.max(...sortedAttrLabels.map(a => String(a).length), 4);
+        const dynamicMarginL = Math.max(120, Math.min(280, maxLabelLen * 13 + 30));
 
         // 各属性ごとに各テーマの割合（%）を最大剰余法で計算（合計を厳密に100%に揃え、帯の長さの不足・はみ出しを防止）
         const attrThemePercentages = {};
         sortedAttrs.forEach(attr => {
             attrThemePercentages[attr] = {};
-            const totalInAttr = Object.values(counts[attr] || {}).reduce((s, v) => s + v, 0);
+            const totalInAttr = attrTotals[attr];
 
             if (totalInAttr === 0) {
                 themes.forEach(t => { attrThemePercentages[attr][t.id] = 0; });
@@ -1025,7 +1034,7 @@ const ChartRenderer = {
 
             return {
                 x: percentages,
-                y: sortedAttrs,
+                y: sortedAttrLabels,
                 name: `トピック${tIdx + 1}: ${cleanTitle}`,
                 type: 'bar',
                 orientation: 'h',
