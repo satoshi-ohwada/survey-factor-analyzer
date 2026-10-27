@@ -13,6 +13,7 @@ const AppState = {
     attributeColumn: null,
     kCount: 3,
     analysisResult: null,
+    tfidfData: null, // TF-IDF データ（単語リスト・語彙・文書別単語）
     mapMode: 'responses', // 'responses' (回答者スコア) または 'words' (語の関連度)
     mapAxisX: 0,
     mapAxisY: 1,
@@ -1736,6 +1737,7 @@ async function runFullPipeline() {
 
         const result = FactorEngine.analyze(validResponses, tfidfData.vocabulary, tfidfData.matrix, K, tfidfData.wordDocCounts);
         AppState.analysisResult = result;
+        AppState.tfidfData = tfidfData;
 
         showLoading('図とパス図を描画中...');
         // 5. 結果のレンダリング
@@ -2093,9 +2095,41 @@ function renderThemeCards(themes) {
                         ${responsesHtml}
                     </div>
                     <div class="theme-card-footer">
+                        <button type="button" class="btn btn-sm btn-outline btn-toggle-viz" id="btn-toggle-viz-${theme.id}" data-theme-id="${theme.id}" title="このトピックのワードクラウドや共起ネットワークを展開">
+                            📊 ワードクラウド・共起ネットワーク ▼
+                        </button>
                         <button class="btn btn-sm" onclick="showAllThemeResponses(${theme.id})">
                             🔍 このトピックの全回答を見る (${theme.count}件)
                         </button>
+                    </div>
+                </div>
+            </div>
+            <!-- 折りたたみ式 可視化パネル（最初は非表示） -->
+            <div class="theme-viz-drawer" id="theme-viz-drawer-${theme.id}" style="display: none;">
+                <div class="theme-viz-panel-header">
+                    <div class="theme-viz-tabs">
+                        <button type="button" class="theme-viz-tab active" data-tab="cloud" data-theme-id="${theme.id}">
+                            ☁️ ワードクラウド
+                        </button>
+                        <button type="button" class="theme-viz-tab" data-tab="network" data-theme-id="${theme.id}">
+                            🕸️ 共起ネットワーク
+                        </button>
+                    </div>
+                    <div class="theme-viz-toolbar">
+                        <span class="theme-viz-hint" id="viz-hint-${theme.id}">※文字の大きさはトピック内での重要度を表します</span>
+                        <button type="button" class="btn btn-xs btn-outline btn-viz-save" data-theme-id="${theme.id}" title="表示中の図を画像(PNG)として保存">
+                            💾 PNG保存
+                        </button>
+                    </div>
+                </div>
+                <div class="theme-viz-body">
+                    <!-- ワードクラウド -->
+                    <div class="theme-viz-pane active" id="pane-cloud-${theme.id}">
+                        <div class="cloud-container" id="cloud-container-${theme.id}"></div>
+                    </div>
+                    <!-- 共起ネットワーク -->
+                    <div class="theme-viz-pane" id="pane-network-${theme.id}" style="display: none;">
+                        <div class="network-plot-container" id="network-plot-${theme.id}"></div>
                     </div>
                 </div>
             </div>
@@ -2161,6 +2195,114 @@ function renderThemeCards(themes) {
         if (openModalBtn) {
             openModalBtn.addEventListener('click', () => {
                 openThemeKeywordsModal(theme.id);
+            });
+        }
+
+        // ワードクラウド・共起ネットワークの開閉＆描画管理
+        const toggleVizBtn = card.querySelector(`#btn-toggle-viz-${theme.id}`);
+        const vizDrawer = card.querySelector(`#theme-viz-drawer-${theme.id}`);
+        const tabCloud = card.querySelector(`.theme-viz-tab[data-tab="cloud"][data-theme-id="${theme.id}"]`);
+        const tabNetwork = card.querySelector(`.theme-viz-tab[data-tab="network"][data-theme-id="${theme.id}"]`);
+        const paneCloud = card.querySelector(`#pane-cloud-${theme.id}`);
+        const paneNetwork = card.querySelector(`#pane-network-${theme.id}`);
+        const vizHint = card.querySelector(`#viz-hint-${theme.id}`);
+        const btnVizSave = card.querySelector(`.btn-viz-save[data-theme-id="${theme.id}"]`);
+
+        let hasDrawnCloud = false;
+        let hasDrawnNetwork = false;
+        let currentTab = 'cloud';
+
+        const drawActiveTab = () => {
+            if (currentTab === 'cloud') {
+                if (!hasDrawnCloud) {
+                    ChartRenderer.renderWordCloud(`cloud-container-${theme.id}`, theme.keywords, color);
+                    hasDrawnCloud = true;
+                }
+            } else if (currentTab === 'network') {
+                if (!hasDrawnNetwork) {
+                    ChartRenderer.renderCooccurrenceNetwork(
+                        `network-plot-${theme.id}`,
+                        theme,
+                        AppState.analysisResult ? AppState.analysisResult.responsesWithTheme : [],
+                        AppState.tfidfData ? AppState.tfidfData.docWordLists : [],
+                        color
+                    );
+                    hasDrawnNetwork = true;
+                } else {
+                    const plotEl = document.getElementById(`network-plot-${theme.id}`);
+                    if (plotEl && window.Plotly) {
+                        Plotly.Plots.resize(plotEl);
+                    }
+                }
+            }
+        };
+
+        if (toggleVizBtn && vizDrawer) {
+            toggleVizBtn.addEventListener('click', () => {
+                const isHidden = vizDrawer.style.display === 'none';
+                if (isHidden) {
+                    vizDrawer.style.display = 'block';
+                    toggleVizBtn.classList.add('active');
+                    toggleVizBtn.innerHTML = '📊 ワードクラウド・共起ネットワーク ▲';
+                    setTimeout(() => {
+                        drawActiveTab();
+                    }, 40);
+                } else {
+                    vizDrawer.style.display = 'none';
+                    toggleVizBtn.classList.remove('active');
+                    toggleVizBtn.innerHTML = '📊 ワードクラウド・共起ネットワーク ▼';
+                }
+            });
+        }
+
+        if (tabCloud && tabNetwork) {
+            tabCloud.addEventListener('click', () => {
+                if (currentTab === 'cloud') return;
+                currentTab = 'cloud';
+                tabCloud.classList.add('active');
+                tabNetwork.classList.remove('active');
+                paneCloud.style.display = 'block';
+                paneNetwork.style.display = 'none';
+                if (vizHint) vizHint.textContent = '※文字の大きさはトピック内での重要度を表します';
+                drawActiveTab();
+            });
+
+            tabNetwork.addEventListener('click', () => {
+                if (currentTab === 'network') return;
+                currentTab = 'network';
+                tabNetwork.classList.add('active');
+                tabCloud.classList.remove('active');
+                paneNetwork.style.display = 'block';
+                paneCloud.style.display = 'none';
+                if (vizHint) vizHint.textContent = '※線で結ばれた単語は同じ回答内で一緒に使われやすい共起関係を表します';
+                setTimeout(() => {
+                    drawActiveTab();
+                }, 40);
+            });
+        }
+
+        if (btnVizSave) {
+            btnVizSave.addEventListener('click', () => {
+                const topicName = theme.label.replace(/^【|】$/g, '').trim() || `topic_${theme.id + 1}`;
+                if (currentTab === 'cloud') {
+                    const canvas = card.querySelector(`#cloud-container-${theme.id} canvas`);
+                    if (canvas) {
+                        const link = document.createElement('a');
+                        link.download = `トピック${theme.id + 1}_${topicName}_ワードクラウド.png`;
+                        link.href = canvas.toDataURL('image/png');
+                        link.click();
+                    }
+                } else if (currentTab === 'network') {
+                    const plotEl = document.getElementById(`network-plot-${theme.id}`);
+                    if (plotEl && window.Plotly) {
+                        Plotly.downloadImage(plotEl, {
+                            format: 'png',
+                            filename: `トピック${theme.id + 1}_${topicName}_共起ネットワーク`,
+                            width: 800,
+                            height: 500
+                        });
+                    }
+                }
             });
         }
 

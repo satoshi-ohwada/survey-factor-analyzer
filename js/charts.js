@@ -1377,5 +1377,425 @@ const ChartRenderer = {
                 }
             });
         });
+    },
+
+    /**
+     * トピック別ワードクラウドの描画
+     */
+    renderWordCloud(containerId, keywords, baseColor = '#2563EB', options = {}) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        container.innerHTML = '';
+        const canvas = document.createElement('canvas');
+        canvas.className = 'cloud-canvas';
+        container.appendChild(canvas);
+
+        const tooltip = document.createElement('div');
+        tooltip.className = 'cloud-tooltip';
+        tooltip.style.display = 'none';
+        container.appendChild(tooltip);
+
+        // コンテナの寸法
+        const rect = container.getBoundingClientRect();
+        const width = Math.max(300, rect.width || 480);
+        const height = Math.max(260, rect.height || 300);
+
+        // HiDPI 対応
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+
+        if (!keywords || keywords.length === 0) {
+            ctx.fillStyle = '#94A3B8';
+            ctx.font = '13px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('表示可能な単語がありません', width / 2, height / 2);
+            return;
+        }
+
+        // パレット生成
+        const palette = this._generateCloudPalette(baseColor);
+
+        // 単語データの正規化
+        const words = keywords.slice(0, 32);
+        const maxWeight = Math.max(...words.map(w => w.weight || 0.001));
+        const minWeight = Math.min(...words.map(w => w.weight || 0.001));
+        const weightSpan = Math.max(1e-5, maxWeight - minWeight);
+
+        // 単語ボックスの衝突配置（アルキメデス螺旋探索）
+        const placedBoxes = [];
+        const centerX = width / 2;
+        const centerY = height / 2;
+
+        words.forEach((item, idx) => {
+            const relWeight = (item.weight - minWeight) / weightSpan;
+            // フォントサイズ: 13px 〜 38px
+            const fontSize = Math.round(13 + relWeight * 25);
+            const fontWeight = relWeight > 0.6 ? '700' : (relWeight > 0.3 ? '600' : '500');
+            ctx.font = `${fontWeight} ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans JP", sans-serif`;
+
+            const metrics = ctx.measureText(item.word);
+            const textW = metrics.width;
+            const textH = fontSize * 1.15;
+
+            const color = palette[idx % palette.length];
+
+            let placed = false;
+            let angle = (idx * 137.5 * Math.PI) / 180; // 黄金角で分散配置
+            let radius = 0;
+            const angleStep = 0.25;
+            const radiusStep = 0.85;
+
+            for (let iter = 0; iter < 350; iter++) {
+                const x = centerX + radius * Math.cos(angle) - textW / 2;
+                const y = centerY + radius * Math.sin(angle) - textH / 2;
+
+                // 画面枠内チェック
+                if (x >= 8 && x + textW <= width - 8 && y >= 14 && y + textH <= height - 8) {
+                    const box = {
+                        x: x - 3,
+                        y: y - 2,
+                        w: textW + 6,
+                        h: textH + 4,
+                        textX: x,
+                        textY: y + fontSize * 0.85,
+                        word: item.word,
+                        weight: item.weight,
+                        docCount: item.docCount || 0,
+                        fontSize,
+                        fontWeight,
+                        color,
+                        boxX: x - 3,
+                        boxY: y - 2,
+                        boxW: textW + 6,
+                        boxH: textH + 4
+                    };
+
+                    const collides = placedBoxes.some(b =>
+                        box.boxX < b.boxX + b.boxW && box.boxX + box.boxW > b.boxX &&
+                        box.boxY < b.boxY + b.boxH && box.boxY + box.boxH > b.boxY
+                    );
+
+                    if (!collides) {
+                        placedBoxes.push(box);
+                        placed = true;
+                        break;
+                    }
+                }
+
+                angle += angleStep;
+                radius += radiusStep;
+            }
+        });
+
+        // 描画関数
+        const drawCloud = (hoveredBox = null) => {
+            ctx.clearRect(0, 0, width, height);
+
+            placedBoxes.forEach(b => {
+                const isHovered = hoveredBox === b;
+
+                if (isHovered) {
+                    // ホバー時ハイライト背景
+                    ctx.fillStyle = 'rgba(241, 245, 249, 0.9)';
+                    ctx.fillRect(b.boxX, b.boxY, b.boxW, b.boxH);
+                    ctx.strokeStyle = baseColor;
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeRect(b.boxX, b.boxY, b.boxW, b.boxH);
+                }
+
+                ctx.font = `${b.fontWeight} ${b.fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans JP", sans-serif`;
+                ctx.fillStyle = isHovered ? baseColor : b.color;
+                ctx.fillText(b.word, b.textX, b.textY);
+            });
+        };
+
+        drawCloud();
+
+        // ホバーインタラクション
+        canvas.onmousemove = (e) => {
+            const cRect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - cRect.left;
+            const mouseY = e.clientY - cRect.top;
+
+            const hit = placedBoxes.find(b =>
+                mouseX >= b.boxX && mouseX <= b.boxX + b.boxW &&
+                mouseY >= b.boxY && mouseY <= b.boxY + b.boxH
+            );
+
+            if (hit) {
+                canvas.style.cursor = 'pointer';
+                drawCloud(hit);
+                tooltip.style.display = 'block';
+                tooltip.style.left = `${Math.min(width - 150, mouseX + 12)}px`;
+                tooltip.style.top = `${Math.min(height - 60, mouseY + 12)}px`;
+                tooltip.innerHTML = `<b>${hit.word}</b><br>関連度: ${hit.weight.toFixed(3)}<br>出現回数: ${hit.docCount}回`;
+            } else {
+                canvas.style.cursor = 'default';
+                tooltip.style.display = 'none';
+                drawCloud(null);
+            }
+        };
+
+        canvas.onmouseleave = () => {
+            canvas.style.cursor = 'default';
+            tooltip.style.display = 'none';
+            drawCloud(null);
+        };
+    },
+
+    /**
+     * トピックカラーから調和したカラーパレットを生成
+     */
+    _generateCloudPalette(baseHex) {
+        let c = (baseHex || '#2563EB').replace('#', '');
+        if (c.length === 3) c = c.split('').map(x => x + x).join('');
+        const num = parseInt(c, 16);
+        const r = (num >> 16) & 255;
+        const g = (num >> 8) & 255;
+        const b = num & 255;
+
+        const rNorm = r / 255, gNorm = g / 255, bNorm = b / 255;
+        const max = Math.max(rNorm, gNorm, bNorm), min = Math.min(rNorm, gNorm, bNorm);
+        let h = 0, s = 0, l = (max + min) / 2;
+        if (max !== min) {
+            const d = max - min;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            switch (max) {
+                case rNorm: h = (gNorm - bNorm) / d + (gNorm < bNorm ? 6 : 0); break;
+                case gNorm: h = (bNorm - rNorm) / d + 2; break;
+                case bNorm: h = (rNorm - gNorm) / d + 4; break;
+            }
+            h /= 6;
+        }
+        const hDeg = Math.round(h * 360);
+        const sPct = Math.round(s * 100);
+        const lPct = Math.round(l * 100);
+
+        return [
+            `hsl(${hDeg}, ${Math.min(95, sPct + 10)}%, ${Math.max(22, lPct - 14)}%)`,
+            `hsl(${hDeg}, ${sPct}%, ${lPct}%)`,
+            `hsl(${(hDeg + 25) % 360}, ${Math.max(45, sPct - 10)}%, ${Math.min(55, lPct)}%)`,
+            `hsl(${(hDeg + 335) % 360}, ${sPct}%, ${Math.max(25, lPct - 10)}%)`,
+            `hsl(${hDeg}, ${Math.max(30, sPct - 25)}%, 35%)`
+        ];
+    },
+
+    /**
+     * トピック別共起ネットワークの描画
+     */
+    renderCooccurrenceNetwork(plotId, theme, responsesWithTheme, docWordLists, baseColor = '#2563EB') {
+        const container = document.getElementById(plotId);
+        if (!container) return;
+
+        // 1. 対象単語の選定（上位16語）
+        const candidateWords = (theme.keywords || []).slice(0, 16);
+        if (candidateWords.length < 2) {
+            container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#94A3B8;font-size:13px;">共起を計算するための単語が不足しています</div>';
+            return;
+        }
+
+        const wordSet = new Set(candidateWords.map(w => w.word));
+        const wordWeightMap = new Map(candidateWords.map(w => [w.word, w.weight]));
+
+        // 2. 当該トピックの回答から単語の共起を集計
+        let targetResponses = (responsesWithTheme || []).filter(r => r.primaryThemeId === theme.id);
+        if (targetResponses.length < 5) {
+            targetResponses = responsesWithTheme || [];
+        }
+
+        const docFreq = {};
+        const pairFreq = {};
+
+        candidateWords.forEach(w => { docFreq[w.word] = 0; });
+
+        targetResponses.forEach(r => {
+            const wordsInDoc = docWordLists && docWordLists[r.index]
+                ? Array.from(new Set(docWordLists[r.index].filter(w => wordSet.has(w))))
+                : [];
+
+            wordsInDoc.forEach(w => {
+                docFreq[w] = (docFreq[w] || 0) + 1;
+            });
+
+            for (let i = 0; i < wordsInDoc.length; i++) {
+                for (let j = i + 1; j < wordsInDoc.length; j++) {
+                    const w1 = wordsInDoc[i];
+                    const w2 = wordsInDoc[j];
+                    const key = w1 < w2 ? `${w1}|${w2}` : `${w2}|${w1}`;
+                    pairFreq[key] = (pairFreq[key] || 0) + 1;
+                }
+            }
+        });
+
+        // 3. Jaccard 係数によるエッジ候補の生成
+        const wordList = candidateWords.map(w => w.word);
+        const nodeIndexMap = new Map(wordList.map((w, idx) => [w, idx]));
+        const edges = [];
+        const bestEdgePerNode = new Map();
+
+        Object.entries(pairFreq).forEach(([pair, count]) => {
+            const [w1, w2] = pair.split('|');
+            const idx1 = nodeIndexMap.get(w1);
+            const idx2 = nodeIndexMap.get(w2);
+            if (idx1 !== undefined && idx2 !== undefined && count > 0) {
+                const jaccard = count / ((docFreq[w1] || 1) + (docFreq[w2] || 1) - count);
+                const edgeObj = { source: idx1, target: idx2, w1, w2, count, jaccard };
+                edges.push(edgeObj);
+
+                if (!bestEdgePerNode.has(idx1) || bestEdgePerNode.get(idx1).jaccard < jaccard) {
+                    bestEdgePerNode.set(idx1, edgeObj);
+                }
+                if (!bestEdgePerNode.has(idx2) || bestEdgePerNode.get(idx2).jaccard < jaccard) {
+                    bestEdgePerNode.set(idx2, edgeObj);
+                }
+            }
+        });
+
+        edges.sort((a, b) => b.jaccard - a.jaccard);
+        const selectedEdgeSet = new Set(edges.slice(0, 24));
+        bestEdgePerNode.forEach(e => selectedEdgeSet.add(e));
+        const finalEdges = Array.from(selectedEdgeSet);
+
+        // 4. 力学モデル（Force-directed Simulation）
+        const N = wordList.length;
+        const nodes = wordList.map((w, idx) => {
+            const angle = (idx / N) * 2 * Math.PI;
+            const r = 90 + (idx % 2) * 25;
+            return {
+                id: idx,
+                word: w,
+                weight: wordWeightMap.get(w) || 0.1,
+                docCount: docFreq[w] || 0,
+                x: r * Math.cos(angle),
+                y: r * Math.sin(angle),
+                vx: 0,
+                vy: 0
+            };
+        });
+
+        const kRepulsion = 14000;
+        const kSpring = 0.06;
+        const springLength = 75;
+        const kCenter = 0.035;
+        const damping = 0.85;
+
+        for (let iter = 0; iter < 75; iter++) {
+            for (let i = 0; i < N; i++) {
+                for (let j = i + 1; j < N; j++) {
+                    const dx = nodes[j].x - nodes[i].x;
+                    const dy = nodes[j].y - nodes[i].y;
+                    const d = Math.sqrt(dx * dx + dy * dy) || 1;
+                    const f = kRepulsion / (d * d);
+                    const fx = (dx / d) * f;
+                    const fy = (dy / d) * f;
+                    nodes[i].vx -= fx;
+                    nodes[i].vy -= fy;
+                    nodes[j].vx += fx;
+                    nodes[j].vy += fy;
+                }
+            }
+            finalEdges.forEach(e => {
+                const n1 = nodes[e.source];
+                const n2 = nodes[e.target];
+                const dx = n2.x - n1.x;
+                const dy = n2.y - n1.y;
+                const d = Math.sqrt(dx * dx + dy * dy) || 1;
+                const delta = d - springLength;
+                const f = kSpring * delta * Math.min(2.0, 1 + e.jaccard * 2);
+                const fx = (dx / d) * f;
+                const fy = (dy / d) * f;
+                n1.vx += fx;
+                n1.vy += fy;
+                n2.vx -= fx;
+                n2.vy -= fy;
+            });
+            nodes.forEach(n => {
+                n.vx -= n.x * kCenter;
+                n.vy -= n.y * kCenter;
+                n.vx *= damping;
+                n.vy *= damping;
+                n.x += n.vx;
+                n.y += n.vy;
+            });
+        }
+
+        // 5. Plotly トレース作成
+        const edgeX = [];
+        const edgeY = [];
+        finalEdges.forEach(e => {
+            const n1 = nodes[e.source];
+            const n2 = nodes[e.target];
+            edgeX.push(n1.x, n2.x, null);
+            edgeY.push(n1.y, n2.y, null);
+        });
+
+        const edgeTrace = {
+            x: edgeX,
+            y: edgeY,
+            mode: 'lines',
+            line: {
+                color: 'rgba(148, 163, 184, 0.45)',
+                width: 2
+            },
+            hoverinfo: 'none',
+            type: 'scatter'
+        };
+
+        const maxWeight = Math.max(...nodes.map(n => n.weight), 0.001);
+        const nodeTrace = {
+            x: nodes.map(n => n.x),
+            y: nodes.map(n => n.y),
+            mode: 'markers+text',
+            text: nodes.map(n => n.word),
+            textposition: 'top center',
+            textfont: {
+                family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans JP", sans-serif',
+                size: 11,
+                color: '#1E293B'
+            },
+            marker: {
+                size: nodes.map(n => Math.round(18 + (n.weight / maxWeight) * 16)),
+                color: baseColor,
+                opacity: 0.88,
+                line: {
+                    color: '#FFFFFF',
+                    width: 2.5
+                }
+            },
+            hoverinfo: 'text',
+            hovertext: nodes.map(n => `<b>${n.word}</b><br>関連度: ${n.weight.toFixed(3)}<br>出現回数: ${n.docCount}回`),
+            type: 'scatter'
+        };
+
+        const layout = {
+            showlegend: false,
+            margin: { l: 20, r: 20, t: 30, b: 20 },
+            hovermode: 'closest',
+            hoverlabel: {
+                bgcolor: 'rgba(15, 23, 42, 0.92)',
+                bordercolor: baseColor,
+                font: { color: '#ffffff', size: 11 }
+            },
+            xaxis: { showgrid: false, zeroline: false, showticklabels: false },
+            yaxis: { showgrid: false, zeroline: false, showticklabels: false },
+            paper_bgcolor: '#FFFFFF',
+            plot_bgcolor: '#FFFFFF'
+        };
+
+        const config = {
+            responsive: true,
+            displayModeBar: true,
+            displaylogo: false,
+            modeBarButtonsToRemove: ['select2d', 'lasso2d', 'hoverClosestCartesian', 'hoverCompareCartesian']
+        };
+
+        Plotly.newPlot(plotId, [edgeTrace, nodeTrace], layout, config);
     }
 };
