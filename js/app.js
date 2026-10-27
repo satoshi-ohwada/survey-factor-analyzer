@@ -8,6 +8,7 @@ const AppState = {
     rawRows: [],
     headers: [],
     validResponses: [],
+    excludedResponses: [], // 分析対象外（除外）となった回答オブジェクトの一覧
     textColumn: null,
     attributeColumn: null,
     kCount: 3,
@@ -280,6 +281,47 @@ function setupEventListeners() {
                 closeThemeKeywordsModal();
             }
         });
+    }
+
+    // 除外回答一覧モーダルのイベントリスナー
+    const excludedResponsesModal = document.getElementById('excludedResponsesModal');
+    const btnExcludedModalClose = document.getElementById('btnExcludedModalClose');
+    const btnOpenExcludedModal = document.getElementById('btnOpenExcludedModal');
+    const statJunkRowsItem = document.getElementById('statJunkRowsItem');
+    const btnExportExcludedCsv = document.getElementById('btnExportExcludedCsv');
+
+    if (btnExcludedModalClose) {
+        btnExcludedModalClose.addEventListener('click', closeExcludedResponsesModal);
+    }
+    if (excludedResponsesModal) {
+        excludedResponsesModal.addEventListener('click', (e) => {
+            if (e.target === excludedResponsesModal) {
+                closeExcludedResponsesModal();
+            }
+        });
+    }
+    if (btnOpenExcludedModal) {
+        btnOpenExcludedModal.addEventListener('click', () => {
+            openExcludedResponsesModal('all');
+        });
+    }
+    if (statJunkRowsItem) {
+        statJunkRowsItem.addEventListener('click', () => {
+            if (AppState.excludedResponses && AppState.excludedResponses.length > 0) {
+                openExcludedResponsesModal('all');
+            }
+        });
+        statJunkRowsItem.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                if (AppState.excludedResponses && AppState.excludedResponses.length > 0) {
+                    openExcludedResponsesModal('all');
+                }
+            }
+        });
+    }
+    if (btnExportExcludedCsv) {
+        btnExportExcludedCsv.addEventListener('click', exportExcludedResponsesCsv);
     }
 
     // データプレビュー操作コントロール
@@ -602,6 +644,27 @@ function isRowMatchFilter(row, col, filterVal) {
         return filterVal.includes(strVal);
     }
     return strVal === String(filterVal).trim();
+}
+
+/**
+ * 列フィルター（オートフィルター）条件を満たす行を元インデックス付きで取得
+ * （自由記述列の無効判定は含めず、純粋に属性等の列フィルターで絞り込まれた行を返す）
+ * @returns {Array<{ row: object, idx: number }>}
+ */
+function getColumnFilteredRowsWithIndex() {
+    const activeFilters = Object.entries(AppState.columnFilters).filter(([_, v]) => {
+        if (Array.isArray(v)) return v.length > 0;
+        return v !== undefined && v !== null && v !== '';
+    });
+
+    const result = [];
+    AppState.rawRows.forEach((row, idx) => {
+        const matches = activeFilters.every(([col, val]) => isRowMatchFilter(row, col, val));
+        if (matches) {
+            result.push({ row, idx });
+        }
+    });
+    return result;
 }
 
 /**
@@ -1597,30 +1660,51 @@ async function runFullPipeline() {
 
         showLoading('アンケートテキストを前処理中...');
         // 2. 絞り込み条件（オートフィルター）を満たす行を取得
-        const rowsToAnalyze = getFilteredRows();
-        if (rowsToAnalyze.length === 0) {
+        const filteredItems = getColumnFilteredRowsWithIndex();
+        if (filteredItems.length === 0) {
             alert('絞り込み条件に一致するデータが0件です。フィルター条件を変更してください。');
             return;
         }
 
         const validResponses = [];
-        let junkCount = 0;
+        const excludedResponses = [];
 
-        rowsToAnalyze.forEach((r, idx) => {
+        filteredItems.forEach(({ row: r, idx }) => {
             const rawText = r[AppState.textColumn];
             const textStr = (rawText !== undefined && rawText !== null) ? String(rawText).trim() : '';
+            const rowId = r.ID || r.id || r.No || (idx + 1);
 
-            if (TextPreprocessor.isJunkResponse(textStr)) {
-                junkCount++;
+            const quality = TextPreprocessor.checkQuality(rawText);
+            if (quality.isProblem) {
+                excludedResponses.push({
+                    id: rowId,
+                    rowIndex: idx + 1,
+                    rawIndex: idx,
+                    text: textStr,
+                    status: quality.status, // 'empty' | 'junk'
+                    label: quality.label,   // '定型無効', '空欄', '記号のみ', etc.
+                    detail: quality.detail,
+                    row: r
+                });
             } else {
                 // 形態素解析で指定品詞の有効語が1つ以上抽出できるか判定
                 const tokens = TextPreprocessor.tokenize(textStr, AppState.selectedPos);
                 if (tokens.length === 0) {
                     // 挨拶文・定型句など、分析対象となる特徴語が抽出できない回答
-                    junkCount++;
+                    excludedResponses.push({
+                        id: rowId,
+                        rowIndex: idx + 1,
+                        rawIndex: idx,
+                        text: textStr,
+                        status: 'junk',
+                        label: '有効語なし',
+                        detail: '指定された品詞（名詞・動詞等）の有効単語が含まれていません',
+                        row: r
+                    });
                 } else {
                     validResponses.push({
-                        id: r.ID || r.id || r.No || (idx + 1),
+                        id: rowId,
+                        rawIndex: idx,
                         text: textStr,
                         row: r
                     });
@@ -1634,6 +1718,8 @@ async function runFullPipeline() {
         }
 
         AppState.validResponses = validResponses;
+        AppState.excludedResponses = excludedResponses;
+        const junkCount = excludedResponses.length;
 
         showLoading('重要キーワードと潜在トピックを計算中...');
         // 3. TF-IDF 行列の構築（指定された品詞に基づく）
@@ -1653,7 +1739,7 @@ async function runFullPipeline() {
 
         showLoading('図とパス図を描画中...');
         // 5. 結果のレンダリング
-        renderResults(validResponses, junkCount, result, tfidfData, rowsToAnalyze.length);
+        renderResults(validResponses, junkCount, result, tfidfData, filteredItems.length);
 
     } catch (err) {
         console.error(err);
@@ -1781,6 +1867,21 @@ function renderTextStatsProfile(validResponses, junkCount, tfidfData, analyzedRo
     document.getElementById('tblValidRows').textContent = validRows.toLocaleString();
     document.getElementById('tblJunkRows').textContent = junkCount.toLocaleString();
     document.getElementById('tblTotalChars').textContent = totalChars.toLocaleString();
+
+    // 除外回答モーダル起動ボタンとサマリーバッジの表示制御
+    const btnOpenExcludedModal = document.getElementById('btnOpenExcludedModal');
+    if (btnOpenExcludedModal) {
+        if (junkCount > 0) {
+            btnOpenExcludedModal.style.display = 'inline-flex';
+            btnOpenExcludedModal.innerHTML = `🔍 内訳を確認 (${junkCount}件)`;
+        } else {
+            btnOpenExcludedModal.style.display = 'none';
+        }
+    }
+    const statJunkBadge = document.getElementById('statJunkBadge');
+    if (statJunkBadge) {
+        statJunkBadge.style.display = junkCount > 0 ? 'inline' : 'none';
+    }
 
     // 最頻出単語 TOP 5
     const topKeywordsContainer = document.getElementById('topKeywordsPills');
@@ -3259,6 +3360,247 @@ function exportThemeKeywordsCsv(theme) {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 }
+
+// ----------------------------------------------------
+// 除外された無効・定型回答の確認モーダル＆エクスポート機能
+// ----------------------------------------------------
+
+let currentExcludedFilter = 'all';
+
+/**
+ * 除外された無効・定型回答一覧モーダルを開く
+ * @param {string} [initialFilter='all']
+ */
+function openExcludedResponsesModal(initialFilter = 'all') {
+    const modal = document.getElementById('excludedResponsesModal');
+    if (!modal) return;
+
+    currentExcludedFilter = initialFilter;
+    renderExcludedModal();
+    modal.style.display = 'flex';
+}
+window.openExcludedResponsesModal = openExcludedResponsesModal;
+
+/**
+ * 除外回答一覧モーダルを閉じる
+ */
+function closeExcludedResponsesModal() {
+    const modal = document.getElementById('excludedResponsesModal');
+    if (modal) modal.style.display = 'none';
+}
+window.closeExcludedResponsesModal = closeExcludedResponsesModal;
+
+/**
+ * 除外回答モーダルの内容を描画
+ */
+function renderExcludedModal() {
+    const excluded = AppState.excludedResponses || [];
+    const countBadge = document.getElementById('excludedModalCountBadge');
+    if (countBadge) countBadge.textContent = `全 ${excluded.length} 件`;
+
+    // 理由ごとの集計
+    const counts = {
+        all: excluded.length
+    };
+    excluded.forEach(item => {
+        const key = item.label || 'その他';
+        counts[key] = (counts[key] || 0) + 1;
+    });
+
+    // フィルタータブの生成
+    const tabsContainer = document.getElementById('excludedFilterTabs');
+    if (tabsContainer) {
+        tabsContainer.innerHTML = '';
+        
+        const reasons = ['all', ...Object.keys(counts).filter(k => k !== 'all')];
+        reasons.forEach(r => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = `btn btn-xs ${currentExcludedFilter === r ? 'btn-primary' : 'btn-outline'}`;
+            btn.style.fontSize = '11px';
+            btn.style.padding = '3px 9px';
+            const label = r === 'all' ? 'すべて' : r;
+            const count = counts[r] || 0;
+            btn.textContent = `${label} (${count})`;
+            btn.onclick = () => {
+                currentExcludedFilter = r;
+                renderExcludedModal();
+            };
+            tabsContainer.appendChild(btn);
+        });
+    }
+
+    // テーブルヘッダー（属性列の有無対応）
+    const thead = document.getElementById('excludedThead');
+    const hasAttr = !!(AppState.attributeColumn && AppState.headers.includes(AppState.attributeColumn));
+    if (thead) {
+        let theadHtml = '<tr>';
+        theadHtml += '<th style="padding: 10px 8px; width: 45px; text-align: center;">#</th>';
+        theadHtml += '<th style="padding: 10px 8px; width: 60px;">ID</th>';
+        if (hasAttr) {
+            theadHtml += `<th style="padding: 10px 8px; width: 110px;">${escapeHtml(AppState.attributeColumn)}</th>`;
+        }
+        theadHtml += '<th style="padding: 10px 8px;">自由記述テキスト</th>';
+        theadHtml += '<th style="padding: 10px 8px; width: 105px; text-align: center;">除外区分</th>';
+        theadHtml += '<th style="padding: 10px 8px; width: 220px;">除外理由・詳細</th>';
+        theadHtml += '<th style="padding: 10px 8px; width: 85px; text-align: center;">元データ</th>';
+        theadHtml += '</tr>';
+        thead.innerHTML = theadHtml;
+    }
+
+    // テーブルボディのフィルタリングと描画
+    const tbody = document.getElementById('excludedResponsesTbody');
+    if (!tbody) return;
+
+    const filtered = (currentExcludedFilter === 'all')
+        ? excluded
+        : excluded.filter(item => item.label === currentExcludedFilter);
+
+    if (filtered.length === 0) {
+        const colSpan = hasAttr ? 7 : 6;
+        tbody.innerHTML = `<tr><td colspan="${colSpan}" style="text-align: center; color: #94A3B8; padding: 30px;">除外された回答はありません</td></tr>`;
+        return;
+    }
+
+    let tbodyHtml = '';
+    filtered.forEach(item => {
+        let badgeClass = 'badge-status-junk';
+        if (item.status === 'empty' || item.label === '空欄') {
+            badgeClass = 'badge-status-empty';
+        } else if (item.label === '有効語なし') {
+            badgeClass = 'badge-status-noword';
+        }
+
+        const rawAttr = (hasAttr && item.row) ? item.row[AppState.attributeColumn] : '';
+        const attrVal = (rawAttr !== undefined && rawAttr !== null && String(rawAttr).trim() !== '') ? String(rawAttr).trim() : '（未設定）';
+        const attrCellHtml = hasAttr ? `<td style="padding: 10px 8px; color: #475569;"><span class="badge-attr">${escapeHtml(attrVal)}</span></td>` : '';
+
+        const displayText = item.text
+            ? escapeHtml(item.text)
+            : '<span style="color: #94A3B8; font-style: italic;">（未入力・空欄）</span>';
+
+        tbodyHtml += `
+            <tr style="border-bottom: 1px solid #F1F5F9;">
+                <td style="padding: 10px 8px; text-align: center; color: #64748B; font-weight: 600;">${item.rowIndex}</td>
+                <td style="padding: 10px 8px; color: #475569;">${escapeHtml(String(item.id))}</td>
+                ${attrCellHtml}
+                <td style="padding: 10px 8px; color: #1E293B; white-space: pre-wrap; word-break: break-word; line-height: 1.5;">${displayText}</td>
+                <td style="padding: 10px 8px; text-align: center;">
+                    <span class="badge-status ${badgeClass}">${escapeHtml(item.label)}</span>
+                </td>
+                <td style="padding: 10px 8px; font-size: 11.5px; color: #64748B; line-height: 1.4;">${escapeHtml(item.detail)}</td>
+                <td style="padding: 10px 8px; text-align: center;">
+                    <button type="button" class="btn btn-xs btn-outline" onclick="jumpToPreviewRow(${item.rawIndex})" title="プレビュー画面でこの行を確認・編集する">
+                        ✏️ 編集
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    tbody.innerHTML = tbodyHtml;
+}
+
+/**
+ * プレビュー画面の指定行へスクロールしてハイライト
+ * @param {number} rawIdx
+ */
+function jumpToPreviewRow(rawIdx) {
+    closeExcludedResponsesModal();
+
+    const previewSection = document.getElementById('previewSection');
+    if (!previewSection) return;
+    previewSection.style.display = 'block';
+
+    // プレビューの全行モードに切り替え
+    AppState.previewMode = 'all';
+    AppState.previewFilterWarning = false;
+    const btnPreviewLimit = document.getElementById('btnPreviewLimit');
+    const btnPreviewAll = document.getElementById('btnPreviewAll');
+    const btnFilterWarnings = document.getElementById('btnFilterWarnings');
+    if (btnPreviewLimit) btnPreviewLimit.classList.remove('active');
+    if (btnPreviewAll) btnPreviewAll.classList.add('active');
+    if (btnFilterWarnings) btnFilterWarnings.classList.remove('active');
+
+    // 該当行が含まれるページを計算
+    const page = Math.floor(rawIdx / AppState.previewPageSize) + 1;
+    AppState.previewPage = page;
+
+    renderDataPreview();
+
+    // プレビューセクションへスクロール
+    previewSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    setTimeout(() => {
+        const rowEl = document.getElementById(`previewRow_${rawIdx}`);
+        if (rowEl) {
+            rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            rowEl.classList.remove('row-highlight-target');
+            // リフロー強制
+            void rowEl.offsetWidth;
+            rowEl.classList.add('row-highlight-target');
+
+            const textCell = rowEl.querySelector('.col-target-cell');
+            if (textCell) {
+                textCell.focus();
+            }
+        }
+    }, 300);
+}
+window.jumpToPreviewRow = jumpToPreviewRow;
+
+/**
+ * 除外された回答一覧のCSVダウンロード
+ */
+function exportExcludedResponsesCsv() {
+    const excluded = AppState.excludedResponses || [];
+    if (excluded.length === 0) {
+        alert('除外された回答データがありません');
+        return;
+    }
+
+    const hasAttr = !!(AppState.attributeColumn && AppState.headers.includes(AppState.attributeColumn));
+    const headerRow = ['行番号', 'ID'];
+    if (hasAttr) {
+        headerRow.push(AppState.attributeColumn);
+    }
+    headerRow.push('自由記述回答', '除外区分', '除外理由・詳細');
+
+    const escapeCsv = (val) => {
+        const str = (val === null || val === undefined) ? '' : String(val);
+        return `"${str.replace(/"/g, '""')}"`;
+    };
+
+    const csvRows = [
+        headerRow.map(escapeCsv).join(',')
+    ];
+
+    excluded.forEach(item => {
+        const rowCols = [
+            item.rowIndex,
+            item.id
+        ];
+        if (hasAttr) {
+            const rawAttr = item.row ? item.row[AppState.attributeColumn] : '';
+            rowCols.push(rawAttr !== undefined && rawAttr !== null ? String(rawAttr) : '');
+        }
+        rowCols.push(item.text, item.label, item.detail);
+        csvRows.push(rowCols.map(escapeCsv).join(','));
+    });
+
+    const csvContent = '\uFEFF' + csvRows.join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+    link.download = `除外回答一覧_${dateStr}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+window.exportExcludedResponsesCsv = exportExcludedResponsesCsv;
 
 
 

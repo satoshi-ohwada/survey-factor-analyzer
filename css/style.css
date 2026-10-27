@@ -1319,6 +1319,26 @@ body {
     color: #92400E;
 }
 
+.badge-status-noword {
+    background: #EEF2FF;
+    color: #4338CA;
+    border: 1px solid #C7D2FE;
+}
+
+@keyframes highlightRowFade {
+    0% { background-color: #FEF08A; }
+    60% { background-color: #FEF08A; }
+    100% { background-color: transparent; }
+}
+
+.row-highlight-target {
+    animation: highlightRowFade 3s ease forwards;
+}
+
+#statJunkRowsItem:hover {
+    background-color: #F1F5F9;
+}
+
 .badge-col-target {
     font-size: 10px;
     font-weight: 700;
