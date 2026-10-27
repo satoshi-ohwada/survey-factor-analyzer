@@ -639,9 +639,7 @@ const ChartRenderer = {
                                     <span class="map-detail-action-hint">🖱 クリックで詳細モーダル</span>
                                 </div>
                             </div>
-                            <div class="map-hover-detail-body">
-                                <span class="quote-mark">“</span>${safeEscape(pointData.text || '（テキストなし）')}<span class="quote-mark">”</span>
-                            </div>
+                            <div class="map-hover-detail-body"><span class="quote-mark">“</span><span class="map-detail-text">${safeEscape((pointData.text || '（テキストなし）').trim())}</span><span class="quote-mark">”</span></div>
                         </div>
                     `;
                 } else {
