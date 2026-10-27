@@ -2045,14 +2045,14 @@ function renderThemeCards(themes) {
         card.id = `theme-card-${theme.id}`;
         card.style.borderLeftColor = color;
 
-        // 代表回答HTML
+        // 代表文章HTML
         const responsesHtml = theme.representativeResponses.map((r, rIdx) => {
             const rawAttr = (r.row && AppState.attributeColumn) ? r.row[AppState.attributeColumn] : null;
             const attrBadge = (rawAttr !== undefined && rawAttr !== null && String(rawAttr).trim() !== '')
                 ? `<span class="badge-attr">${escapeHtml(String(rawAttr).trim())}</span>`
                 : '';
             return `<div class="response-item"><span class="response-num">${rIdx + 1}.</span>${attrBadge}<span class="response-text">「${escapeHtml(r.text.trim())}」</span></div>`;
-        }).join('') || '<div class="response-item" style="color:#94A3B8;">該当する代表意見がありません</div>';
+        }).join('') || '<div class="response-item" style="color:#94A3B8;">該当する代表文章がありません</div>';
 
         card.innerHTML = `
             <div class="theme-card-header">
@@ -2089,7 +2089,7 @@ function renderThemeCards(themes) {
                 </div>
                 <div class="theme-responses-col">
                     <div>
-                        <div class="responses-list-title">【このトピックを強く反映している代表的な回答（抜粋）】</div>
+                        <div class="responses-list-title">【このトピックを強く反映している代表的な文章例（抜粋）】</div>
                         ${responsesHtml}
                     </div>
                     <div class="theme-card-footer">

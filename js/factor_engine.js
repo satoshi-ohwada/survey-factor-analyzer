@@ -327,8 +327,8 @@ const FactorEngine = {
                 .filter(r => r.text.length >= 8)
                 .sort((a, b) => b.confidence - a.confidence);
 
-            // 8文字以上の候補が3件未満の場合、文字数制限なしの候補で補完
-            if (candidates.length < 3) {
+            // 8文字以上の候補が5件未満の場合、文字数制限なしの候補で補完
+            if (candidates.length < 5) {
                 const candidateIds = new Set(candidates.map(c => c.id));
                 const fallbackCandidates = pool
                     .filter(r => !candidateIds.has(r.id))
@@ -343,8 +343,8 @@ const FactorEngine = {
                     .sort((a, b) => b.confidence - a.confidence);
             }
 
-            // 上位3件を代表回答とする
-            t.representativeResponses = candidates.slice(0, 3).map(c => ({
+            // 上位5件を代表文章（文章例）とする
+            t.representativeResponses = candidates.slice(0, 5).map(c => ({
                 id: c.id,
                 text: c.text,
                 row: c.row,
