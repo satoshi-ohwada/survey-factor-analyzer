@@ -2274,7 +2274,7 @@ function renderThemeCards(themes) {
                 tabCloud.classList.remove('active');
                 paneNetwork.style.display = 'block';
                 paneCloud.style.display = 'none';
-                if (vizHint) vizHint.textContent = '※線で結ばれた単語は同じ回答内で一緒に使われやすい共起関係を表します';
+                if (vizHint) vizHint.textContent = '※色分けは単語同士の結びつき（コミュニティ）を表し、線は同じ回答内での共起関係を表します';
                 setTimeout(() => {
                     drawActiveTab();
                 }, 40);

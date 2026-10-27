@@ -1661,7 +1661,22 @@ const ChartRenderer = {
         bestEdgePerNode.forEach(e => selectedEdgeSet.add(e));
         const finalEdges = Array.from(selectedEdgeSet);
 
-        // 4. 力学モデル（Force-directed Simulation）
+        // 4. コミュニティ検出（モジュラリティ最大化法）
+        const { communities, nodeCommunityMap } = this._detectCommunities(wordList, finalEdges);
+
+        // コミュニティカラーパレット
+        const COMMUNITY_PALETTE = [
+            baseColor || '#2563EB',
+            '#059669', // エメラルドグリーン
+            '#D97706', // アンバー
+            '#7C3AED', // パープル
+            '#E11D48', // ローズ
+            '#0891B2', // シアン
+            '#4F46E5', // インディゴ
+            '#EA580C'  // オレンジ
+        ];
+
+        // 5. 力学モデル（Force-directed Simulation）
         const N = wordList.length;
         const nodes = wordList.map((w, idx) => {
             const angle = (idx / N) * 2 * Math.PI;
@@ -1671,6 +1686,7 @@ const ChartRenderer = {
                 word: w,
                 weight: wordWeightMap.get(w) || 0.1,
                 docCount: docFreq[w] || 0,
+                community: nodeCommunityMap[idx],
                 x: r * Math.cos(angle),
                 y: r * Math.sin(angle),
                 vx: 0,
@@ -1685,6 +1701,7 @@ const ChartRenderer = {
         const damping = 0.85;
 
         for (let iter = 0; iter < 75; iter++) {
+            // 反発力
             for (let i = 0; i < N; i++) {
                 for (let j = i + 1; j < N; j++) {
                     const dx = nodes[j].x - nodes[i].x;
@@ -1699,6 +1716,7 @@ const ChartRenderer = {
                     nodes[j].vy += fy;
                 }
             }
+            // バネ引力（エッジ）
             finalEdges.forEach(e => {
                 const n1 = nodes[e.source];
                 const n2 = nodes[e.target];
@@ -1714,6 +1732,26 @@ const ChartRenderer = {
                 n2.vx -= fx;
                 n2.vy -= fy;
             });
+            // 同一コミュニティ内のクラスタリング引力
+            for (let i = 0; i < N; i++) {
+                for (let j = i + 1; j < N; j++) {
+                    if (nodeCommunityMap[i] === nodeCommunityMap[j]) {
+                        const dx = nodes[j].x - nodes[i].x;
+                        const dy = nodes[j].y - nodes[i].y;
+                        const d = Math.sqrt(dx * dx + dy * dy) || 1;
+                        if (d > 50) {
+                            const f = 0.015 * (d - 50);
+                            const fx = (dx / d) * f;
+                            const fy = (dy / d) * f;
+                            nodes[i].vx += fx;
+                            nodes[i].vy += fy;
+                            nodes[j].vx -= fx;
+                            nodes[j].vy -= fy;
+                        }
+                    }
+                }
+            }
+            // 中心重力と位置更新
             nodes.forEach(n => {
                 n.vx -= n.x * kCenter;
                 n.vy -= n.y * kCenter;
@@ -1724,57 +1762,116 @@ const ChartRenderer = {
             });
         }
 
-        // 5. Plotly トレース作成
-        const edgeX = [];
-        const edgeY = [];
+        // 6. Plotly トレース作成（コミュニティ内エッジとコミュニティ間エッジ）
+        const intraEdgeX = [], intraEdgeY = [];
+        const interEdgeX = [], interEdgeY = [];
         finalEdges.forEach(e => {
             const n1 = nodes[e.source];
             const n2 = nodes[e.target];
-            edgeX.push(n1.x, n2.x, null);
-            edgeY.push(n1.y, n2.y, null);
+            if (nodeCommunityMap[e.source] === nodeCommunityMap[e.target]) {
+                intraEdgeX.push(n1.x, n2.x, null);
+                intraEdgeY.push(n1.y, n2.y, null);
+            } else {
+                interEdgeX.push(n1.x, n2.x, null);
+                interEdgeY.push(n1.y, n2.y, null);
+            }
         });
 
-        const edgeTrace = {
-            x: edgeX,
-            y: edgeY,
-            mode: 'lines',
-            line: {
-                color: 'rgba(148, 163, 184, 0.45)',
-                width: 2
-            },
-            hoverinfo: 'none',
-            type: 'scatter'
-        };
+        const traces = [];
 
-        const maxWeight = Math.max(...nodes.map(n => n.weight), 0.001);
-        const nodeTrace = {
-            x: nodes.map(n => n.x),
-            y: nodes.map(n => n.y),
-            mode: 'markers+text',
-            text: nodes.map(n => n.word),
-            textposition: 'top center',
-            textfont: {
-                family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans JP", sans-serif',
-                size: 11,
-                color: '#1E293B'
-            },
-            marker: {
-                size: nodes.map(n => Math.round(18 + (n.weight / maxWeight) * 16)),
-                color: baseColor,
-                opacity: 0.88,
+        // コミュニティ内エッジ（実線・やや濃い）
+        if (intraEdgeX.length > 0) {
+            traces.push({
+                x: intraEdgeX,
+                y: intraEdgeY,
+                mode: 'lines',
                 line: {
-                    color: '#FFFFFF',
-                    width: 2.5
-                }
-            },
-            hoverinfo: 'text',
-            hovertext: nodes.map(n => `<b>${n.word}</b><br>関連度: ${n.weight.toFixed(3)}<br>出現回数: ${n.docCount}回`),
-            type: 'scatter'
-        };
+                    color: 'rgba(100, 116, 139, 0.55)',
+                    width: 2.2
+                },
+                hoverinfo: 'none',
+                showlegend: false,
+                type: 'scatter'
+            });
+        }
+
+        // コミュニティ間エッジ（点線・淡い）
+        if (interEdgeX.length > 0) {
+            traces.push({
+                x: interEdgeX,
+                y: interEdgeY,
+                mode: 'lines',
+                line: {
+                    color: 'rgba(203, 213, 225, 0.60)',
+                    width: 1.3,
+                    dash: 'dot'
+                },
+                hoverinfo: 'none',
+                showlegend: false,
+                type: 'scatter'
+            });
+        }
+
+        // コミュニティ別ノードトレース（色分け ＆ 凡例）
+        const maxWeight = Math.max(...nodes.map(n => n.weight), 0.001);
+
+        communities.forEach((cGroup, cIdx) => {
+            const isSingletons = cGroup.isSingletons;
+            const cColor = isSingletons
+                ? '#94A3B8'
+                : (COMMUNITY_PALETTE[cIdx % COMMUNITY_PALETTE.length]);
+
+            const cNodes = cGroup.nodeIds.map(id => nodes[id]);
+            cNodes.sort((a, b) => b.weight - a.weight);
+            const repWords = cNodes.slice(0, 2).map(n => n.word).join('・');
+            const groupName = isSingletons
+                ? `その他・単独語 (${cNodes.length}語)`
+                : `コミュニティ${cIdx + 1}: ${repWords} (${cNodes.length}語)`;
+
+            traces.push({
+                x: cNodes.map(n => n.x),
+                y: cNodes.map(n => n.y),
+                mode: 'markers+text',
+                name: groupName,
+                text: cNodes.map(n => n.word),
+                textposition: 'top center',
+                textfont: {
+                    family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans JP", sans-serif',
+                    size: 11,
+                    color: '#1E293B',
+                    weight: 600
+                },
+                marker: {
+                    size: cNodes.map(n => Math.round(18 + (n.weight / maxWeight) * 16)),
+                    color: cColor,
+                    opacity: 0.90,
+                    line: {
+                        color: '#FFFFFF',
+                        width: 2.5
+                    }
+                },
+                hoverinfo: 'text',
+                hovertext: cNodes.map(n =>
+                    `<b>${n.word}</b><br>` +
+                    `所属: ${isSingletons ? 'その他・単独語' : `コミュニティ${cIdx + 1}（${repWords}）`}<br>` +
+                    `トピック関連度: ${n.weight.toFixed(3)}<br>` +
+                    `出現回数: ${n.docCount}回`
+                ),
+                type: 'scatter'
+            });
+        });
 
         const layout = {
-            showlegend: false,
-            margin: { l: 20, r: 20, t: 30, b: 20 },
+            showlegend: true,
+            legend: {
+                orientation: 'h',
+                x: 0,
+                y: 1.15,
+                xanchor: 'left',
+                yanchor: 'bottom',
+                font: { size: 10.5, color: '#475569' }
+            },
+            margin: { l: 20, r: 20, t: 40, b: 20 },
             hovermode: 'closest',
             hoverlabel: {
                 bgcolor: 'rgba(15, 23, 42, 0.92)',
@@ -1794,6 +1891,115 @@ const ChartRenderer = {
             modeBarButtonsToRemove: ['select2d', 'lasso2d', 'hoverClosestCartesian', 'hoverCompareCartesian']
         };
 
-        Plotly.newPlot(plotId, [edgeTrace, nodeTrace], layout, config);
+        Plotly.newPlot(plotId, traces, layout, config);
+    },
+
+    /**
+     * 共起グラフのコミュニティ検出（Greedy Modularity Optimization）
+     */
+    _detectCommunities(wordList, edges) {
+        const N = wordList.length;
+        if (N === 0) return { communities: [], nodeCommunityMap: [] };
+        if (edges.length === 0) {
+            return {
+                communities: [{ isSingletons: true, nodeIds: wordList.map((_, i) => i) }],
+                nodeCommunityMap: new Array(N).fill(0)
+            };
+        }
+
+        // 重み付き隣接行列
+        const adj = Array.from({ length: N }, () => new Array(N).fill(0));
+        let totalWeight = 0;
+        edges.forEach(e => {
+            const w = e.jaccard || 1;
+            adj[e.source][e.target] += w;
+            adj[e.target][e.source] += w;
+            totalWeight += w;
+        });
+
+        const twoM = 2 * totalWeight;
+        if (twoM <= 0) {
+            return {
+                communities: [{ isSingletons: true, nodeIds: wordList.map((_, i) => i) }],
+                nodeCommunityMap: new Array(N).fill(0)
+            };
+        }
+
+        const k = new Array(N).fill(0);
+        for (let i = 0; i < N; i++) {
+            for (let j = 0; j < N; j++) {
+                k[i] += adj[i][j];
+            }
+        }
+
+        // 初期コミュニティ: 各ノードが独立
+        let comms = wordList.map((_, i) => [i]);
+
+        while (comms.length > 1) {
+            let bestDeltaQ = 0;
+            let bestPair = null;
+
+            for (let c1 = 0; c1 < comms.length; c1++) {
+                for (let c2 = c1 + 1; c2 < comms.length; c2++) {
+                    const nodes1 = comms[c1];
+                    const nodes2 = comms[c2];
+
+                    let e12 = 0;
+                    for (const u of nodes1) {
+                        for (const v of nodes2) {
+                            e12 += adj[u][v];
+                        }
+                    }
+                    if (e12 === 0) continue;
+
+                    let deg1 = 0, deg2 = 0;
+                    for (const u of nodes1) deg1 += k[u];
+                    for (const v of nodes2) deg2 += k[v];
+
+                    const deltaQ = (2 * e12 / twoM) - 2 * (deg1 * deg2 / (twoM * twoM));
+                    if (deltaQ > bestDeltaQ) {
+                        bestDeltaQ = deltaQ;
+                        bestPair = [c1, c2];
+                    }
+                }
+            }
+
+            if (!bestPair || bestDeltaQ <= 1e-6) break;
+
+            const [c1, c2] = bestPair;
+            comms[c1] = comms[c1].concat(comms[c2]);
+            comms.splice(c2, 1);
+        }
+
+        // サイズ降順ソート
+        comms.sort((a, b) => b.length - a.length);
+
+        // 複数語の主要コミュニティと単独語を分類
+        const multiWordComms = comms.filter(c => c.length >= 2);
+        const singleWordComms = comms.filter(c => c.length === 1);
+
+        const structuredComms = multiWordComms.map(c => ({
+            isSingletons: false,
+            nodeIds: c
+        }));
+
+        if (singleWordComms.length > 0) {
+            structuredComms.push({
+                isSingletons: true,
+                nodeIds: singleWordComms.flat()
+            });
+        }
+
+        const nodeCommunityMap = new Array(N).fill(0);
+        structuredComms.forEach((grp, gIdx) => {
+            grp.nodeIds.forEach(nodeId => {
+                nodeCommunityMap[nodeId] = gIdx;
+            });
+        });
+
+        return {
+            communities: structuredComms,
+            nodeCommunityMap
+        };
     }
 };

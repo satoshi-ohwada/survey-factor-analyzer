@@ -1712,7 +1712,7 @@ body {
 .cloud-container {
     position: relative;
     width: 100%;
-    height: 310px;
+    height: 330px;
     background: #F8FAFC;
     border-radius: var(--radius-sm);
     border: 1px solid #E2E8F0;
@@ -1742,7 +1742,7 @@ body {
 
 .network-plot-container {
     width: 100%;
-    height: 310px;
+    height: 330px;
     background: #FFFFFF;
     border-radius: var(--radius-sm);
     border: 1px solid #E2E8F0;
