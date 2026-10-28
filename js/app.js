@@ -1812,10 +1812,7 @@ function renderResults(validResponses, junkCount, result, tfidfData, analyzedRow
     // 軸セレクタのオプション生成
     setupAxisSelectors(result.themes);
 
-    // 【図3】トピック空間ポジショニングマップ
-    updateFactorSpaceMap();
-
-    // 属性別分析セクション（属性列が指定されている場合: 図4クロス集計）
+    // 属性別分析セクション（属性列が指定されている場合: 図4クロス集計 ＆ 図5スモールマルチプルズ）
     const attrSection = document.getElementById('attributeAnalysisSection');
     const hasValidAttrCol = !!(AppState.attributeColumn && AppState.headers.includes(AppState.attributeColumn));
     if (hasValidAttrCol) {
@@ -1830,6 +1827,10 @@ function renderResults(validResponses, junkCount, result, tfidfData, analyzedRow
         const multiplesEl = document.getElementById('chartAttrMultiples');
         if (multiplesEl) multiplesEl.innerHTML = '';
     }
+
+    // 【図3】トピック空間ポジショニングマップ ＆ 【図5】属性別スモールマルチプルズ
+    // （※ 必ず attrSection を表示状態にした後に実行し、DOM寸法を確定させて正常描画させる）
+    updateFactorSpaceMap();
 
     // 【各トピックの詳細カード】
     renderThemeCards(result.themes);

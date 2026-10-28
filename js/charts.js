@@ -1266,7 +1266,7 @@ const ChartRenderer = {
                 }
             });
 
-            const topTheme = themes[maxThemeId];
+            const topTheme = themes.find(t => t.id === maxThemeId) || themes[maxThemeId];
             const topThemePct = count > 0 ? Math.round((maxCount / count) * 100) : 0;
             const topColor = topTheme ? this.COLORS[maxThemeId % this.COLORS.length] : '#2563EB';
 
@@ -1300,9 +1300,11 @@ const ChartRenderer = {
                 <div class="attr-stack-bar-wrap" title="各トピックの構成割合">
                     <div class="attr-stack-bar">${barSegmentsHtml}</div>
                 </div>
-                <div id="${plotId}" class="attr-sub-plot"></div>
+                <div id="${plotId}" class="attr-sub-plot" style="width: 100%; height: 210px;"></div>
             `;
             gridEl.appendChild(cardEl);
+
+            const subPlotEl = cardEl.querySelector('.attr-sub-plot');
 
             // トレース1: 全体ゴーストプロット（薄いグレーの背景影）
             const ghostTrace = {
@@ -1313,8 +1315,8 @@ const ChartRenderer = {
                 name: '全体（比較用）',
                 marker: {
                     size: 5,
-                    color: '#E2E8F0',
-                    opacity: 0.6
+                    color: '#CBD5E1',
+                    opacity: 0.55
                 },
                 hoverinfo: 'none',
                 showlegend: false
@@ -1387,17 +1389,24 @@ const ChartRenderer = {
                 displayModeBar: false
             };
 
-            const p = Plotly.newPlot(plotId, [ghostTrace, attrTrace], layout, config).then(() => {
-                const el = document.getElementById(plotId);
-                if (el && onPointClick) {
-                    el.removeAllListeners && el.removeAllListeners('plotly_click');
-                    el.on('plotly_click', (d) => {
+            const targetPlotEl = subPlotEl || document.getElementById(plotId);
+            const p = Plotly.newPlot(targetPlotEl, [ghostTrace, attrTrace], layout, config).then(() => {
+                if (targetPlotEl && onPointClick) {
+                    targetPlotEl.removeAllListeners && targetPlotEl.removeAllListeners('plotly_click');
+                    targetPlotEl.on('plotly_click', (d) => {
                         if (d && d.points && d.points[0]) {
                             const custom = d.points[0].customdata;
                             if (custom) onPointClick(custom);
                         }
                     });
                 }
+                // 表示直後のリフローに合わせて確実なリサイズを実行
+                const scheduleResize = (typeof requestAnimationFrame === 'function') ? requestAnimationFrame : setTimeout;
+                scheduleResize(() => {
+                    if (targetPlotEl && targetPlotEl.offsetParent !== null && typeof Plotly !== 'undefined' && Plotly.Plots && Plotly.Plots.resize) {
+                        Plotly.Plots.resize(targetPlotEl);
+                    }
+                });
             });
             plotPromises.push(p);
         });
