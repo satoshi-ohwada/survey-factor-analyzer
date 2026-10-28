@@ -2546,10 +2546,9 @@ async function rasterizeChartsForPrint() {
             return;
         }
 
-        const isNetworkPlot = isInVizDrawer || plotEl.classList.contains('network-plot-container') || !!plotEl.closest('.network-plot-container');
-        const isSubPlot = plotEl.classList.contains('attr-sub-plot');
-        const defaultW = isSubPlot ? 320 : (isNetworkPlot ? 420 : 600);
-        const defaultH = isSubPlot ? 145 : (isNetworkPlot ? 185 : 350);
+        const isKwChart = plotEl.id && plotEl.id.startsWith('chart-kw-');
+        const defaultW = isSubPlot ? 320 : (isKwChart ? 230 : (isNetworkPlot ? 420 : 600));
+        const defaultH = isSubPlot ? 145 : (isKwChart ? 200 : (isNetworkPlot ? 185 : 350));
 
         const rect = plotEl.getBoundingClientRect();
         let width = plotEl.clientWidth || Math.round(rect.width) || defaultW;
@@ -2557,6 +2556,8 @@ async function rasterizeChartsForPrint() {
 
         if (isNetworkPlot) {
             height = 185;
+        } else if (isKwChart) {
+            height = Math.min(height, 220);
         }
 
         if (width <= 0 || height <= 0) return;
@@ -2631,7 +2632,7 @@ async function prepareCardsForPrint() {
             isVizOpen
         });
 
-        const color = FACTOR_COLORS[theme.id % FACTOR_COLORS.length];
+        const color = getThemeColor(theme.id);
 
         // 1. 上位語を12語へ拡張して棒グラフ＆タグを描画
         renderTasks.push(
@@ -2652,13 +2653,13 @@ async function prepareCardsForPrint() {
     });
 
     // ドロワー展開後のDOMリフロー（寸法計算）を確実に待機
-    await new Promise(resolve => setTimeout(resolve, 80));
+    await new Promise(resolve => setTimeout(resolve, 120));
 
     // 各カードのワードクラウドと共起ネットワークを描画
     themes.forEach((theme) => {
         const card = document.getElementById(`theme-card-${theme.id}`);
         if (!card) return;
-        const color = FACTOR_COLORS[theme.id % FACTOR_COLORS.length];
+        const color = getThemeColor(theme.id);
 
         // ワードクラウド描画（寸法確定後）
         ChartRenderer.renderWordCloud(`cloud-container-${theme.id}`, theme.keywords, color);
@@ -2679,6 +2680,7 @@ async function prepareCardsForPrint() {
 
     // すべてのPlotlyグラフの初期描画完了を待機
     await Promise.all(renderTasks);
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     return savedStates;
 }
@@ -2697,7 +2699,7 @@ function restoreCardsAfterPrint(savedStates) {
         const card = document.getElementById(`theme-card-${theme.id}`);
         if (!card) return;
 
-        const color = FACTOR_COLORS[theme.id % FACTOR_COLORS.length];
+        const color = getThemeColor(theme.id);
         const expandBtn = card.querySelector(`#btn-kw-expand-${theme.id}`);
         const vizDrawer = card.querySelector(`#theme-viz-drawer-${theme.id}`);
         const tagsContainer = card.querySelector(`#kw-tags-${theme.id}`);

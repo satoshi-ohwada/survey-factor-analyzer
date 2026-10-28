@@ -746,8 +746,11 @@ const ChartRenderer = {
             hoverinfo: 'x+y'
         }];
 
-        // 表示件数に応じた高さの動的調整（件数が多い場合は高さを拡張）
-        const calculatedHeight = Math.max(145, count * 22 + 25);
+        // 表示件数に応じた高さの動的調整（印刷時はコンパクトにスリム化）
+        const isPrinting = document.body.classList.contains('is-printing');
+        const calculatedHeight = isPrinting
+            ? Math.max(130, count * 15 + 20)
+            : Math.max(145, count * 22 + 25);
 
         const layout = {
             margin: { l: 75, r: 15, t: 8, b: 24 },
