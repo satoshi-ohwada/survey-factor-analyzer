@@ -233,6 +233,14 @@ function setupEventListeners() {
         });
     }
 
+    // トピック判定付き全データCSV出力（Focus Explorer連携等）
+    const btnExportAllWithTopics = document.getElementById('btnExportAllWithTopics');
+    if (btnExportAllWithTopics) {
+        btnExportAllWithTopics.addEventListener('click', () => {
+            exportAllResponsesWithTopicsCsv();
+        });
+    }
+
     // 印刷前後のPlotlyグラフ自動リサイズ・カード展開
     window.addEventListener('beforeprint', async () => {
         if (!document.body.classList.contains('is-printing')) {
@@ -2356,9 +2364,14 @@ function renderThemeCards(themes) {
                         <button type="button" class="btn btn-sm btn-outline btn-toggle-viz" id="btn-toggle-viz-${theme.id}" data-theme-id="${theme.id}" title="このトピックのワードクラウドや共起ネットワークを展開">
                             📊 ワードクラウド・共起ネットワーク ▼
                         </button>
-                        <button class="btn btn-sm" onclick="showAllThemeResponses(${theme.id})">
-                            🔍 このトピックの全文章を見る (${theme.count}件)
-                        </button>
+                        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                            <button type="button" class="btn btn-sm" onclick="showAllThemeResponses(${theme.id})" title="このトピックの全回答一覧をモーダルで確認">
+                                🔍 全文章を見る (${theme.count}件)
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline" onclick="exportThemeCsv(${theme.id})" title="このトピック（${theme.count}件）の回答データをCSV形式でダウンロード（Focus Explorer連携等に便利です）">
+                                📥 このトピックのCSV
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2729,9 +2742,84 @@ window.showAllThemeResponses = function(themeId) {
 };
 
 /**
- * テーマ文章のCSV出力
+ * 全回答データにトピック判定（トピック番号・トピック名・適合度）を付与してCSVエクスポート
+ * （Focus Explorer連携やExcelでの活用用）
+ */
+function exportAllResponsesWithTopicsCsv() {
+    if (!AppState.analysisResult || !AppState.analysisResult.responsesWithTheme) {
+        alert('分析を実行してからエクスポートを行ってください');
+        return;
+    }
+
+    const { themes, responsesWithTheme } = AppState.analysisResult;
+    if (responsesWithTheme.length === 0) {
+        alert('出力対象の有効データがありません');
+        return;
+    }
+
+    const themeMap = new Map(themes.map((t, idx) => [t.id, { ...t, order: idx + 1 }]));
+
+    const escapeCsv = (val) => {
+        const str = (val === null || val === undefined) ? '' : String(val);
+        return `"${str.replace(/"/g, '""')}"`;
+    };
+
+    // 元のヘッダー列
+    const baseHeaders = (AppState.headers && AppState.headers.length > 0)
+        ? [...AppState.headers]
+        : ['ID', 'テキスト本文'];
+
+    // 付加するトピック判定列
+    const exportHeaders = [
+        ...baseHeaders,
+        '推定トピック番号',
+        '推定トピック名',
+        '主トピック適合度(%)'
+    ];
+
+    const csvData = [
+        exportHeaders.map(escapeCsv)
+    ];
+
+    // 元の順番（index順）で出力
+    const sortedResponses = [...responsesWithTheme].sort((a, b) => a.index - b.index);
+
+    sortedResponses.forEach((r) => {
+        const rowObj = r.row || {};
+        const themeInfo = themeMap.get(r.primaryThemeId);
+        const topicOrder = themeInfo ? themeInfo.order : (r.primaryThemeId + 1);
+        const topicLabel = themeInfo ? themeInfo.label : `トピック${topicOrder}`;
+        const confPercent = Math.round((r.confidence || 0) * 100);
+
+        const rowData = baseHeaders.map(h => {
+            if (h === AppState.textColumn) return r.text || '';
+            const val = rowObj[h];
+            return (val !== undefined && val !== null) ? String(val).trim() : '';
+        });
+
+        rowData.push(topicOrder);
+        rowData.push(`トピック${topicOrder}: ${topicLabel}`);
+        rowData.push(confPercent);
+
+        csvData.push(rowData.map(escapeCsv));
+    });
+
+    const csvContent = "\uFEFF" + csvData.map(e => e.join(",")).join("\r\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    const baseFileName = (AppState.loadedFileName || 'アンケートデータ').replace(/\.[^/.]+$/, "");
+    link.download = `${baseFileName}_トピック判定付き.csv`;
+    link.click();
+
+    showToast(`📥 トピック判定付き全データCSV（${sortedResponses.length}件）を出力しました`, 3500);
+}
+
+/**
+ * テーマ文章のCSV出力（Focus Explorer連携等に最適化）
  */
 window.exportThemeCsv = function(themeId) {
+    if (!AppState.analysisResult) return;
     const theme = AppState.analysisResult.themes.find(t => t.id === themeId);
     if (!theme) return;
 
@@ -2744,26 +2832,41 @@ window.exportThemeCsv = function(themeId) {
         return `"${str.replace(/"/g, '""')}"`;
     };
 
-    const hasAttr = !!(AppState.attributeColumn && AppState.headers.includes(AppState.attributeColumn));
-    const headerRow = ['No', 'ID', 'トピック名'];
-    if (hasAttr) headerRow.push(AppState.attributeColumn);
-    headerRow.push('適合度(%)', 'テキスト本文');
+    const topicOrder = AppState.analysisResult.themes.findIndex(t => t.id === themeId) + 1;
+
+    // 元のヘッダー列
+    const baseHeaders = (AppState.headers && AppState.headers.length > 0)
+        ? [...AppState.headers]
+        : ['ID', 'テキスト本文'];
+
+    const exportHeaders = [
+        '連番',
+        ...baseHeaders,
+        '推定トピック番号',
+        '推定トピック名',
+        '主トピック適合度(%)'
+    ];
 
     const csvData = [
-        headerRow.map(escapeCsv)
+        exportHeaders.map(escapeCsv)
     ];
 
     matchedResponses.forEach((r, idx) => {
+        const rowObj = r.row || {};
+        const confPercent = Math.round((r.confidence || 0) * 100);
+
         const rowData = [
             idx + 1,
-            r.id,
-            theme.label
+            ...baseHeaders.map(h => {
+                if (h === AppState.textColumn) return r.text || '';
+                const val = rowObj[h];
+                return (val !== undefined && val !== null) ? String(val).trim() : '';
+            }),
+            topicOrder,
+            `トピック${topicOrder}: ${theme.label}`,
+            confPercent
         ];
-        if (hasAttr) {
-            const rawAttr = r.row ? r.row[AppState.attributeColumn] : '';
-            rowData.push(rawAttr !== undefined && rawAttr !== null ? String(rawAttr).trim() : '');
-        }
-        rowData.push(Math.round(r.confidence * 100), r.text);
+
         csvData.push(rowData.map(escapeCsv));
     });
 
@@ -2772,8 +2875,10 @@ window.exportThemeCsv = function(themeId) {
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     const cleanFileName = theme.label.replace(/[【】\\/:*?"<>|]/g, '');
-    link.download = `トピック_${cleanFileName}_テキスト一覧.csv`;
+    link.download = `トピック${topicOrder}_${cleanFileName}_回答データ.csv`;
     link.click();
+
+    showToast(`📥 トピック${topicOrder}（${matchedResponses.length}件）のCSVを出力しました`, 3500);
 };
 
 /**
