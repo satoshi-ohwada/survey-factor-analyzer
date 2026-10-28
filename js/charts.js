@@ -1405,8 +1405,8 @@ const ChartRenderer = {
 
         // コンテナの寸法
         const rect = container.getBoundingClientRect();
-        const width = Math.max(300, rect.width || 480);
-        const height = Math.max(260, rect.height || 300);
+        const width = Math.max(200, Math.floor(rect.width || 340));
+        const height = Math.max(220, Math.floor(rect.height || 350));
 
         // HiDPI 対応
         const dpr = window.devicePixelRatio || 1;
@@ -1429,11 +1429,14 @@ const ChartRenderer = {
         // パレット生成
         const palette = this._generateCloudPalette(baseColor);
 
-        // 単語データの正規化
-        const words = keywords.slice(0, 32);
+        // 単語データの正規化（領域サイズに応じて単語数を最適化）
+        const words = keywords.slice(0, width < 320 ? 25 : 32);
         const maxWeight = Math.max(...words.map(w => w.weight || 0.001));
         const minWeight = Math.min(...words.map(w => w.weight || 0.001));
         const weightSpan = Math.max(1e-5, maxWeight - minWeight);
+
+        // コンテナ幅に応じた文字フォント倍率（幅360px基準で最適化）
+        const scale = Math.min(1.0, Math.max(0.72, width / 360));
 
         // 単語ボックスの衝突配置（アルキメデス螺旋探索）
         const placedBoxes = [];
@@ -1442,8 +1445,8 @@ const ChartRenderer = {
 
         words.forEach((item, idx) => {
             const relWeight = (item.weight - minWeight) / weightSpan;
-            // フォントサイズ: 13px 〜 38px
-            const fontSize = Math.round(13 + relWeight * 25);
+            // フォントサイズ: 幅に応じて 11px〜32px 程度にスケーリング
+            const fontSize = Math.round((11 + relWeight * 22) * scale);
             const fontWeight = relWeight > 0.6 ? '700' : (relWeight > 0.3 ? '600' : '500');
             ctx.font = `${fontWeight} ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans JP", sans-serif`;
 

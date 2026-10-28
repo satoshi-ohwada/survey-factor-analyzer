@@ -2104,31 +2104,35 @@ function renderThemeCards(themes) {
                     </div>
                 </div>
             </div>
-            <!-- 折りたたみ式 可視化パネル（最初は非表示） -->
+            <!-- 折りたたみ式 可視化パネル（ワードクラウド & 共起ネットワーク 左右並列表示） -->
             <div class="theme-viz-drawer" id="theme-viz-drawer-${theme.id}" style="display: none;">
-                <div class="theme-viz-panel-header">
-                    <div class="theme-viz-tabs">
-                        <button type="button" class="theme-viz-tab active" data-tab="cloud" data-theme-id="${theme.id}">
-                            ☁️ ワードクラウド
-                        </button>
-                        <button type="button" class="theme-viz-tab" data-tab="network" data-theme-id="${theme.id}">
-                            🕸️ 共起ネットワーク
-                        </button>
-                    </div>
-                    <div class="theme-viz-toolbar">
-                        <span class="theme-viz-hint" id="viz-hint-${theme.id}">※文字の大きさはトピック内での重要度を表します</span>
-                        <button type="button" class="btn btn-xs btn-outline btn-viz-save" data-theme-id="${theme.id}" title="表示中の図を画像(PNG)として保存">
-                            💾 PNG保存
-                        </button>
-                    </div>
-                </div>
                 <div class="theme-viz-body">
-                    <!-- ワードクラウド -->
-                    <div class="theme-viz-pane active" id="pane-cloud-${theme.id}">
+                    <!-- 左側：ワードクラウド（小さめの領域） -->
+                    <div class="theme-viz-pane viz-pane-cloud" id="pane-cloud-${theme.id}">
+                        <div class="viz-pane-header">
+                            <div class="viz-pane-title">
+                                <span class="viz-pane-icon">☁️</span>
+                                <strong>ワードクラウド</strong>
+                                <span class="viz-pane-hint">（文字サイズ＝重要度）</span>
+                            </div>
+                            <button type="button" class="btn btn-xs btn-outline btn-save-cloud" data-theme-id="${theme.id}" title="ワードクラウドをPNG画像で保存">
+                                💾 PNG保存
+                            </button>
+                        </div>
                         <div class="cloud-container" id="cloud-container-${theme.id}"></div>
                     </div>
-                    <!-- 共起ネットワーク -->
-                    <div class="theme-viz-pane" id="pane-network-${theme.id}" style="display: none;">
+                    <!-- 右側：共起ネットワーク（広めの領域） -->
+                    <div class="theme-viz-pane viz-pane-network" id="pane-network-${theme.id}">
+                        <div class="viz-pane-header">
+                            <div class="viz-pane-title">
+                                <span class="viz-pane-icon">🕸️</span>
+                                <strong>共起ネットワーク</strong>
+                                <span class="viz-pane-hint">（線＝共起 / 色＝コミュニティ）</span>
+                            </div>
+                            <button type="button" class="btn btn-xs btn-outline btn-save-network" data-theme-id="${theme.id}" title="共起ネットワークをPNG画像で保存">
+                                💾 PNG保存
+                            </button>
+                        </div>
                         <div class="network-plot-container" id="network-plot-${theme.id}"></div>
                     </div>
                 </div>
@@ -2198,41 +2202,35 @@ function renderThemeCards(themes) {
             });
         }
 
-        // ワードクラウド・共起ネットワークの開閉＆描画管理
+        // ワードクラウド・共起ネットワークの開閉＆描画管理（左右同時表示）
         const toggleVizBtn = card.querySelector(`#btn-toggle-viz-${theme.id}`);
         const vizDrawer = card.querySelector(`#theme-viz-drawer-${theme.id}`);
-        const tabCloud = card.querySelector(`.theme-viz-tab[data-tab="cloud"][data-theme-id="${theme.id}"]`);
-        const tabNetwork = card.querySelector(`.theme-viz-tab[data-tab="network"][data-theme-id="${theme.id}"]`);
-        const paneCloud = card.querySelector(`#pane-cloud-${theme.id}`);
-        const paneNetwork = card.querySelector(`#pane-network-${theme.id}`);
-        const vizHint = card.querySelector(`#viz-hint-${theme.id}`);
-        const btnVizSave = card.querySelector(`.btn-viz-save[data-theme-id="${theme.id}"]`);
+        const btnSaveCloud = card.querySelector(`.btn-save-cloud[data-theme-id="${theme.id}"]`);
+        const btnSaveNetwork = card.querySelector(`.btn-save-network[data-theme-id="${theme.id}"]`);
 
         let hasDrawnCloud = false;
         let hasDrawnNetwork = false;
-        let currentTab = 'cloud';
 
-        const drawActiveTab = () => {
-            if (currentTab === 'cloud') {
-                if (!hasDrawnCloud) {
-                    ChartRenderer.renderWordCloud(`cloud-container-${theme.id}`, theme.keywords, color);
-                    hasDrawnCloud = true;
-                }
-            } else if (currentTab === 'network') {
-                if (!hasDrawnNetwork) {
-                    ChartRenderer.renderCooccurrenceNetwork(
-                        `network-plot-${theme.id}`,
-                        theme,
-                        AppState.analysisResult ? AppState.analysisResult.responsesWithTheme : [],
-                        AppState.tfidfData ? AppState.tfidfData.docWordLists : [],
-                        color
-                    );
-                    hasDrawnNetwork = true;
-                } else {
-                    const plotEl = document.getElementById(`network-plot-${theme.id}`);
-                    if (plotEl && window.Plotly) {
-                        Plotly.Plots.resize(plotEl);
-                    }
+        const drawVisualizations = () => {
+            // ワードクラウドの描画
+            if (!hasDrawnCloud) {
+                ChartRenderer.renderWordCloud(`cloud-container-${theme.id}`, theme.keywords, color);
+                hasDrawnCloud = true;
+            }
+            // 共起ネットワークの描画
+            if (!hasDrawnNetwork) {
+                ChartRenderer.renderCooccurrenceNetwork(
+                    `network-plot-${theme.id}`,
+                    theme,
+                    AppState.analysisResult ? AppState.analysisResult.responsesWithTheme : [],
+                    AppState.tfidfData ? AppState.tfidfData.docWordLists : [],
+                    color
+                );
+                hasDrawnNetwork = true;
+            } else {
+                const plotEl = document.getElementById(`network-plot-${theme.id}`);
+                if (plotEl && window.Plotly) {
+                    Plotly.Plots.resize(plotEl);
                 }
             }
         };
@@ -2245,8 +2243,8 @@ function renderThemeCards(themes) {
                     toggleVizBtn.classList.add('active');
                     toggleVizBtn.innerHTML = '📊 ワードクラウド・共起ネットワーク ▲';
                     setTimeout(() => {
-                        drawActiveTab();
-                    }, 40);
+                        drawVisualizations();
+                    }, 50);
                 } else {
                     vizDrawer.style.display = 'none';
                     toggleVizBtn.classList.remove('active');
@@ -2255,53 +2253,32 @@ function renderThemeCards(themes) {
             });
         }
 
-        if (tabCloud && tabNetwork) {
-            tabCloud.addEventListener('click', () => {
-                if (currentTab === 'cloud') return;
-                currentTab = 'cloud';
-                tabCloud.classList.add('active');
-                tabNetwork.classList.remove('active');
-                paneCloud.style.display = 'block';
-                paneNetwork.style.display = 'none';
-                if (vizHint) vizHint.textContent = '※文字の大きさはトピック内での重要度を表します';
-                drawActiveTab();
-            });
+        const topicName = theme.label.replace(/^【|】$/g, '').trim() || `topic_${theme.id + 1}`;
 
-            tabNetwork.addEventListener('click', () => {
-                if (currentTab === 'network') return;
-                currentTab = 'network';
-                tabNetwork.classList.add('active');
-                tabCloud.classList.remove('active');
-                paneNetwork.style.display = 'block';
-                paneCloud.style.display = 'none';
-                if (vizHint) vizHint.textContent = '※色分けは単語同士の結びつき（コミュニティ）を表し、線は同じテキスト内での共起関係を表します';
-                setTimeout(() => {
-                    drawActiveTab();
-                }, 40);
+        // ワードクラウド PNG保存
+        if (btnSaveCloud) {
+            btnSaveCloud.addEventListener('click', () => {
+                const canvas = card.querySelector(`#cloud-container-${theme.id} canvas`);
+                if (canvas) {
+                    const link = document.createElement('a');
+                    link.download = `トピック${theme.id + 1}_${topicName}_ワードクラウド.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                }
             });
         }
 
-        if (btnVizSave) {
-            btnVizSave.addEventListener('click', () => {
-                const topicName = theme.label.replace(/^【|】$/g, '').trim() || `topic_${theme.id + 1}`;
-                if (currentTab === 'cloud') {
-                    const canvas = card.querySelector(`#cloud-container-${theme.id} canvas`);
-                    if (canvas) {
-                        const link = document.createElement('a');
-                        link.download = `トピック${theme.id + 1}_${topicName}_ワードクラウド.png`;
-                        link.href = canvas.toDataURL('image/png');
-                        link.click();
-                    }
-                } else if (currentTab === 'network') {
-                    const plotEl = document.getElementById(`network-plot-${theme.id}`);
-                    if (plotEl && window.Plotly) {
-                        Plotly.downloadImage(plotEl, {
-                            format: 'png',
-                            filename: `トピック${theme.id + 1}_${topicName}_共起ネットワーク`,
-                            width: 800,
-                            height: 500
-                        });
-                    }
+        // 共起ネットワーク PNG保存
+        if (btnSaveNetwork) {
+            btnSaveNetwork.addEventListener('click', () => {
+                const plotEl = document.getElementById(`network-plot-${theme.id}`);
+                if (plotEl && window.Plotly) {
+                    Plotly.downloadImage(plotEl, {
+                        format: 'png',
+                        filename: `トピック${theme.id + 1}_${topicName}_共起ネットワーク`,
+                        width: 900,
+                        height: 520
+                    });
                 }
             });
         }
