@@ -2607,15 +2607,43 @@ body {
     }
 
     .cloud-container {
-        height: 200px !important;
+        height: 185px !important;
         border: 1px solid #CBD5E1 !important;
         background: #F8FAFC !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
     }
 
     .network-plot-container {
-        height: 200px !important;
+        height: 185px !important;
         border: 1px solid #CBD5E1 !important;
         background: #FFFFFF !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+    }
+
+    .cloud-canvas,
+    .network-plot-container .print-rasterized-chart,
+    .theme-chart-col .print-rasterized-chart {
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
+        object-fit: contain !important;
+        display: block !important;
+        box-sizing: border-box !important;
+    }
+
+    .card-kw-tags {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 2px !important;
+        margin-top: 2px !important;
+    }
+
+    .kw-tag-badge {
+        font-size: 7pt !important;
+        padding: 1px 4px !important;
     }
 
     .viz-pane-header {
@@ -2824,7 +2852,20 @@ body.is-printing .theme-viz-body {
 
 body.is-printing .cloud-container,
 body.is-printing .network-plot-container {
-    height: 200px !important;
+    height: 185px !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+}
+
+body.is-printing .cloud-canvas,
+body.is-printing .print-rasterized-chart {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    object-fit: contain !important;
+    display: block !important;
+    box-sizing: border-box !important;
 }
 
 body.is-printing .btn-save-cloud,

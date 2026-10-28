@@ -776,7 +776,7 @@ const ChartRenderer = {
             doubleClick: false
         };
 
-        Plotly.react(containerId, data, layout, config).then(() => {
+        return Plotly.react(containerId, data, layout, config).then(() => {
             Plotly.Plots.resize(el);
         }).catch(() => {});
     },
@@ -839,7 +839,7 @@ const ChartRenderer = {
             doubleClick: false
         };
 
-        Plotly.react(containerId, data, layout, config).then(() => {
+        return Plotly.react(containerId, data, layout, config).then(() => {
             Plotly.Plots.resize(el);
         }).catch(() => {});
     },
@@ -1405,8 +1405,10 @@ const ChartRenderer = {
 
         // コンテナの寸法
         const rect = container.getBoundingClientRect();
-        const width = Math.max(200, Math.floor(rect.width || 340));
-        const height = Math.max(160, Math.floor(rect.height || 350));
+        const fallbackW = container.parentElement ? Math.round(container.parentElement.clientWidth * 0.35) : 340;
+        const isPrinting = document.body.classList.contains('is-printing');
+        const width = Math.max(200, Math.floor(rect.width || fallbackW || 340));
+        const height = Math.max(150, Math.floor(rect.height || (isPrinting ? 185 : 350)));
 
         // HiDPI 対応
         const dpr = window.devicePixelRatio || 1;
@@ -1414,6 +1416,9 @@ const ChartRenderer = {
         canvas.height = height * dpr;
         canvas.style.width = `${width}px`;
         canvas.style.height = `${height}px`;
+        canvas.style.maxWidth = '100%';
+        canvas.style.maxHeight = '100%';
+        canvas.style.objectFit = 'contain';
 
         const ctx = canvas.getContext('2d');
         ctx.scale(dpr, dpr);
@@ -1602,13 +1607,13 @@ const ChartRenderer = {
      */
     renderCooccurrenceNetwork(plotId, theme, responsesWithTheme, docWordLists, baseColor = '#2563EB') {
         const container = document.getElementById(plotId);
-        if (!container) return;
+        if (!container) return Promise.resolve(null);
 
         // 1. 対象単語の選定（上位16語）
         const candidateWords = (theme.keywords || []).slice(0, 16);
         if (candidateWords.length < 2) {
             container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#94A3B8;font-size:13px;">共起を計算するための単語が不足しています</div>';
-            return;
+            return Promise.resolve(null);
         }
 
         const wordSet = new Set(candidateWords.map(w => w.word));
@@ -1932,7 +1937,7 @@ const ChartRenderer = {
             modeBarButtonsToRemove: ['select2d', 'lasso2d', 'hoverClosestCartesian', 'hoverCompareCartesian']
         };
 
-        Plotly.newPlot(plotId, traces, layout, config);
+        return Plotly.newPlot(plotId, traces, layout, config);
     },
 
     /**

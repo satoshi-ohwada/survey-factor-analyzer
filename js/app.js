@@ -234,12 +234,12 @@ function setupEventListeners() {
     }
 
     // 印刷前後のPlotlyグラフ自動リサイズ・カード展開
-    window.addEventListener('beforeprint', () => {
+    window.addEventListener('beforeprint', async () => {
         if (!document.body.classList.contains('is-printing')) {
             document.body.classList.add('is-printing');
             updatePrintMetaInfo();
             if (!window._printOriginalCardStates) {
-                window._printOriginalCardStates = prepareCardsForPrint();
+                window._printOriginalCardStates = await prepareCardsForPrint();
             }
             document.querySelectorAll('.js-plotly-plot').forEach(el => {
                 try { Plotly.Plots.resize(el); } catch (e) {}
@@ -2536,18 +2536,28 @@ async function rasterizeChartsForPrint() {
     const restoreTasks = [];
 
     const tasks = plots.map(async (plotEl) => {
-        // 表示されていないグラフはスキップ
-        if (plotEl.offsetParent === null && !plotEl.closest('.print-only-block') && !plotEl.closest('#attributeAnalysisSection')) {
+        // 表示されていないグラフはスキップ（テーマカード内・可視化ドロワー内・印刷用ブロックは必ず実行）
+        const isInVizDrawer = !!plotEl.closest('.theme-viz-drawer');
+        const isInThemeCard = !!plotEl.closest('.theme-card');
+        const isInAttrSection = !!plotEl.closest('#attributeAnalysisSection');
+        const isInPrintBlock = !!plotEl.closest('.print-only-block');
+
+        if (plotEl.offsetParent === null && !isInVizDrawer && !isInThemeCard && !isInAttrSection && !isInPrintBlock) {
             return;
         }
 
+        const isNetworkPlot = isInVizDrawer || plotEl.classList.contains('network-plot-container') || !!plotEl.closest('.network-plot-container');
         const isSubPlot = plotEl.classList.contains('attr-sub-plot');
-        const defaultW = isSubPlot ? 320 : 600;
-        const defaultH = isSubPlot ? 145 : 350;
+        const defaultW = isSubPlot ? 320 : (isNetworkPlot ? 420 : 600);
+        const defaultH = isSubPlot ? 145 : (isNetworkPlot ? 185 : 350);
 
         const rect = plotEl.getBoundingClientRect();
-        const width = plotEl.clientWidth || Math.round(rect.width) || defaultW;
-        const height = isSubPlot ? (plotEl.clientHeight || 145) : (plotEl.clientHeight || Math.round(rect.height) || defaultH);
+        let width = plotEl.clientWidth || Math.round(rect.width) || defaultW;
+        let height = plotEl.clientHeight || Math.round(rect.height) || defaultH;
+
+        if (isNetworkPlot) {
+            height = 185;
+        }
 
         if (width <= 0 || height <= 0) return;
 
@@ -2562,6 +2572,12 @@ async function rasterizeChartsForPrint() {
             const img = document.createElement('img');
             img.src = dataUrl;
             img.className = 'print-rasterized-chart';
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.maxWidth = '100%';
+            img.style.maxHeight = '100%';
+            img.style.objectFit = 'contain';
+            img.style.display = 'block';
 
             const originalChildren = Array.from(plotEl.children);
             originalChildren.forEach(child => {
@@ -2592,11 +2608,12 @@ async function rasterizeChartsForPrint() {
 
 /**
  * 印刷用に全テーマカードを上位12語へ拡張し、ワードクラウド＆共起ネットワークを展開・描画する
- * @returns {Array<object>} 印刷前の元のカード状態リスト
+ * @returns {Promise<Array<object>>} 印刷前の元のカード状態リスト
  */
-function prepareCardsForPrint() {
+async function prepareCardsForPrint() {
     const themes = (AppState.analysisResult && AppState.analysisResult.themes) ? AppState.analysisResult.themes : [];
     const savedStates = [];
+    const renderTasks = [];
 
     themes.forEach((theme) => {
         const card = document.getElementById(`theme-card-${theme.id}`);
@@ -2617,7 +2634,9 @@ function prepareCardsForPrint() {
         const color = FACTOR_COLORS[theme.id % FACTOR_COLORS.length];
 
         // 1. 上位語を12語へ拡張して棒グラフ＆タグを描画
-        ChartRenderer.renderKeywordBarChart(`chart-kw-${theme.id}`, theme.keywords, color, 12);
+        renderTasks.push(
+            Promise.resolve(ChartRenderer.renderKeywordBarChart(`chart-kw-${theme.id}`, theme.keywords, color, 12))
+        );
         if (tagsContainer) {
             tagsContainer.innerHTML = renderKwTagsHtml(theme.keywords, 12);
         }
@@ -2626,21 +2645,40 @@ function prepareCardsForPrint() {
             expandBtn.textContent = '− 6語に戻す';
         }
 
-        // 2. ワードクラウド ＆ 共起ネットワーク ドロワーを展開・描画
+        // 2. まずドロワーを表示してDOMを展開
         if (vizDrawer) {
             vizDrawer.style.display = 'block';
-            // ワードクラウド描画
-            ChartRenderer.renderWordCloud(`cloud-container-${theme.id}`, theme.keywords, color);
-            // 共起ネットワーク描画
-            ChartRenderer.renderCooccurrenceNetwork(
-                `network-plot-${theme.id}`,
-                theme,
-                AppState.analysisResult ? AppState.analysisResult.responsesWithTheme : [],
-                AppState.tfidfData ? AppState.tfidfData.docWordLists : [],
-                color
-            );
         }
     });
+
+    // ドロワー展開後のDOMリフロー（寸法計算）を確実に待機
+    await new Promise(resolve => setTimeout(resolve, 80));
+
+    // 各カードのワードクラウドと共起ネットワークを描画
+    themes.forEach((theme) => {
+        const card = document.getElementById(`theme-card-${theme.id}`);
+        if (!card) return;
+        const color = FACTOR_COLORS[theme.id % FACTOR_COLORS.length];
+
+        // ワードクラウド描画（寸法確定後）
+        ChartRenderer.renderWordCloud(`cloud-container-${theme.id}`, theme.keywords, color);
+
+        // 共起ネットワーク描画（非同期Promiseをタスクに登録）
+        renderTasks.push(
+            Promise.resolve(
+                ChartRenderer.renderCooccurrenceNetwork(
+                    `network-plot-${theme.id}`,
+                    theme,
+                    AppState.analysisResult ? AppState.analysisResult.responsesWithTheme : [],
+                    AppState.tfidfData ? AppState.tfidfData.docWordLists : [],
+                    color
+                )
+            )
+        );
+    });
+
+    // すべてのPlotlyグラフの初期描画完了を待機
+    await Promise.all(renderTasks);
 
     return savedStates;
 }
@@ -2736,7 +2774,7 @@ async function printA4Report() {
     try {
         // 全テーマカードを上位12語に拡張し、ワードクラウド＆共起ネットワークを描画
         if (!window._printOriginalCardStates) {
-            window._printOriginalCardStates = prepareCardsForPrint();
+            window._printOriginalCardStates = await prepareCardsForPrint();
         }
 
         await new Promise(resolve => setTimeout(resolve, 100));
