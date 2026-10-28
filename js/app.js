@@ -233,13 +233,18 @@ function setupEventListeners() {
         });
     }
 
-    // 印刷前後のPlotlyグラフ自動リサイズ
+    // 印刷前後のPlotlyグラフ自動リサイズ・カード展開
     window.addEventListener('beforeprint', () => {
-        document.body.classList.add('is-printing');
-        updatePrintMetaInfo();
-        document.querySelectorAll('.js-plotly-plot').forEach(el => {
-            try { Plotly.Plots.resize(el); } catch (e) {}
-        });
+        if (!document.body.classList.contains('is-printing')) {
+            document.body.classList.add('is-printing');
+            updatePrintMetaInfo();
+            if (!window._printOriginalCardStates) {
+                window._printOriginalCardStates = prepareCardsForPrint();
+            }
+            document.querySelectorAll('.js-plotly-plot').forEach(el => {
+                try { Plotly.Plots.resize(el); } catch (e) {}
+            });
+        }
     });
 
     window.addEventListener('afterprint', () => {
@@ -2586,6 +2591,109 @@ async function rasterizeChartsForPrint() {
 }
 
 /**
+ * 印刷用に全テーマカードを上位12語へ拡張し、ワードクラウド＆共起ネットワークを展開・描画する
+ * @returns {Array<object>} 印刷前の元のカード状態リスト
+ */
+function prepareCardsForPrint() {
+    const themes = (AppState.analysisResult && AppState.analysisResult.themes) ? AppState.analysisResult.themes : [];
+    const savedStates = [];
+
+    themes.forEach((theme) => {
+        const card = document.getElementById(`theme-card-${theme.id}`);
+        if (!card) return;
+
+        const expandBtn = card.querySelector(`#btn-kw-expand-${theme.id}`);
+        const vizDrawer = card.querySelector(`#theme-viz-drawer-${theme.id}`);
+        const tagsContainer = card.querySelector(`#kw-tags-${theme.id}`);
+        const isExpanded = expandBtn ? (expandBtn.getAttribute('data-expanded') === 'true') : false;
+        const isVizOpen = vizDrawer ? (vizDrawer.style.display !== 'none') : false;
+
+        savedStates.push({
+            themeId: theme.id,
+            isExpanded,
+            isVizOpen
+        });
+
+        const color = FACTOR_COLORS[theme.id % FACTOR_COLORS.length];
+
+        // 1. 上位語を12語へ拡張して棒グラフ＆タグを描画
+        ChartRenderer.renderKeywordBarChart(`chart-kw-${theme.id}`, theme.keywords, color, 12);
+        if (tagsContainer) {
+            tagsContainer.innerHTML = renderKwTagsHtml(theme.keywords, 12);
+        }
+        if (expandBtn) {
+            expandBtn.setAttribute('data-expanded', 'true');
+            expandBtn.textContent = '− 6語に戻す';
+        }
+
+        // 2. ワードクラウド ＆ 共起ネットワーク ドロワーを展開・描画
+        if (vizDrawer) {
+            vizDrawer.style.display = 'block';
+            // ワードクラウド描画
+            ChartRenderer.renderWordCloud(`cloud-container-${theme.id}`, theme.keywords, color);
+            // 共起ネットワーク描画
+            ChartRenderer.renderCooccurrenceNetwork(
+                `network-plot-${theme.id}`,
+                theme,
+                AppState.analysisResult ? AppState.analysisResult.responsesWithTheme : [],
+                AppState.tfidfData ? AppState.tfidfData.docWordLists : [],
+                color
+            );
+        }
+    });
+
+    return savedStates;
+}
+
+/**
+ * 印刷完了後にテーマカードを元の状態（6語/12語、開閉状態）へ復元する
+ * @param {Array<object>} savedStates 
+ */
+function restoreCardsAfterPrint(savedStates) {
+    if (!savedStates || savedStates.length === 0) return;
+    const themes = (AppState.analysisResult && AppState.analysisResult.themes) ? AppState.analysisResult.themes : [];
+
+    savedStates.forEach(state => {
+        const theme = themes.find(t => t.id === state.themeId);
+        if (!theme) return;
+        const card = document.getElementById(`theme-card-${theme.id}`);
+        if (!card) return;
+
+        const color = FACTOR_COLORS[theme.id % FACTOR_COLORS.length];
+        const expandBtn = card.querySelector(`#btn-kw-expand-${theme.id}`);
+        const vizDrawer = card.querySelector(`#theme-viz-drawer-${theme.id}`);
+        const tagsContainer = card.querySelector(`#kw-tags-${theme.id}`);
+
+        // 元が6語だったカードは6語に戻す
+        if (!state.isExpanded) {
+            ChartRenderer.renderKeywordBarChart(`chart-kw-${theme.id}`, theme.keywords, color, 6);
+            if (tagsContainer) {
+                tagsContainer.innerHTML = renderKwTagsHtml(theme.keywords, 6);
+                attachKwExcludeHandlers(tagsContainer);
+            }
+            if (expandBtn) {
+                expandBtn.setAttribute('data-expanded', 'false');
+                expandBtn.textContent = '＋ さらに表示 (12語)';
+            }
+        } else {
+            if (tagsContainer) {
+                attachKwExcludeHandlers(tagsContainer);
+            }
+        }
+
+        // 元々閉じていたドロワーは非表示に戻す
+        if (!state.isVizOpen && vizDrawer) {
+            vizDrawer.style.display = 'none';
+            const toggleVizBtn = card.querySelector(`#btn-toggle-viz-${theme.id}`);
+            if (toggleVizBtn) {
+                toggleVizBtn.classList.remove('active');
+                toggleVizBtn.innerHTML = '📊 ワードクラウド・共起ネットワーク ▼';
+            }
+        }
+    });
+}
+
+/**
  * 印刷状態のクリーンアップ・元のインタラクティブ表示へ復元
  */
 function cleanupPrintState() {
@@ -2594,6 +2702,13 @@ function cleanupPrintState() {
         currentPrintRestoreFn = null;
     }
     document.body.classList.remove('is-printing');
+
+    // テーマカードを印刷前の元の表示状態へ復元
+    if (window._printOriginalCardStates) {
+        restoreCardsAfterPrint(window._printOriginalCardStates);
+        window._printOriginalCardStates = null;
+    }
+
     document.querySelectorAll('.js-plotly-plot').forEach(el => {
         try { Plotly.Plots.resize(el); } catch (e) {}
     });
@@ -2616,16 +2731,21 @@ async function printA4Report() {
     updatePrintMetaInfo();
     document.body.classList.add('is-printing');
 
-    showLoading('印刷用レポートを軽量化処理中 (グラフの高速ラスタライズ)...');
+    showLoading('印刷用レポートを準備中 (上位12語・ワードクラウド展開 ＆ グラフ高速ラスタライズ)...');
 
     try {
-        await new Promise(resolve => setTimeout(resolve, 80));
+        // 全テーマカードを上位12語に拡張し、ワードクラウド＆共起ネットワークを描画
+        if (!window._printOriginalCardStates) {
+            window._printOriginalCardStates = prepareCardsForPrint();
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 100));
 
         document.querySelectorAll('.js-plotly-plot').forEach(el => {
             try { Plotly.Plots.resize(el); } catch (e) {}
         });
 
-        await new Promise(resolve => setTimeout(resolve, 60));
+        await new Promise(resolve => setTimeout(resolve, 80));
 
         // SVGベクターを軽量高精細画像（PNG）に一括変換
         currentPrintRestoreFn = await rasterizeChartsForPrint();

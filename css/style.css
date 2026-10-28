@@ -2445,7 +2445,9 @@ body {
     .loading-overlay,
     .modal-overlay,
     .theme-card-footer,
-    .theme-viz-drawer,
+    .card-kw-more-bar,
+    .btn-save-cloud,
+    .btn-save-network,
     .btn,
     select,
     .summary-bar,
@@ -2585,6 +2587,48 @@ body {
     .themes-section-title {
         font-size: 12pt !important;
         margin-bottom: 6px !important;
+    }
+
+    /* 印刷時のワードクラウド ＆ 共起ネットワーク ドロワー表示 */
+    .theme-viz-drawer {
+        display: block !important;
+        margin-top: 8px !important;
+        padding-top: 6px !important;
+        border-top: 1px dashed #CBD5E1 !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+
+    .theme-viz-body {
+        display: grid !important;
+        grid-template-columns: 3.5fr 6.5fr !important;
+        gap: 10px !important;
+        width: 100% !important;
+    }
+
+    .cloud-container {
+        height: 200px !important;
+        border: 1px solid #CBD5E1 !important;
+        background: #F8FAFC !important;
+    }
+
+    .network-plot-container {
+        height: 200px !important;
+        border: 1px solid #CBD5E1 !important;
+        background: #FFFFFF !important;
+    }
+
+    .viz-pane-header {
+        margin-bottom: 3px !important;
+        padding: 0 !important;
+    }
+
+    .viz-pane-title {
+        font-size: 8pt !important;
+    }
+
+    .viz-pane-hint {
+        font-size: 7pt !important;
     }
 
     /* 属性別分析セクション（印刷時） */
@@ -2764,6 +2808,28 @@ body.is-printing .attr-sub-plot .svg-container {
 body.is-printing .attr-sub-plot svg.main-svg {
     width: 100% !important;
     max-width: 100% !important;
+}
+
+body.is-printing .theme-viz-drawer {
+    display: block !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+}
+
+body.is-printing .theme-viz-body {
+    display: grid !important;
+    grid-template-columns: 3.5fr 6.5fr !important;
+    gap: 10px !important;
+}
+
+body.is-printing .cloud-container,
+body.is-printing .network-plot-container {
+    height: 200px !important;
+}
+
+body.is-printing .btn-save-cloud,
+body.is-printing .btn-save-network {
+    display: none !important;
 }
 
 /* ========================================================

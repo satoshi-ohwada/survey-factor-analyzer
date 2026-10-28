@@ -1406,7 +1406,7 @@ const ChartRenderer = {
         // コンテナの寸法
         const rect = container.getBoundingClientRect();
         const width = Math.max(200, Math.floor(rect.width || 340));
-        const height = Math.max(220, Math.floor(rect.height || 350));
+        const height = Math.max(160, Math.floor(rect.height || 350));
 
         // HiDPI 対応
         const dpr = window.devicePixelRatio || 1;
@@ -1430,13 +1430,13 @@ const ChartRenderer = {
         const palette = this._generateCloudPalette(baseColor);
 
         // 単語データの正規化（領域サイズに応じて単語数を最適化）
-        const words = keywords.slice(0, width < 320 ? 25 : 32);
+        const words = keywords.slice(0, (width < 320 || height < 220) ? 24 : 32);
         const maxWeight = Math.max(...words.map(w => w.weight || 0.001));
         const minWeight = Math.min(...words.map(w => w.weight || 0.001));
         const weightSpan = Math.max(1e-5, maxWeight - minWeight);
 
-        // コンテナ幅に応じた文字フォント倍率（幅360px基準で最適化）
-        const scale = Math.min(1.0, Math.max(0.72, width / 360));
+        // コンテナ寸法に応じた文字フォント倍率（幅360px・高さ300px基準で最適化）
+        const scale = Math.min(1.0, Math.max(0.65, Math.min(width / 360, height / 280)));
 
         // 単語ボックスの衝突配置（アルキメデス螺旋探索）
         const placedBoxes = [];
@@ -1882,25 +1882,45 @@ const ChartRenderer = {
             });
         });
 
+        const allY = nodes.map(n => n.y);
+        const minY = Math.min(...allY, -10);
+        const maxY = Math.max(...allY, 10);
+        const ySpan = Math.max(20, maxY - minY);
+
+        const allX = nodes.map(n => n.x);
+        const minX = Math.min(...allX, -10);
+        const maxX = Math.max(...allX, 10);
+        const xSpan = Math.max(20, maxX - minX);
+
         const layout = {
             showlegend: true,
             legend: {
                 orientation: 'h',
                 x: 0,
-                y: 1.15,
+                y: -0.05,
                 xanchor: 'left',
-                yanchor: 'bottom',
-                font: { size: 10.5, color: '#475569' }
+                yanchor: 'top',
+                font: { size: 10, color: '#475569' }
             },
-            margin: { l: 20, r: 20, t: 40, b: 20 },
+            margin: { l: 25, r: 25, t: 25, b: 55 },
             hovermode: 'closest',
             hoverlabel: {
                 bgcolor: 'rgba(15, 23, 42, 0.92)',
                 bordercolor: baseColor,
                 font: { color: '#ffffff', size: 11 }
             },
-            xaxis: { showgrid: false, zeroline: false, showticklabels: false },
-            yaxis: { showgrid: false, zeroline: false, showticklabels: false },
+            xaxis: {
+                showgrid: false,
+                zeroline: false,
+                showticklabels: false,
+                range: [minX - xSpan * 0.12, maxX + xSpan * 0.12]
+            },
+            yaxis: {
+                showgrid: false,
+                zeroline: false,
+                showticklabels: false,
+                range: [minY - ySpan * 0.08, maxY + ySpan * 0.18] // 上部テキストラベル用の余白を確保
+            },
             paper_bgcolor: '#FFFFFF',
             plot_bgcolor: '#FFFFFF'
         };
