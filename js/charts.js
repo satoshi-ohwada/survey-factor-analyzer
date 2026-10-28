@@ -1885,8 +1885,8 @@ const ChartRenderer = {
             cNodes.sort((a, b) => b.weight - a.weight);
             const repWords = cNodes.slice(0, 2).map(n => n.word).join('・');
             const groupName = isSingletons
-                ? `その他・単独語 (${cNodes.length}語)`
-                : `コミュニティ${cIdx + 1}: ${repWords} (${cNodes.length}語)`;
+                ? 'その他'
+                : `群${cIdx + 1}: ${repWords}`;
 
             traces.push({
                 x: cNodes.map(n => n.x),
@@ -1913,7 +1913,7 @@ const ChartRenderer = {
                 hoverinfo: 'text',
                 hovertext: cNodes.map(n =>
                     `<b>${n.word}</b><br>` +
-                    `所属: ${isSingletons ? 'その他・単独語' : `コミュニティ${cIdx + 1}（${repWords}）`}<br>` +
+                    `所属: ${isSingletons ? 'その他・単独語' : `群${cIdx + 1}（${repWords}）`}<br>` +
                     `トピック関連度: ${n.weight.toFixed(3)}<br>` +
                     `出現回数: ${n.docCount}回`
                 ),
@@ -1935,13 +1935,15 @@ const ChartRenderer = {
             showlegend: true,
             legend: {
                 orientation: 'h',
-                x: 0,
-                y: -0.06,
-                xanchor: 'left',
+                x: 0.5,
+                y: -0.03,
+                xanchor: 'center',
                 yanchor: 'top',
-                font: { size: 9.5, color: '#475569' }
+                font: { size: 8.5, color: '#475569' },
+                itemwidth: 30,
+                traceorder: 'normal'
             },
-            margin: { l: 20, r: 20, t: 20, b: 50 },
+            margin: { l: 12, r: 12, t: 14, b: 24 },
             hovermode: 'closest',
             hoverlabel: {
                 bgcolor: 'rgba(15, 23, 42, 0.92)',
@@ -1952,7 +1954,7 @@ const ChartRenderer = {
                 showgrid: false,
                 zeroline: false,
                 showticklabels: false,
-                range: [minX - xSpan * 0.18, maxX + xSpan * 0.18]
+                range: [minX - xSpan * 0.14, maxX + xSpan * 0.14]
             },
             yaxis: {
                 showgrid: false,
@@ -1960,7 +1962,7 @@ const ChartRenderer = {
                 showticklabels: false,
                 scaleanchor: 'x',     // アスペクト比を1:1に固定（縦横の歪み・潰れを防止）
                 scaleratio: 1,
-                range: [minY - ySpan * 0.15, maxY + ySpan * 0.22] // 上部テキストラベル用の余白を確保
+                range: [minY - ySpan * 0.11, maxY + ySpan * 0.17] // 上部テキストラベル用の余白を確保
             },
             paper_bgcolor: '#FFFFFF',
             plot_bgcolor: '#FFFFFF'
