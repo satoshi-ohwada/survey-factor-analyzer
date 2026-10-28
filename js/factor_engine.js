@@ -206,6 +206,7 @@ const FactorEngine = {
             themes.push({
                 id: k,
                 label: `【${titleKeywords.join('・')}】`,
+                defaultLabel: `【${titleKeywords.join('・')}】`,
                 keywords: topWords,
                 allKeywords: wordWeights,
                 count: 0,

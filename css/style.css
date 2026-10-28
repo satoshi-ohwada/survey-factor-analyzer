@@ -1523,6 +1523,180 @@ body {
     text-decoration: underline;
 }
 
+/* トピック名インライン編集 */
+.theme-title-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.btn-rename-topic,
+.btn-reset-topic-name {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: #F1F5F9;
+    border: 1px solid #CBD5E1;
+    color: #475569;
+    cursor: pointer;
+    line-height: 1.3;
+    transition: all 0.15s ease;
+}
+
+.btn-rename-topic:hover {
+    background: #E2E8F0;
+    color: #1E293B;
+    border-color: #94A3B8;
+}
+
+.btn-reset-topic-name:hover {
+    background: #FEE2E2;
+    color: #991B1B;
+    border-color: #FCA5A5;
+}
+
+.theme-rename-form {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.theme-rename-input {
+    font-size: 13.5px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border: 2px solid #2563EB;
+    border-radius: 4px;
+    color: #0F172A;
+    background: #FFFFFF;
+    outline: none;
+    min-width: 170px;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.btn-rename-save {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: #2563EB;
+    color: #FFFFFF;
+    border: none;
+    cursor: pointer;
+}
+
+.btn-rename-save:hover {
+    background: #1D4ED8;
+}
+
+.btn-rename-cancel {
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: #E2E8F0;
+    color: #475569;
+    border: none;
+    cursor: pointer;
+}
+
+.btn-rename-cancel:hover {
+    background: #CBD5E1;
+}
+
+/* 属性別特徴トピック・ハイライトサマリー（図4内） */
+.cross-tab-insights-container {
+    margin-top: 10px;
+    padding: 10px 14px;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    box-sizing: border-box;
+}
+
+.cross-tab-insights-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px dashed #CBD5E1;
+}
+
+.insights-title {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #1E293B;
+}
+
+.insights-desc {
+    font-size: 11px;
+    color: #64748B;
+}
+
+.cross-tab-insights-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 8px;
+}
+
+.insight-badge-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 10px;
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-left: 4px solid #2563EB;
+    border-radius: 5px;
+    font-size: 12px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+
+.insight-badge-card.is-neutral {
+    border-left: 4px solid #CBD5E1;
+    background: #FAFAFA;
+}
+
+.insight-attr-name {
+    font-weight: 700;
+    color: #1E293B;
+    min-width: 50px;
+    max-width: 90px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.insight-topic-pill {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 130px;
+}
+
+.insight-diff-tag {
+    font-size: 11px;
+    color: #475569;
+    white-space: nowrap;
+}
+
+.insight-neutral-text {
+    font-size: 11px;
+    color: #94A3B8;
+}
+
 .theme-share-badge {
     font-size: 12px;
     font-weight: 700;
@@ -2536,6 +2710,9 @@ body {
     .map-hover-detail-panel,
     .stepper,
     .btn-toggle-group,
+    .btn-rename-topic,
+    .btn-reset-topic-name,
+    .theme-rename-form,
     .toast-notification {
         display: none !important;
     }
@@ -2566,6 +2743,55 @@ body {
 
     .chart-card {
         min-height: auto !important;
+    }
+
+    .cross-tab-insights-container {
+        margin-top: 6px !important;
+        padding: 6px 10px !important;
+        background: #F8FAFC !important;
+        border: 1px solid #CBD5E1 !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+
+    .cross-tab-insights-header {
+        margin-bottom: 4px !important;
+        padding-bottom: 4px !important;
+    }
+
+    .insights-title {
+        font-size: 8.5pt !important;
+    }
+
+    .insights-desc {
+        font-size: 7.5pt !important;
+    }
+
+    .cross-tab-insights-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 4px !important;
+    }
+
+    .insight-badge-card {
+        padding: 3px 6px !important;
+        font-size: 7.5pt !important;
+        box-shadow: none !important;
+    }
+
+    .insight-attr-name {
+        font-size: 7.5pt !important;
+        max-width: 80px !important;
+    }
+
+    .insight-topic-pill {
+        font-size: 7.5pt !important;
+        padding: 0 4px !important;
+        max-width: 110px !important;
+    }
+
+    .insight-diff-tag {
+        font-size: 7pt !important;
     }
 
     /* 属性別分析ページの印刷時改ページ設定（空要素を介さず確実に1回改ページ） */

@@ -6,7 +6,7 @@
     <title>テキスト・自由記述 潜在トピック探索ツール</title>
     <link rel="icon" type="image/png" href="icon.png?v=20261028_1530">
     <link rel="apple-touch-icon" href="icon.png?v=20261028_1530">
-    <link rel="stylesheet" href="css/style.css?v=20261028_1325">
+    <link rel="stylesheet" href="css/style.css?v=20261028_1545">
     <!-- 外部・自前ライブラリ群 -->
     <script src="lib/xlsx.full.min.js"></script>
     <script src="lib/papaparse.min.js"></script>
@@ -583,6 +583,8 @@
                     <!-- 図4: 属性別クロス集計（画面およびレポートで表示） -->
                     <div id="crossTabCard" class="chart-card">
                         <div id="chartCrossTab"></div>
+                        <!-- 属性別特徴トピック・ハイライトサマリー -->
+                        <div id="crossTabHighlights" class="cross-tab-insights-container" style="display: none;"></div>
                     </div>
                 </div>
 
@@ -783,12 +785,12 @@
     </div>
 
     <!-- アプリケーションロジック -->
-    <script src="js/demo_data.js?v=20261028_1325"></script>
-    <script src="js/csv_parser.js?v=20261028_1325"></script>
-    <script src="js/stopwords_default.js?v=20261028_1325"></script>
-    <script src="js/text_preprocessor.js?v=20261028_1325"></script>
-    <script src="js/factor_engine.js?v=20261028_1325"></script>
-    <script src="js/charts.js?v=20261028_1325"></script>
-    <script src="js/app.js?v=20261028_1325"></script>
+    <script src="js/demo_data.js?v=20261028_1545"></script>
+    <script src="js/csv_parser.js?v=20261028_1545"></script>
+    <script src="js/stopwords_default.js?v=20261028_1545"></script>
+    <script src="js/text_preprocessor.js?v=20261028_1545"></script>
+    <script src="js/factor_engine.js?v=20261028_1545"></script>
+    <script src="js/charts.js?v=20261028_1545"></script>
+    <script src="js/app.js?v=20261028_1545"></script>
 </body>
 </html>

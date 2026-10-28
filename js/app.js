@@ -1817,13 +1817,10 @@ function renderResults(validResponses, junkCount, result, tfidfData, analyzedRow
     const hasValidAttrCol = !!(AppState.attributeColumn && AppState.headers.includes(AppState.attributeColumn));
     if (hasValidAttrCol) {
         if (attrSection) attrSection.style.display = 'block';
-        ChartRenderer.renderCrossTabChart('chartCrossTab', result.responsesWithTheme, result.themes, AppState.attributeColumn, (themeIndex) => {
-            scrollToThemeCard(themeIndex);
-        });
+        updateCrossTabSection(result.themes, result.responsesWithTheme, AppState.attributeColumn);
     } else {
         if (attrSection) attrSection.style.display = 'none';
-        const crossTabEl = document.getElementById('chartCrossTab');
-        if (crossTabEl) crossTabEl.innerHTML = '';
+        updateCrossTabSection([], [], null);
         const multiplesEl = document.getElementById('chartAttrMultiples');
         if (multiplesEl) multiplesEl.innerHTML = '';
     }
@@ -2000,6 +1997,190 @@ function setupAttrFilterSelector() {
 }
 
 /**
+ * 属性別クロス集計チャート（図4）および特徴トピックハイライトサマリーを更新
+ * @param {any[]} themes 
+ * @param {any[]} responsesWithTheme 
+ * @param {string|null} attributeCol 
+ */
+function updateCrossTabSection(themes, responsesWithTheme, attributeCol) {
+    const crossTabEl = document.getElementById('chartCrossTab');
+    const highlightsEl = document.getElementById('crossTabHighlights');
+    const hasValidAttrCol = !!(attributeCol && AppState.headers.includes(attributeCol));
+
+    if (!hasValidAttrCol || !responsesWithTheme || responsesWithTheme.length === 0 || !themes || themes.length === 0) {
+        if (crossTabEl) crossTabEl.innerHTML = '';
+        if (highlightsEl) {
+            highlightsEl.innerHTML = '';
+            highlightsEl.style.display = 'none';
+        }
+        return;
+    }
+
+    // 1. Plotlyクロス集計チャートの描画
+    ChartRenderer.renderCrossTabChart('chartCrossTab', responsesWithTheme, themes, attributeCol, (themeIndex) => {
+        scrollToThemeCard(themeIndex);
+    });
+
+    // 2. 属性別特徴トピック（際立ち度）の計算とレンダリング
+    if (highlightsEl) {
+        const insightsHtml = renderAttributeHighlightsHtml(responsesWithTheme, themes, attributeCol);
+        if (insightsHtml) {
+            highlightsEl.innerHTML = insightsHtml;
+            highlightsEl.style.display = 'block';
+        } else {
+            highlightsEl.innerHTML = '';
+            highlightsEl.style.display = 'none';
+        }
+    }
+}
+
+/**
+ * 属性ごとの「際立ち（全体平均比で突出しているトピック）」を計算しHTMLを生成
+ * @param {any[]} responsesWithTheme 
+ * @param {any[]} themes 
+ * @param {string} attributeCol 
+ * @returns {string}
+ */
+function renderAttributeHighlightsHtml(responsesWithTheme, themes, attributeCol) {
+    const totalN = responsesWithTheme.length;
+    if (totalN === 0) return '';
+
+    const overallTopicCounts = {};
+    themes.forEach(t => { overallTopicCounts[t.id] = 0; });
+
+    const attrCounts = {};
+    responsesWithTheme.forEach(r => {
+        const raw = r.row ? r.row[attributeCol] : undefined;
+        const attrVal = (raw !== undefined && raw !== null && String(raw).trim() !== '')
+            ? String(raw).trim()
+            : '（未設定）';
+
+        if (!attrCounts[attrVal]) {
+            attrCounts[attrVal] = { total: 0, topics: {} };
+            themes.forEach(t => { attrCounts[attrVal].topics[t.id] = 0; });
+        }
+        attrCounts[attrVal].total++;
+        if (attrCounts[attrVal].topics[r.primaryThemeId] !== undefined) {
+            attrCounts[attrVal].topics[r.primaryThemeId]++;
+        }
+        if (overallTopicCounts[r.primaryThemeId] !== undefined) {
+            overallTopicCounts[r.primaryThemeId]++;
+        }
+    });
+
+    const sortedAttrs = ChartRenderer.sortAttributeValues(Object.keys(attrCounts));
+    if (sortedAttrs.length === 0) return '';
+
+    const itemsHtml = sortedAttrs.map(attr => {
+        const info = attrCounts[attr];
+        if (info.total < 2) return ''; // 極小サンプルは除外
+
+        let bestTopic = null;
+        let maxDiff = -Infinity;
+        let bestShare = 0;
+        let bestOverallShare = 0;
+
+        themes.forEach((t) => {
+            const countInAttr = info.topics[t.id] || 0;
+            const shareInAttr = Math.round((countInAttr / info.total) * 100);
+            const overallShare = (t.share !== undefined && t.share !== null)
+                ? t.share
+                : Math.round(((overallTopicCounts[t.id] || 0) / totalN) * 100);
+            const diff = shareInAttr - overallShare;
+
+            if (diff > maxDiff) {
+                maxDiff = diff;
+                bestTopic = t;
+                bestShare = shareInAttr;
+                bestOverallShare = overallShare;
+            }
+        });
+
+        // 際立ち判定基準: 全体平均比で +5pt 以上、かつ属性内シェア 15% 以上
+        const isHighlight = (bestTopic && maxDiff >= 5 && bestShare >= 15);
+
+        if (isHighlight) {
+            const topicOrder = themes.findIndex(t => t.id === bestTopic.id) + 1;
+            const cleanLabel = bestTopic.label.replace(/^【|】$/g, '');
+            const color = ChartRenderer.COLORS[(topicOrder - 1) % ChartRenderer.COLORS.length];
+            return `
+                <div class="insight-badge-card" style="border-left-color: ${color};">
+                    <span class="insight-attr-name" title="${escapeHtml(attr)}">${escapeHtml(attr)}</span>
+                    <span class="insight-topic-pill" style="background: ${color}15; color: ${color}; border-color: ${color}35;" title="トピック${topicOrder}: ${escapeHtml(cleanLabel)}">
+                        トピック${topicOrder}: ${escapeHtml(cleanLabel)}
+                    </span>
+                    <span class="insight-diff-tag"><b>${bestShare}%</b> (全体比 <b style="color:#2563EB;">+${maxDiff}pt</b>)</span>
+                </div>
+            `;
+        } else {
+            return `
+                <div class="insight-badge-card is-neutral">
+                    <span class="insight-attr-name" title="${escapeHtml(attr)}">${escapeHtml(attr)}</span>
+                    <span class="insight-neutral-text">全体とほぼ同傾向</span>
+                </div>
+            `;
+        }
+    }).filter(html => html.length > 0);
+
+    if (itemsHtml.length === 0) return '';
+
+    return `
+        <div class="cross-tab-insights-header">
+            <span class="insights-title">💡 属性別の特徴傾向（全体比で突出している話題）</span>
+            <span class="insights-desc">※全体平均比で出現率が高いトピックを自動抽出</span>
+        </div>
+        <div class="cross-tab-insights-grid">
+            ${itemsHtml.join('')}
+        </div>
+    `;
+}
+
+/**
+ * トピック名称変更時に全チャート・セレクタ・ヘッダーを一括連動同期
+ */
+function syncAllThemeVisualizations() {
+    const themes = (AppState.analysisResult && AppState.analysisResult.themes) ? AppState.analysisResult.themes : [];
+    if (themes.length === 0) return;
+
+    // 1. 各トピックカードの表示と戻すボタンの更新
+    themes.forEach((t, idx) => {
+        const titleEl = document.getElementById(`theme-title-${t.id}`);
+        if (titleEl) {
+            titleEl.textContent = t.label;
+        }
+        const resetBtn = document.getElementById(`btn-reset-name-${t.id}`);
+        if (resetBtn) {
+            resetBtn.style.display = t.isCustomName ? 'inline-flex' : 'none';
+        }
+        // 印刷用個別ヘッダーの更新
+        const hasAttr = !!(AppState.attributeColumn && AppState.headers.includes(AppState.attributeColumn));
+        const basePages = hasAttr ? 3 : 1;
+        const totalPages = basePages + themes.length;
+        const pageNum = basePages + idx + 1;
+        const topicHeaderEl = document.getElementById(`print-topic-header-${t.id}`);
+        if (topicHeaderEl) {
+            topicHeaderEl.textContent = `テキスト・自由記述 潜在トピック探索レポート - ${pageNum} / ${totalPages} ページ（トピック ${idx + 1}：${t.label}）`;
+        }
+    });
+
+    // 2. 図1: ドーナツグラフ更新
+    ChartRenderer.renderDonutChart('chartDonut', themes, scrollToThemeCard);
+
+    // 3. 図2: パス図更新
+    ChartRenderer.renderPathDiagram('chartPathDiagram', themes, scrollToThemeCard);
+
+    // 4. 図3 & 図5: トピック空間マップ（セレクタ更新＆プロット更新）
+    setupAxisSelectors(themes);
+    updateFactorSpaceMap();
+
+    // 5. 図4: 属性別クロス集計 ＆ 属性別特徴トピックハイライト更新
+    updateCrossTabSection(themes, AppState.analysisResult.responsesWithTheme, AppState.attributeColumn);
+
+    // 6. 印刷メタ情報更新
+    updatePrintMetaInfo();
+}
+
+/**
  * トピック空間ポジショニングマップの更新描画
  */
 function updateFactorSpaceMap() {
@@ -2125,9 +2306,13 @@ function renderThemeCards(themes) {
             <div class="theme-card-header">
                 <div class="theme-title-area">
                     <span class="theme-index-badge" style="background:${color};">トピック ${idx + 1}</span>
-                    <span class="theme-title" id="theme-title-${theme.id}" title="クリックして名前を変更">
-                        ${escapeHtml(theme.label)} ✏️
-                    </span>
+                    <div class="theme-title-wrap" id="theme-title-wrap-${theme.id}">
+                        <span class="theme-title" id="theme-title-${theme.id}" title="クリックしてトピック名を直接編集">
+                            ${escapeHtml(theme.label)}
+                        </span>
+                        <button type="button" class="btn-rename-topic" id="btn-rename-${theme.id}" title="トピック名を編集">✏️ 編集</button>
+                        <button type="button" class="btn-reset-topic-name" id="btn-reset-name-${theme.id}" title="初期の自動命名に戻す" style="${theme.isCustomName ? '' : 'display:none;'}">🔄 戻す</button>
+                    </div>
                 </div>
                 <div class="theme-metrics-pills">
                     <span class="theme-share-badge">全体の <b>${theme.share}%</b> （${theme.count}件）</span>
@@ -2215,30 +2400,97 @@ function renderThemeCards(themes) {
 
         container.appendChild(card);
 
-        // テーマタイトルのクリック編集イベント
+        // テーマタイトルのインライン編集イベント
+        const titleWrap = card.querySelector(`#theme-title-wrap-${theme.id}`);
         const titleEl = card.querySelector(`#theme-title-${theme.id}`);
-        titleEl.addEventListener('click', () => {
-            const currentText = theme.label.replace(/^【|】$/g, '');
-            const newName = prompt('トピックの名称を編集してください:', currentText);
-            if (newName && newName.trim() !== '') {
-                const cleanedName = newName.trim().replace(/^[【「\[]+|[】」\]]+$/g, '');
-                theme.label = `【${cleanedName}】`;
-                titleEl.innerHTML = `${escapeHtml(theme.label)} ✏️`;
+        const renameBtn = card.querySelector(`#btn-rename-${theme.id}`);
+        const resetBtn = card.querySelector(`#btn-reset-name-${theme.id}`);
 
-                // すべての図（ドーナツ、パス図、トピック空間マップ、クロス集計）を連動再描画
-                ChartRenderer.renderDonutChart('chartDonut', themes, scrollToThemeCard);
-                ChartRenderer.renderPathDiagram('chartPathDiagram', themes, scrollToThemeCard);
-                setupAxisSelectors(themes);
-                updateFactorSpaceMap();
+        const enterEditMode = () => {
+            const currentClean = theme.label.replace(/^【|】$/g, '');
+            titleWrap.innerHTML = `
+                <form class="theme-rename-form" id="form-rename-${theme.id}" onsubmit="return false;">
+                    <input type="text" class="theme-rename-input" id="input-rename-${theme.id}" value="${escapeHtml(currentClean)}" maxlength="30" placeholder="トピック名を入力">
+                    <button type="button" class="btn-rename-save" id="btn-save-${theme.id}">✓ 確定</button>
+                    <button type="button" class="btn-rename-cancel" id="btn-cancel-${theme.id}">✕</button>
+                </form>
+            `;
+            const inputEl = titleWrap.querySelector(`#input-rename-${theme.id}`);
+            const saveBtn = titleWrap.querySelector(`#btn-save-${theme.id}`);
+            const cancelBtn = titleWrap.querySelector(`#btn-cancel-${theme.id}`);
 
-                const hasValidAttrCol = !!(AppState.attributeColumn && AppState.headers.includes(AppState.attributeColumn));
-                if (hasValidAttrCol) {
-                    ChartRenderer.renderCrossTabChart('chartCrossTab', AppState.analysisResult.responsesWithTheme, themes, AppState.attributeColumn, (themeIndex) => {
-                        scrollToThemeCard(themeIndex);
+            if (inputEl) {
+                inputEl.focus();
+                inputEl.select();
+            }
+
+            const restoreNormalView = () => {
+                titleWrap.innerHTML = `
+                    <span class="theme-title" id="theme-title-${theme.id}" title="クリックしてトピック名を直接編集">
+                        ${escapeHtml(theme.label)}
+                    </span>
+                    <button type="button" class="btn-rename-topic" id="btn-rename-${theme.id}" title="トピック名を編集">✏️ 編集</button>
+                    <button type="button" class="btn-reset-topic-name" id="btn-reset-name-${theme.id}" title="初期の自動命名に戻す" style="${theme.isCustomName ? '' : 'display:none;'}">🔄 戻す</button>
+                `;
+                // リスナー再登録
+                const newTitle = titleWrap.querySelector(`#theme-title-${theme.id}`);
+                const newRename = titleWrap.querySelector(`#btn-rename-${theme.id}`);
+                const newReset = titleWrap.querySelector(`#btn-reset-name-${theme.id}`);
+                if (newTitle) newTitle.addEventListener('click', enterEditMode);
+                if (newRename) newRename.addEventListener('click', enterEditMode);
+                if (newReset) {
+                    newReset.addEventListener('click', () => {
+                        if (theme.defaultLabel) {
+                            theme.label = theme.defaultLabel;
+                            theme.isCustomName = false;
+                            syncAllThemeVisualizations();
+                            restoreNormalView();
+                        }
                     });
                 }
+            };
+
+            const saveAction = () => {
+                const val = inputEl ? inputEl.value.trim().replace(/^[【「\[]+|[】」\]]+$/g, '') : '';
+                if (val && val !== '') {
+                    theme.label = `【${val}】`;
+                    theme.isCustomName = true;
+                    syncAllThemeVisualizations();
+                }
+                restoreNormalView();
+            };
+
+            const cancelAction = () => {
+                restoreNormalView();
+            };
+
+            if (saveBtn) saveBtn.addEventListener('click', saveAction);
+            if (cancelBtn) cancelBtn.addEventListener('click', cancelAction);
+            if (inputEl) {
+                inputEl.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        saveAction();
+                    } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        cancelAction();
+                    }
+                });
             }
-        });
+        };
+
+        if (titleEl) titleEl.addEventListener('click', enterEditMode);
+        if (renameBtn) renameBtn.addEventListener('click', enterEditMode);
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => {
+                if (theme.defaultLabel) {
+                    theme.label = theme.defaultLabel;
+                    theme.isCustomName = false;
+                    syncAllThemeVisualizations();
+                    resetBtn.style.display = 'none';
+                }
+            });
+        }
 
         // 重要キーワードの除外ボタンのイベント登録
         const tagsContainer = card.querySelector(`#kw-tags-${theme.id}`);
