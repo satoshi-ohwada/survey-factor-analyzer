@@ -2643,20 +2643,24 @@ async function rasterizeChartsForPrint() {
         const isSubPlot = plotEl.classList.contains('attr-sub-plot');
         const isKwChart = plotEl.id && plotEl.id.startsWith('chart-kw-');
         const isNetworkPlot = plotEl.classList.contains('network-plot-container') || (plotEl.id && plotEl.id.startsWith('network-plot-'));
+        const isCrossTab = (plotEl.id === 'chartCrossTab');
 
-        const defaultW = isSubPlot ? 320 : (isKwChart ? 280 : (isNetworkPlot ? 440 : 600));
-        const defaultH = isSubPlot ? 205 : (isKwChart ? 240 : (isNetworkPlot ? 330 : 350));
+        const defaultW = isSubPlot ? 320 : (isKwChart ? 280 : (isNetworkPlot ? 480 : 600));
+        const defaultH = isSubPlot ? 205 : (isKwChart ? 240 : (isNetworkPlot ? 350 : 350));
 
         const rect = plotEl.getBoundingClientRect();
         let width = plotEl.clientWidth || Math.round(rect.width) || defaultW;
         let height = plotEl.clientHeight || Math.round(rect.height) || defaultH;
 
         if (isNetworkPlot) {
-            height = 330;
+            height = 350;
         } else if (isKwChart) {
             height = 240;
         } else if (isSubPlot) {
             height = 205;
+        } else if (isCrossTab) {
+            // 図4がA4 2ページ目の下端からあふれて空ページを誘発するのを防止
+            height = Math.min(height, 380);
         }
 
         if (width <= 0 || height <= 0) return;

@@ -1716,7 +1716,7 @@ const ChartRenderer = {
         const N = wordList.length;
         const nodes = wordList.map((w, idx) => {
             const angle = (idx / N) * 2 * Math.PI;
-            const r = 130 + (idx % 2) * 40;
+            const r = 180 + (idx % 2) * 50;
             return {
                 id: idx,
                 word: w,
@@ -1730,27 +1730,27 @@ const ChartRenderer = {
             };
         });
 
-        const kRepulsion = 32000;      // 反発力を強めてノード同士の間隔を拡大
-        const kSpring = 0.05;          // バネ弾性
-        const springLength = 125;      // バネの自然長を拡大（75 -> 125）
-        const kCenter = 0.018;         // 中心への引き込み力を緩めて外側へ広げる
-        const damping = 0.85;
-        const minCollisionDist = 68;   // ノード・文字ラベルの重なり防止のための最小距離
+        const kRepulsion = 65000;      // 反発力を大幅に強化してノード同士の間隔を拡大
+        const kSpring = 0.04;          // バネ弾性
+        const springLength = 175;      // バネの自然長を拡大（125 -> 175）
+        const kCenter = 0.010;         // 中心への引き込み力を弱めて全体に伸び伸び広げる
+        const damping = 0.86;
+        const minCollisionDist = 95;   // ノード・文字ラベルの重なり防止のための最小距離（68 -> 95）
 
-        for (let iter = 0; iter < 100; iter++) {
+        for (let iter = 0; iter < 150; iter++) {
             // 反発力（クーロン反発 ＋ 近接時の衝突回避反発）
             for (let i = 0; i < N; i++) {
                 for (let j = i + 1; j < N; j++) {
                     const dx = nodes[j].x - nodes[i].x;
                     const dy = nodes[j].y - nodes[i].y;
                     const d = Math.sqrt(dx * dx + dy * dy) || 1;
-                    const f = kRepulsion / (Math.max(d, 25) * Math.max(d, 25));
+                    const f = kRepulsion / (Math.max(d, 30) * Math.max(d, 30));
                     let fx = (dx / d) * f;
                     let fy = (dy / d) * f;
 
                     // ラベル・円の重なりを確実に防止するハード衝突反発
                     if (d < minCollisionDist) {
-                        const extraRepulsion = (minCollisionDist - d) * 0.18;
+                        const extraRepulsion = (minCollisionDist - d) * 0.28;
                         fx += (dx / d) * extraRepulsion;
                         fy += (dy / d) * extraRepulsion;
                     }
@@ -1784,8 +1784,8 @@ const ChartRenderer = {
                         const dx = nodes[j].x - nodes[i].x;
                         const dy = nodes[j].y - nodes[i].y;
                         const d = Math.sqrt(dx * dx + dy * dy) || 1;
-                        if (d > 90) {
-                            const f = 0.012 * (d - 90);
+                        if (d > 140) {
+                            const f = 0.008 * (d - 140);
                             const fx = (dx / d) * f;
                             const fy = (dy / d) * f;
                             nodes[i].vx += fx;
@@ -1937,7 +1937,7 @@ const ChartRenderer = {
                 showgrid: false,
                 zeroline: false,
                 showticklabels: false,
-                range: [minX - xSpan * 0.15, maxX + xSpan * 0.15]
+                range: [minX - xSpan * 0.18, maxX + xSpan * 0.18]
             },
             yaxis: {
                 showgrid: false,
@@ -1945,7 +1945,7 @@ const ChartRenderer = {
                 showticklabels: false,
                 scaleanchor: 'x',     // アスペクト比を1:1に固定（縦横の歪み・潰れを防止）
                 scaleratio: 1,
-                range: [minY - ySpan * 0.12, maxY + ySpan * 0.20] // 上部テキストラベル用の余白を確保
+                range: [minY - ySpan * 0.15, maxY + ySpan * 0.22] // 上部テキストラベル用の余白を確保
             },
             paper_bgcolor: '#FFFFFF',
             plot_bgcolor: '#FFFFFF'

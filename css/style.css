@@ -1651,11 +1651,11 @@ body {
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* 左右並列グリッド（ワードクラウド小さめ 3.5 : 共起ネットワーク広め 6.5） */
+/* 左右並列グリッド（ワードクラウド小さめ 3.2 : 共起ネットワーク広め 6.8） */
 .theme-viz-body {
     width: 100%;
     display: grid;
-    grid-template-columns: 3.5fr 6.5fr;
+    grid-template-columns: 3.2fr 6.8fr;
     gap: 16px;
     align-items: stretch;
 }
@@ -1708,7 +1708,7 @@ body {
 .cloud-container {
     position: relative;
     width: 100%;
-    height: 350px;
+    height: 380px;
     background: #F8FAFC;
     border-radius: var(--radius-sm);
     border: 1px solid #E2E8F0;
@@ -1739,7 +1739,7 @@ body {
 
 .network-plot-container {
     width: 100%;
-    height: 350px;
+    height: 380px;
     background: #FFFFFF;
     border-radius: var(--radius-sm);
     border: 1px solid #E2E8F0;
@@ -2244,6 +2244,10 @@ body {
     vertical-align: middle;
 }
 
+#crossTabCard, #attrMultiplesCard {
+    margin-bottom: 20px;
+}
+
 .attr-multiples-container {
     width: 100%;
 }
@@ -2562,7 +2566,21 @@ body {
         min-height: auto !important;
     }
 
-    /* 2ページ目への改ページ */
+    /* 属性別分析ページの印刷時改ページ設定（空要素を介さず確実に1回改ページ） */
+    .attr-print-page {
+        page-break-before: always !important;
+        break-before: page !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        margin-bottom: 0 !important;
+        padding: 0 !important;
+    }
+
+    .attr-print-page .chart-card {
+        margin-bottom: 0 !important;
+    }
+
+    /* 汎用改ページクラス */
     .print-page-break {
         page-break-before: always !important;
         break-before: page !important;
@@ -2767,13 +2785,13 @@ body {
 
     .theme-viz-body {
         display: grid !important;
-        grid-template-columns: 3.5fr 6.5fr !important;
+        grid-template-columns: 3.2fr 6.8fr !important;
         gap: 12px !important;
         width: 100% !important;
     }
 
     .cloud-container {
-        height: 330px !important;
+        height: 350px !important;
         border: 1px solid #CBD5E1 !important;
         background: #F8FAFC !important;
         overflow: hidden !important;
@@ -2781,7 +2799,7 @@ body {
     }
 
     .network-plot-container {
-        height: 330px !important;
+        height: 350px !important;
         border: 1px solid #CBD5E1 !important;
         background: #FFFFFF !important;
         overflow: hidden !important;
@@ -3045,13 +3063,13 @@ body.is-printing .theme-viz-drawer {
 
 body.is-printing .theme-viz-body {
     display: grid !important;
-    grid-template-columns: 3.5fr 6.5fr !important;
+    grid-template-columns: 3.2fr 6.8fr !important;
     gap: 10px !important;
 }
 
 body.is-printing .cloud-container,
 body.is-printing .network-plot-container {
-    height: 280px !important;
+    height: 350px !important;
     overflow: hidden !important;
     box-sizing: border-box !important;
 }
