@@ -1651,11 +1651,11 @@ body {
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* 左右並列グリッド（ワードクラウド小さめ 3.2 : 共起ネットワーク広め 6.8） */
+/* 左右並列グリッド（ワードクラウド 3.5 : 共起ネットワーク 6.5） */
 .theme-viz-body {
     width: 100%;
     display: grid;
-    grid-template-columns: 3.2fr 6.8fr;
+    grid-template-columns: 3.5fr 6.5fr;
     gap: 16px;
     align-items: stretch;
 }
@@ -2522,6 +2522,7 @@ body {
     .loading-overlay,
     .modal-overlay,
     .theme-card-footer,
+    .btn-kw-expand,
     .card-kw-more-bar,
     .btn-save-cloud,
     .btn-save-network,
@@ -2786,9 +2787,10 @@ body {
 
     .theme-viz-body {
         display: grid !important;
-        grid-template-columns: 3.2fr 6.8fr !important;
+        grid-template-columns: 3.6fr 6.4fr !important;
         gap: 12px !important;
         width: 100% !important;
+        align-items: start !important;
     }
 
     .cloud-container {
@@ -2832,16 +2834,32 @@ body {
     }
 
     .viz-pane-header {
-        margin-bottom: 3px !important;
+        height: 18px !important;
+        min-height: 18px !important;
+        max-height: 18px !important;
+        margin-bottom: 4px !important;
         padding: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        overflow: hidden !important;
+        white-space: nowrap !important;
     }
 
     .viz-pane-title {
-        font-size: 8.5pt !important;
+        font-size: 8pt !important;
+        line-height: 18px !important;
+        white-space: nowrap !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 3px !important;
+        overflow: hidden !important;
     }
 
     .viz-pane-hint {
-        font-size: 7.5pt !important;
+        font-size: 6.8pt !important;
+        white-space: nowrap !important;
+        color: #64748B !important;
     }
 
     /* 属性別分析セクション（印刷時） */
@@ -3060,7 +3078,7 @@ body.is-printing .theme-viz-drawer {
 
 body.is-printing .theme-viz-body {
     display: grid !important;
-    grid-template-columns: 3.2fr 6.8fr !important;
+    grid-template-columns: 3.6fr 6.4fr !important;
     gap: 10px !important;
 }
 
@@ -3392,28 +3410,42 @@ body.is-printing .btn-save-network {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 4px;
     margin-bottom: 4px;
+    flex-wrap: nowrap;
+}
+
+.theme-chart-title {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #334155;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
 }
 
 .btn-kw-expand {
-    font-size: 10.5px;
+    font-size: 9.5px;
     font-weight: 500;
     color: #64748B;
     background: transparent;
-    border: 1px solid #E2E8F0;
+    border: 1px solid #CBD5E1;
     border-radius: 4px;
-    padding: 1px 6px;
+    padding: 1px 4px;
     cursor: pointer;
     transition: all 0.15s ease;
     display: inline-flex;
     align-items: center;
-    gap: 3px;
-    line-height: 1.4;
+    gap: 2px;
+    line-height: 1.25;
+    white-space: nowrap !important;
+    flex-shrink: 0;
 }
 
 .btn-kw-expand:hover {
     background: #F1F5F9;
-    border-color: #CBD5E1;
+    border-color: #94A3B8;
     color: #1E293B;
 }
 

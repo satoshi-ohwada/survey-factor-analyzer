@@ -1433,10 +1433,10 @@ const ChartRenderer = {
 
         // コンテナの寸法
         const rect = container.getBoundingClientRect();
-        const fallbackW = container.parentElement ? Math.round(container.parentElement.clientWidth * 0.35) : 340;
         const isPrinting = document.body.classList.contains('is-printing');
-        const width = Math.max(200, Math.floor(rect.width || fallbackW || 340));
-        const height = Math.max(150, Math.floor(rect.height || (isPrinting ? 185 : 350)));
+        const fallbackW = container.parentElement ? Math.round(container.parentElement.clientWidth * 0.36) : (isPrinting ? 270 : 340);
+        const width = Math.max(200, Math.floor(rect.width || fallbackW || 270));
+        const height = Math.max(150, Math.floor(rect.height || (isPrinting ? 350 : 380)));
 
         // HiDPI 対応
         const dpr = window.devicePixelRatio || 1;
@@ -1462,25 +1462,30 @@ const ChartRenderer = {
         // パレット生成
         const palette = this._generateCloudPalette(baseColor);
 
-        // 単語データの正規化（領域サイズに応じて単語数を最適化）
-        const words = keywords.slice(0, (width < 320 || height < 220) ? 24 : 32);
+        // 単語データの正規化（領域サイズに応じて上位24〜28語を精選）
+        const words = keywords.slice(0, (width < 280 || height < 240) ? 22 : 28);
         const maxWeight = Math.max(...words.map(w => w.weight || 0.001));
         const minWeight = Math.min(...words.map(w => w.weight || 0.001));
         const weightSpan = Math.max(1e-5, maxWeight - minWeight);
 
-        // コンテナ寸法に応じた文字フォント倍率（幅360px・高さ300px基準で最適化）
-        const scale = Math.min(1.0, Math.max(0.65, Math.min(width / 360, height / 280)));
+        // コンテナの横幅を目安にフォント倍率を最適化（上位単語を大きくダイナミックに表示）
+        const aspectScaleX = width / 260;
+        const aspectScaleY = height / 320;
+        const scale = Math.max(0.85, Math.min(1.45, Math.min(aspectScaleX, aspectScaleY)));
 
-        // 単語ボックスの衝突配置（アルキメデス螺旋探索）
+        // 単語ボックスの衝突配置（横幅に合わせた楕円アルキメデス螺旋探索）
         const placedBoxes = [];
         const centerX = width / 2;
         const centerY = height / 2;
+        const aspectRatio = Math.max(0.7, Math.min(1.4, width / height));
 
         words.forEach((item, idx) => {
             const relWeight = (item.weight - minWeight) / weightSpan;
-            // フォントサイズ: 幅に応じて 11px〜32px 程度にスケーリング
-            const fontSize = Math.round((11 + relWeight * 22) * scale);
-            const fontWeight = relWeight > 0.6 ? '700' : (relWeight > 0.3 ? '600' : '500');
+            // 領域の横幅を目安に上位単語を最大46px前後まで大きくスケールアップ
+            const baseMin = 13;
+            const baseSpan = 33;
+            const fontSize = Math.round((baseMin + Math.pow(relWeight, 0.65) * baseSpan) * scale);
+            const fontWeight = relWeight > 0.5 ? '700' : (relWeight > 0.25 ? '600' : '500');
             ctx.font = `${fontWeight} ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans JP", sans-serif`;
 
             const metrics = ctx.measureText(item.word);
@@ -1492,11 +1497,12 @@ const ChartRenderer = {
             let placed = false;
             let angle = (idx * 137.5 * Math.PI) / 180; // 黄金角で分散配置
             let radius = 0;
-            const angleStep = 0.25;
-            const radiusStep = 0.85;
+            const angleStep = 0.22;
+            const radiusStep = 0.95;
 
-            for (let iter = 0; iter < 350; iter++) {
-                const x = centerX + radius * Math.cos(angle) - textW / 2;
+            for (let iter = 0; iter < 450; iter++) {
+                // 横幅に合わせた楕円螺旋（横方向へ自然に広がり、幅を目一杯活用）
+                const x = centerX + (radius * aspectRatio) * Math.cos(angle) - textW / 2;
                 const y = centerY + radius * Math.sin(angle) - textH / 2;
 
                 // 画面枠内チェック
