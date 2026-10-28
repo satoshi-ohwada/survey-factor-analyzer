@@ -1905,12 +1905,12 @@ const ChartRenderer = {
             legend: {
                 orientation: 'h',
                 x: 0,
-                y: -0.05,
+                y: -0.06,
                 xanchor: 'left',
                 yanchor: 'top',
-                font: { size: 10, color: '#475569' }
+                font: { size: 9.5, color: '#475569' }
             },
-            margin: { l: 25, r: 25, t: 25, b: 55 },
+            margin: { l: 20, r: 20, t: 20, b: 50 },
             hovermode: 'closest',
             hoverlabel: {
                 bgcolor: 'rgba(15, 23, 42, 0.92)',
@@ -1921,13 +1921,15 @@ const ChartRenderer = {
                 showgrid: false,
                 zeroline: false,
                 showticklabels: false,
-                range: [minX - xSpan * 0.12, maxX + xSpan * 0.12]
+                range: [minX - xSpan * 0.15, maxX + xSpan * 0.15]
             },
             yaxis: {
                 showgrid: false,
                 zeroline: false,
                 showticklabels: false,
-                range: [minY - ySpan * 0.08, maxY + ySpan * 0.18] // 上部テキストラベル用の余白を確保
+                scaleanchor: 'x',     // アスペクト比を1:1に固定（縦横の歪み・潰れを防止）
+                scaleratio: 1,
+                range: [minY - ySpan * 0.12, maxY + ySpan * 0.20] // 上部テキストラベル用の余白を確保
             },
             paper_bgcolor: '#FFFFFF',
             plot_bgcolor: '#FFFFFF'

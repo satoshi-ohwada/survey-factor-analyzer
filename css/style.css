@@ -2607,7 +2607,7 @@ body {
     }
 
     .cloud-container {
-        height: 185px !important;
+        height: 280px !important;
         border: 1px solid #CBD5E1 !important;
         background: #F8FAFC !important;
         overflow: hidden !important;
@@ -2615,7 +2615,7 @@ body {
     }
 
     .network-plot-container {
-        height: 185px !important;
+        height: 280px !important;
         border: 1px solid #CBD5E1 !important;
         background: #FFFFFF !important;
         overflow: hidden !important;
@@ -2852,7 +2852,7 @@ body.is-printing .theme-viz-body {
 
 body.is-printing .cloud-container,
 body.is-printing .network-plot-container {
-    height: 185px !important;
+    height: 280px !important;
     overflow: hidden !important;
     box-sizing: border-box !important;
 }

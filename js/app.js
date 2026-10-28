@@ -2548,14 +2548,14 @@ async function rasterizeChartsForPrint() {
 
         const isKwChart = plotEl.id && plotEl.id.startsWith('chart-kw-');
         const defaultW = isSubPlot ? 320 : (isKwChart ? 230 : (isNetworkPlot ? 420 : 600));
-        const defaultH = isSubPlot ? 145 : (isKwChart ? 200 : (isNetworkPlot ? 185 : 350));
+        const defaultH = isSubPlot ? 145 : (isKwChart ? 200 : (isNetworkPlot ? 280 : 350));
 
         const rect = plotEl.getBoundingClientRect();
         let width = plotEl.clientWidth || Math.round(rect.width) || defaultW;
         let height = plotEl.clientHeight || Math.round(rect.height) || defaultH;
 
         if (isNetworkPlot) {
-            height = 185;
+            height = 280;
         } else if (isKwChart) {
             height = Math.min(height, 220);
         }
