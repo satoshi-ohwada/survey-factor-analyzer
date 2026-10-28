@@ -2548,12 +2548,10 @@ function updatePrintMetaInfo() {
     const printDate = document.getElementById('printDate');
     const printDate2 = document.getElementById('printDate2');
     const printDate3 = document.getElementById('printDate3');
-    const printDateLast = document.getElementById('printDateLast');
     const printValidCount = document.getElementById('printValidCount');
     const printPage1Label = document.getElementById('printPage1Label');
     const printPage2Title = document.getElementById('printPage2Title');
     const printPage3Title = document.getElementById('printPage3Title');
-    const printLastPageTitle = document.getElementById('printLastPageTitle');
 
     const totalRaw = (AppState.rawRows || []).length;
     const filteredRows = getFilteredRows();
@@ -2563,7 +2561,6 @@ function updatePrintMetaInfo() {
     if (printDate) printDate.textContent = nowStr;
     if (printDate2) printDate2.textContent = `出力日時: ${nowStr}`;
     if (printDate3) printDate3.textContent = `出力日時: ${nowStr}`;
-    if (printDateLast) printDateLast.textContent = `出力日時: ${nowStr}`;
     if (printValidCount) {
         if (isFiltered) {
             printValidCount.textContent = `${validCount.toLocaleString()} 件（対象: ${filteredRows.length.toLocaleString()}件 / 全${totalRaw.toLocaleString()}件）`;
@@ -2600,9 +2597,6 @@ function updatePrintMetaInfo() {
     }
     if (printPage3Title) {
         printPage3Title.textContent = `テキスト・自由記述 潜在トピック探索レポート - 3 / ${totalPages} ページ（属性別トピック空間マップ比較）`;
-    }
-    if (printLastPageTitle) {
-        printLastPageTitle.textContent = `テキスト・自由記述 潜在トピック探索レポート - ${totalPages} / ${totalPages} ページ（トピック詳細 ＆ 文章例）`;
     }
 
     // 各トピックカード個別のページヘッダーを更新（1トピック＝1ページ）

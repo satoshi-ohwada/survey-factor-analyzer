@@ -24,6 +24,8 @@ const ChartRenderer = {
      */
     renderDonutChart(containerId, themes, onSliceClick) {
         if (!themes || themes.length === 0) return;
+        const container = document.getElementById(containerId);
+        if (!container) return;
 
         const totalCount = themes.reduce((sum, t) => sum + (t.count || 0), 0);
 
@@ -335,6 +337,9 @@ const ChartRenderer = {
      * @param {object} options 
      */
     renderFactorSpaceMap(containerId, options) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
         const {
             mode = 'responses', // 'responses' (回答者スコア) または 'words' (語の関連度)
             xFactorIdx = 0,
@@ -367,8 +372,8 @@ const ChartRenderer = {
             const allResponsePoints = [];
             for (let i = 0; i < responsesWithTheme.length; i++) {
                 const r = responsesWithTheme[i];
-                const scoreX = W[i] ? W[i][xFactorIdx] : 0;
-                const scoreY = W[i] ? W[i][yFactorIdx] : 0;
+                const scoreX = (W[i] && Number.isFinite(W[i][xFactorIdx])) ? W[i][xFactorIdx] : 0;
+                const scoreY = (W[i] && Number.isFinite(W[i][yFactorIdx])) ? W[i][yFactorIdx] : 0;
                 const rawAttr = (r.row && attributeCol) ? r.row[attributeCol] : null;
                 const attrVal = (rawAttr !== undefined && rawAttr !== null && String(rawAttr).trim() !== '')
                     ? String(rawAttr).trim()
@@ -463,8 +468,8 @@ const ChartRenderer = {
 
             // 各単語の関連度座標 (H[xFactorIdx][j], H[yFactorIdx][j])
             const wordPoints = vocabulary.map((word, j) => {
-                const loadX = H[xFactorIdx] ? H[xFactorIdx][j] : 0;
-                const loadY = H[yFactorIdx] ? H[yFactorIdx][j] : 0;
+                const loadX = (H[xFactorIdx] && Number.isFinite(H[xFactorIdx][j])) ? H[xFactorIdx][j] : 0;
+                const loadY = (H[yFactorIdx] && Number.isFinite(H[yFactorIdx][j])) ? H[yFactorIdx][j] : 0;
                 // どちらのトピックに強く関連しているかで色付け
                 const primaryFactor = loadX >= loadY ? xFactorIdx : yFactorIdx;
                 return {
@@ -953,13 +958,17 @@ const ChartRenderer = {
      * @param {string} attributeCol 
      */
     renderCrossTabChart(containerId, responsesWithTheme, themes, attributeCol, onBarClick) {
-        if (!attributeCol || !responsesWithTheme || responsesWithTheme.length === 0) return;
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        if (!attributeCol || !responsesWithTheme || responsesWithTheme.length === 0) {
+            container.innerHTML = '';
+            return;
+        }
 
         // 全回答において対象の属性列に有効値が1件も存在しない場合は描画しない
         const hasValidAttr = responsesWithTheme.some(r => r.row && r.row[attributeCol] !== undefined && r.row[attributeCol] !== null && String(r.row[attributeCol]).trim() !== '');
         if (!hasValidAttr) {
-            const container = document.getElementById(containerId);
-            if (container) container.innerHTML = '';
+            container.innerHTML = '';
             return;
         }
 
@@ -967,7 +976,7 @@ const ChartRenderer = {
         const counts = {};
 
         responsesWithTheme.forEach(r => {
-            const rawVal = r.row[attributeCol];
+            const rawVal = r.row ? r.row[attributeCol] : undefined;
             const attrVal = (rawVal !== undefined && rawVal !== null && String(rawVal).trim() !== '') 
                 ? String(rawVal).trim() 
                 : '（未設定）';
@@ -1178,8 +1187,8 @@ const ChartRenderer = {
 
         for (let i = 0; i < responsesWithTheme.length; i++) {
             const r = responsesWithTheme[i];
-            const scoreX = W[i] ? W[i][xFactorIdx] : 0;
-            const scoreY = W[i] ? W[i][yFactorIdx] : 0;
+            const scoreX = (W[i] && Number.isFinite(W[i][xFactorIdx])) ? W[i][xFactorIdx] : 0;
+            const scoreY = (W[i] && Number.isFinite(W[i][yFactorIdx])) ? W[i][yFactorIdx] : 0;
 
             if (scoreX < minX) minX = scoreX;
             if (scoreX > maxX) maxX = scoreX;
@@ -1210,6 +1219,11 @@ const ChartRenderer = {
             }
             attrGroups[attrVal].push(pointObj);
         }
+
+        if (!Number.isFinite(minX)) minX = 0;
+        if (!Number.isFinite(maxX)) maxX = 1;
+        if (!Number.isFinite(minY)) minY = 0;
+        if (!Number.isFinite(maxY)) maxY = 1;
 
         // 座標軸の範囲を全小プロットで完全に共通化（適度な余白を追加）
         const padX = (maxX - minX) * 0.08 || 0.1;
