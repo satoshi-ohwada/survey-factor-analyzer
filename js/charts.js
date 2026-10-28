@@ -1688,11 +1688,11 @@ const ChartRenderer = {
             '#EA580C'  // オレンジ
         ];
 
-        // 5. 力学モデル（Force-directed Simulation）
+        // 5. 力学モデル（Force-directed Simulation: ノード間隔を広めに確保）
         const N = wordList.length;
         const nodes = wordList.map((w, idx) => {
             const angle = (idx / N) * 2 * Math.PI;
-            const r = 90 + (idx % 2) * 25;
+            const r = 130 + (idx % 2) * 40;
             return {
                 id: idx,
                 word: w,
@@ -1706,22 +1706,31 @@ const ChartRenderer = {
             };
         });
 
-        const kRepulsion = 14000;
-        const kSpring = 0.06;
-        const springLength = 75;
-        const kCenter = 0.035;
+        const kRepulsion = 32000;      // 反発力を強めてノード同士の間隔を拡大
+        const kSpring = 0.05;          // バネ弾性
+        const springLength = 125;      // バネの自然長を拡大（75 -> 125）
+        const kCenter = 0.018;         // 中心への引き込み力を緩めて外側へ広げる
         const damping = 0.85;
+        const minCollisionDist = 68;   // ノード・文字ラベルの重なり防止のための最小距離
 
-        for (let iter = 0; iter < 75; iter++) {
-            // 反発力
+        for (let iter = 0; iter < 100; iter++) {
+            // 反発力（クーロン反発 ＋ 近接時の衝突回避反発）
             for (let i = 0; i < N; i++) {
                 for (let j = i + 1; j < N; j++) {
                     const dx = nodes[j].x - nodes[i].x;
                     const dy = nodes[j].y - nodes[i].y;
                     const d = Math.sqrt(dx * dx + dy * dy) || 1;
-                    const f = kRepulsion / (d * d);
-                    const fx = (dx / d) * f;
-                    const fy = (dy / d) * f;
+                    const f = kRepulsion / (Math.max(d, 25) * Math.max(d, 25));
+                    let fx = (dx / d) * f;
+                    let fy = (dy / d) * f;
+
+                    // ラベル・円の重なりを確実に防止するハード衝突反発
+                    if (d < minCollisionDist) {
+                        const extraRepulsion = (minCollisionDist - d) * 0.18;
+                        fx += (dx / d) * extraRepulsion;
+                        fy += (dy / d) * extraRepulsion;
+                    }
+
                     nodes[i].vx -= fx;
                     nodes[i].vy -= fy;
                     nodes[j].vx += fx;
@@ -1744,15 +1753,15 @@ const ChartRenderer = {
                 n2.vx -= fx;
                 n2.vy -= fy;
             });
-            // 同一コミュニティ内のクラスタリング引力
+            // 同一コミュニティ内のクラスタリング引力（適度にまとまりつつ離れる）
             for (let i = 0; i < N; i++) {
                 for (let j = i + 1; j < N; j++) {
                     if (nodeCommunityMap[i] === nodeCommunityMap[j]) {
                         const dx = nodes[j].x - nodes[i].x;
                         const dy = nodes[j].y - nodes[i].y;
                         const d = Math.sqrt(dx * dx + dy * dy) || 1;
-                        if (d > 50) {
-                            const f = 0.015 * (d - 50);
+                        if (d > 90) {
+                            const f = 0.012 * (d - 90);
                             const fx = (dx / d) * f;
                             const fy = (dy / d) * f;
                             nodes[i].vx += fx;
