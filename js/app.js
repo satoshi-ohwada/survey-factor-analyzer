@@ -2045,6 +2045,11 @@ function renderThemeCards(themes) {
     const container = document.getElementById('themeCardsList');
     container.innerHTML = '';
 
+    const responsesWithTheme = (AppState.analysisResult && AppState.analysisResult.responsesWithTheme)
+        ? AppState.analysisResult.responsesWithTheme
+        : [];
+    const hasAttrCol = !!(AppState.attributeColumn && AppState.headers.includes(AppState.attributeColumn));
+
     themes.forEach((theme, idx) => {
         const color = ChartRenderer.COLORS[idx % ChartRenderer.COLORS.length];
         const card = document.createElement('div');
@@ -2052,16 +2057,70 @@ function renderThemeCards(themes) {
         card.id = `theme-card-${theme.id}`;
         card.style.borderLeftColor = color;
 
-        // 代表文章HTML
-        const responsesHtml = theme.representativeResponses.map((r, rIdx) => {
+        // このトピックに所属する全回答群の統計指標
+        const themeResponses = responsesWithTheme.filter(r => r.primaryThemeId === theme.id);
+        const avgConf = themeResponses.length > 0
+            ? Math.round((themeResponses.reduce((acc, r) => acc + (r.confidence || 0), 0) / themeResponses.length) * 100)
+            : Math.round((theme.confidence || 0.8) * 100);
+        const avgLen = themeResponses.length > 0
+            ? Math.round(themeResponses.reduce((acc, r) => acc + (r.text ? r.text.length : 0), 0) / themeResponses.length)
+            : 0;
+
+        // 属性がある場合、最多属性グループを算出
+        let topAttrText = '';
+        if (hasAttrCol && themeResponses.length > 0) {
+            const attrCounts = {};
+            themeResponses.forEach(r => {
+                const val = (r.row && r.row[AppState.attributeColumn] !== undefined && r.row[AppState.attributeColumn] !== null)
+                    ? String(r.row[AppState.attributeColumn]).trim()
+                    : '';
+                if (val) attrCounts[val] = (attrCounts[val] || 0) + 1;
+            });
+            let maxAttr = '';
+            let maxC = 0;
+            Object.entries(attrCounts).forEach(([k, c]) => {
+                if (c > maxC) { maxC = c; maxAttr = k; }
+            });
+            if (maxAttr) {
+                const pct = Math.round((maxC / themeResponses.length) * 100);
+                topAttrText = `最多層: ${escapeHtml(maxAttr)} (${pct}%)`;
+            }
+        }
+
+        // 代表文章HTML（最大6件）
+        const reps = (theme.representativeResponses && theme.representativeResponses.length > 0)
+            ? theme.representativeResponses.slice(0, 6)
+            : [];
+        const responsesHtml = reps.map((r, rIdx) => {
             const rawAttr = (r.row && AppState.attributeColumn) ? r.row[AppState.attributeColumn] : null;
             const attrBadge = (rawAttr !== undefined && rawAttr !== null && String(rawAttr).trim() !== '')
                 ? `<span class="badge-attr">${escapeHtml(String(rawAttr).trim())}</span>`
                 : '';
-            return `<div class="response-item"><span class="response-num">${rIdx + 1}.</span>${attrBadge}<span class="response-text">「${escapeHtml(r.text.trim())}」</span></div>`;
+            const confBadge = (r.confidence !== undefined && r.confidence !== null)
+                ? `<span class="badge-conf">適合度 ${r.confidence}%</span>`
+                : '';
+            return `
+                <div class="response-item">
+                    <span class="response-num">${rIdx + 1}.</span>
+                    <div class="response-item-content">
+                        <div class="response-meta-line">${attrBadge}${confBadge}</div>
+                        <span class="response-text">「${escapeHtml(r.text.trim())}」</span>
+                    </div>
+                </div>
+            `;
         }).join('') || '<div class="response-item" style="color:#94A3B8;">該当する代表文章がありません</div>';
 
         card.innerHTML = `
+            <!-- 印刷専用トピック個別ヘッダー（1トピック＝1ページ） -->
+            <div class="print-only print-topic-page-header">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #CBD5E1; padding-bottom: 4px; margin-bottom: 8px;">
+                    <span class="print-topic-page-title" id="print-topic-header-${theme.id}" style="font-size: 8.5pt; font-weight: 600; color: #334155;">
+                        テキスト・自由記述 潜在トピック探索レポート - トピック ${idx + 1}：${escapeHtml(theme.label)}
+                    </span>
+                    <span class="print-topic-page-date" id="print-topic-date-${theme.id}" style="font-size: 8pt; color: #64748B;"></span>
+                </div>
+            </div>
+
             <div class="theme-card-header">
                 <div class="theme-title-area">
                     <span class="theme-index-badge" style="background:${color};">トピック ${idx + 1}</span>
@@ -2069,8 +2128,14 @@ function renderThemeCards(themes) {
                         ${escapeHtml(theme.label)} ✏️
                     </span>
                 </div>
-                <span class="theme-share-badge">全体の <b>${theme.share}%</b> （${theme.count}件）</span>
+                <div class="theme-metrics-pills">
+                    <span class="theme-share-badge">全体の <b>${theme.share}%</b> （${theme.count}件）</span>
+                    <span class="theme-metric-pill" title="このトピックへの平均適合度">平均適合度: <b>${avgConf}%</b></span>
+                    <span class="theme-metric-pill" title="このトピックの平均文章長">平均文字数: <b>${avgLen}字</b></span>
+                    ${topAttrText ? `<span class="theme-metric-pill theme-metric-attr" title="このトピックで最も多い属性">${topAttrText}</span>` : ''}
+                </div>
             </div>
+
             <div class="theme-body-grid">
                 <div class="theme-chart-col">
                     <div class="theme-chart-header">
@@ -2097,7 +2162,9 @@ function renderThemeCards(themes) {
                 <div class="theme-responses-col">
                     <div>
                         <div class="responses-list-title">【このトピックを強く反映している代表的な文章例（抜粋）】</div>
-                        ${responsesHtml}
+                        <div class="responses-list-container">
+                            ${responsesHtml}
+                        </div>
                     </div>
                     <div class="theme-card-footer">
                         <button type="button" class="btn btn-sm btn-outline btn-toggle-viz" id="btn-toggle-viz-${theme.id}" data-theme-id="${theme.id}" title="このトピックのワードクラウドや共起ネットワークを展開">
@@ -2109,6 +2176,7 @@ function renderThemeCards(themes) {
                     </div>
                 </div>
             </div>
+
             <!-- 折りたたみ式 可視化パネル（ワードクラウド & 共起ネットワーク 左右並列表示） -->
             <div class="theme-viz-drawer" id="theme-viz-drawer-${theme.id}" style="display: none;">
                 <div class="theme-viz-body">
@@ -2466,15 +2534,24 @@ function updatePrintMetaInfo() {
     });
     const validCount = (AppState.validResponses || []).length;
     const hasAttr = !!(AppState.attributeColumn && AppState.headers.includes(AppState.attributeColumn));
-    const totalPages = hasAttr ? 3 : 2;
+    const themes = (AppState.analysisResult && AppState.analysisResult.themes) ? AppState.analysisResult.themes : [];
+    const themeCount = themes.length;
+
+    // ページ数計算：
+    // 属性あり: 1P(全体概要) + 1P(図4クロス集計) + 1P(図5スモールマルチプルズ) + themeCount(トピック詳細各1P)
+    // 属性なし: 1P(全体概要) + themeCount(トピック詳細各1P)
+    const basePages = hasAttr ? 3 : 1;
+    const totalPages = basePages + themeCount;
 
     const printFileName = document.getElementById('printFileName');
     const printDate = document.getElementById('printDate');
     const printDate2 = document.getElementById('printDate2');
+    const printDate3 = document.getElementById('printDate3');
     const printDateLast = document.getElementById('printDateLast');
     const printValidCount = document.getElementById('printValidCount');
     const printPage1Label = document.getElementById('printPage1Label');
     const printPage2Title = document.getElementById('printPage2Title');
+    const printPage3Title = document.getElementById('printPage3Title');
     const printLastPageTitle = document.getElementById('printLastPageTitle');
 
     const totalRaw = (AppState.rawRows || []).length;
@@ -2484,6 +2561,7 @@ function updatePrintMetaInfo() {
     if (printFileName) printFileName.textContent = fileName;
     if (printDate) printDate.textContent = nowStr;
     if (printDate2) printDate2.textContent = `出力日時: ${nowStr}`;
+    if (printDate3) printDate3.textContent = `出力日時: ${nowStr}`;
     if (printDateLast) printDateLast.textContent = `出力日時: ${nowStr}`;
     if (printValidCount) {
         if (isFiltered) {
@@ -2517,11 +2595,27 @@ function updatePrintMetaInfo() {
         printPage1Label.textContent = `1 / ${totalPages} ページ`;
     }
     if (printPage2Title) {
-        printPage2Title.textContent = `テキスト・自由記述 潜在トピック探索レポート - 2 / ${totalPages} ページ（属性別クロス集計 ＆ ポジショニングマップ）`;
+        printPage2Title.textContent = `テキスト・自由記述 潜在トピック探索レポート - 2 / ${totalPages} ページ（属性別クロス集計）`;
+    }
+    if (printPage3Title) {
+        printPage3Title.textContent = `テキスト・自由記述 潜在トピック探索レポート - 3 / ${totalPages} ページ（属性別トピック空間マップ比較）`;
     }
     if (printLastPageTitle) {
         printLastPageTitle.textContent = `テキスト・自由記述 潜在トピック探索レポート - ${totalPages} / ${totalPages} ページ（トピック詳細 ＆ 文章例）`;
     }
+
+    // 各トピックカード個別のページヘッダーを更新（1トピック＝1ページ）
+    themes.forEach((theme, idx) => {
+        const pageNum = basePages + idx + 1;
+        const topicHeaderEl = document.getElementById(`print-topic-header-${theme.id}`);
+        const topicDateEl = document.getElementById(`print-topic-date-${theme.id}`);
+        if (topicHeaderEl) {
+            topicHeaderEl.textContent = `テキスト・自由記述 潜在トピック探索レポート - ${pageNum} / ${totalPages} ページ（トピック ${idx + 1}：${theme.label}）`;
+        }
+        if (topicDateEl) {
+            topicDateEl.textContent = `出力日時: ${nowStr}`;
+        }
+    });
 }
 
 let currentPrintRestoreFn = null;
@@ -2536,7 +2630,7 @@ async function rasterizeChartsForPrint() {
     const restoreTasks = [];
 
     const tasks = plots.map(async (plotEl) => {
-        // 表示されていないグラフはスキップ（テーマカード内・可視化ドロワー内・印刷用ブロックは必ず実行）
+        // 表示されていないグラフはスキップ（テーマカード内・可視化ドロワー内・属性セクション・印刷用ブロックは必ず実行）
         const isInVizDrawer = !!plotEl.closest('.theme-viz-drawer');
         const isInThemeCard = !!plotEl.closest('.theme-card');
         const isInAttrSection = !!plotEl.closest('#attributeAnalysisSection');
@@ -2546,18 +2640,23 @@ async function rasterizeChartsForPrint() {
             return;
         }
 
+        const isSubPlot = plotEl.classList.contains('attr-sub-plot');
         const isKwChart = plotEl.id && plotEl.id.startsWith('chart-kw-');
-        const defaultW = isSubPlot ? 320 : (isKwChart ? 230 : (isNetworkPlot ? 420 : 600));
-        const defaultH = isSubPlot ? 145 : (isKwChart ? 200 : (isNetworkPlot ? 280 : 350));
+        const isNetworkPlot = plotEl.classList.contains('network-plot-container') || (plotEl.id && plotEl.id.startsWith('network-plot-'));
+
+        const defaultW = isSubPlot ? 320 : (isKwChart ? 280 : (isNetworkPlot ? 440 : 600));
+        const defaultH = isSubPlot ? 205 : (isKwChart ? 240 : (isNetworkPlot ? 330 : 350));
 
         const rect = plotEl.getBoundingClientRect();
         let width = plotEl.clientWidth || Math.round(rect.width) || defaultW;
         let height = plotEl.clientHeight || Math.round(rect.height) || defaultH;
 
         if (isNetworkPlot) {
-            height = 280;
+            height = 330;
         } else if (isKwChart) {
-            height = Math.min(height, 220);
+            height = 240;
+        } else if (isSubPlot) {
+            height = 205;
         }
 
         if (width <= 0 || height <= 0) return;

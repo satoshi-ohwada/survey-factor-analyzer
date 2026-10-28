@@ -2328,7 +2328,7 @@ body {
 
 .attr-sub-plot {
     width: 100%;
-    height: 145px;
+    height: 210px;
     min-width: 0;
     overflow: hidden;
     box-sizing: border-box;
@@ -2358,7 +2358,7 @@ body {
     justify-content: space-between;
     align-items: center;
     gap: 6px;
-    margin-bottom: 2px;
+    margin-bottom: 3px;
     padding-bottom: 3px;
     border-bottom: 1px solid #F1F5F9;
     white-space: nowrap;
@@ -2403,6 +2403,78 @@ body {
     white-space: nowrap;
     max-width: 55%;
     flex-shrink: 0;
+}
+
+/* 属性カード内トピック構成比スタックバー */
+.attr-stack-bar-wrap {
+    width: 100%;
+    margin-bottom: 4px;
+}
+
+.attr-stack-bar {
+    width: 100%;
+    height: 6px;
+    background: #F1F5F9;
+    border-radius: 3px;
+    overflow: hidden;
+    display: flex;
+}
+
+.attr-stack-segment {
+    height: 100%;
+    transition: width 0.2s ease;
+}
+
+/* トピックカードの指標ピル群 */
+.theme-metrics-pills {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.theme-metric-pill {
+    font-size: 11px;
+    color: #475569;
+    background: #F1F5F9;
+    border: 1px solid #E2E8F0;
+    padding: 2px 7px;
+    border-radius: 12px;
+}
+
+.theme-metric-pill b {
+    color: #0F172A;
+}
+
+.theme-metric-attr {
+    background: #EFF6FF;
+    border-color: #BFDBFE;
+    color: #1D4ED8;
+    font-weight: 600;
+}
+
+/* 代表文章のメタライン＆適合度バッジ */
+.response-item-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.response-meta-line {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 2px;
+}
+
+.badge-conf {
+    font-size: 10px;
+    color: #4338CA;
+    background: #EEF2FF;
+    border: 1px solid #C7D2FE;
+    padding: 0 5px;
+    border-radius: 3px;
+    font-weight: 600;
+    display: inline-block;
 }
 
 /* ========================================================
@@ -2499,35 +2571,99 @@ body {
         padding: 0 !important;
     }
 
-    /* テーマカードの印刷用レイアウト（2ページ目） */
+    /* テーマカードの印刷用レイアウト（1トピック＝A4 1ページ完結） */
     .theme-cards-list {
         display: flex !important;
         flex-direction: column !important;
-        gap: 6px !important;
+        gap: 0 !important;
     }
 
     .theme-card {
-        padding: 6px 10px !important;
-        margin-bottom: 6px !important;
+        page-break-before: always !important;
+        break-before: page !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        min-height: 250mm !important;
+        padding: 10px 14px !important;
+        margin-bottom: 0 !important;
+        box-shadow: none !important;
+        border: 1px solid #CBD5E1 !important;
+        background: #FFFFFF !important;
+        box-sizing: border-box !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: flex-start !important;
+    }
+
+    .print-topic-page-header {
+        display: block !important;
+        margin-bottom: 4px !important;
     }
 
     .theme-card-header {
-        margin-bottom: 4px !important;
+        margin-bottom: 6px !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+    }
+
+    .theme-title-area {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+    }
+
+    .theme-index-badge {
+        font-size: 9pt !important;
+        padding: 2px 8px !important;
+    }
+
+    .theme-title {
+        font-size: 13pt !important;
+        font-weight: 700 !important;
+        color: #1E293B !important;
+    }
+
+    .theme-metrics-pills {
+        display: flex !important;
+        align-items: center !important;
+        gap: 5px !important;
+        flex-wrap: wrap !important;
+    }
+
+    .theme-share-badge {
+        font-size: 8.5pt !important;
+        padding: 2px 8px !important;
+        background: #EFF6FF !important;
+        border: 1px solid #BFDBFE !important;
+        color: #1E40AF !important;
+    }
+
+    .theme-metric-pill {
+        font-size: 8pt !important;
+        padding: 2px 6px !important;
+        background: #F8FAFC !important;
+        border: 1px solid #E2E8F0 !important;
+        border-radius: 10px !important;
+        color: #475569 !important;
     }
 
     .theme-body-grid {
         display: grid !important;
-        grid-template-columns: 240px 1fr !important;
+        grid-template-columns: 280px 1fr !important;
         gap: 14px !important;
         align-items: start !important;
+        margin-bottom: 6px !important;
     }
 
     .theme-chart-col {
         min-width: 0 !important;
-        max-width: 240px !important;
-        width: 240px !important;
+        max-width: 280px !important;
+        width: 280px !important;
         overflow: visible !important;
-        padding: 4px 6px !important;
+        padding: 6px 8px !important;
         background: #F8FAFC !important;
         border: 1px solid #E2E8F0 !important;
         box-sizing: border-box !important;
@@ -2545,22 +2681,37 @@ body {
         overflow: visible !important;
     }
 
+    .responses-list-container {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 3px !important;
+    }
+
     .response-item {
-        font-size: 8pt !important;
-        padding: 3px 6px !important;
+        font-size: 8.5pt !important;
+        padding: 4px 6px !important;
         margin-bottom: 2px !important;
-        line-height: 1.25 !important;
+        line-height: 1.35 !important;
         background: #F8FAFC !important;
-        border-left: 2px solid #94A3B8 !important;
+        border-left: 3px solid #94A3B8 !important;
         display: flex !important;
         align-items: flex-start !important;
-        gap: 4px !important;
+        gap: 6px !important;
     }
 
     .response-num {
-        font-size: 8pt !important;
-        min-width: 14px !important;
+        font-size: 8.5pt !important;
+        min-width: 16px !important;
         margin-top: 0 !important;
+        font-weight: 700 !important;
+        color: #64748B !important;
+    }
+
+    .response-meta-line {
+        display: flex !important;
+        align-items: center !important;
+        gap: 4px !important;
+        margin-bottom: 1px !important;
     }
 
     .response-item .badge-attr {
@@ -2569,27 +2720,41 @@ body {
         margin-top: 0 !important;
     }
 
+    .badge-conf {
+        font-size: 7.5pt !important;
+        color: #4338CA !important;
+        background: #EEF2FF !important;
+        border: 1px solid #C7D2FE !important;
+        padding: 0 4px !important;
+        border-radius: 3px !important;
+        font-weight: 600 !important;
+    }
+
     .response-text {
-        font-size: 8pt !important;
-        line-height: 1.25 !important;
+        font-size: 8.5pt !important;
+        line-height: 1.35 !important;
+        color: #1E293B !important;
     }
 
     .responses-list-title {
-        font-size: 8.5pt !important;
-        margin-bottom: 3px !important;
+        font-size: 9pt !important;
+        font-weight: 700 !important;
+        color: #334155 !important;
+        margin-bottom: 4px !important;
     }
 
     .theme-chart-title {
-        font-size: 8pt !important;
+        font-size: 8.5pt !important;
+        font-weight: 700 !important;
+        color: #334155 !important;
         margin-bottom: 2px !important;
     }
 
     .themes-section-title {
-        font-size: 12pt !important;
-        margin-bottom: 6px !important;
+        display: none !important;
     }
 
-    /* 印刷時のワードクラウド ＆ 共起ネットワーク ドロワー表示 */
+    /* 印刷時のワードクラウド ＆ 共起ネットワーク ドロワー表示（1ページの下部に広々と配置） */
     .theme-viz-drawer {
         display: block !important;
         margin-top: 8px !important;
@@ -2597,17 +2762,18 @@ body {
         border-top: 1px dashed #CBD5E1 !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
+        flex: 1 !important;
     }
 
     .theme-viz-body {
         display: grid !important;
         grid-template-columns: 3.5fr 6.5fr !important;
-        gap: 10px !important;
+        gap: 12px !important;
         width: 100% !important;
     }
 
     .cloud-container {
-        height: 280px !important;
+        height: 330px !important;
         border: 1px solid #CBD5E1 !important;
         background: #F8FAFC !important;
         overflow: hidden !important;
@@ -2615,7 +2781,7 @@ body {
     }
 
     .network-plot-container {
-        height: 280px !important;
+        height: 330px !important;
         border: 1px solid #CBD5E1 !important;
         background: #FFFFFF !important;
         overflow: hidden !important;
@@ -2638,12 +2804,12 @@ body {
         display: flex !important;
         flex-wrap: wrap !important;
         gap: 2px !important;
-        margin-top: 2px !important;
+        margin-top: 3px !important;
     }
 
     .kw-tag-badge {
-        font-size: 7pt !important;
-        padding: 1px 4px !important;
+        font-size: 7.5pt !important;
+        padding: 1px 5px !important;
     }
 
     .viz-pane-header {
@@ -2652,11 +2818,11 @@ body {
     }
 
     .viz-pane-title {
-        font-size: 8pt !important;
+        font-size: 8.5pt !important;
     }
 
     .viz-pane-hint {
-        font-size: 7pt !important;
+        font-size: 7.5pt !important;
     }
 
     /* 属性別分析セクション（印刷時） */
@@ -2676,15 +2842,15 @@ body {
 
     .attr-multiples-grid {
         display: grid !important;
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
-        gap: 6px !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 10px !important;
         width: 100% !important;
         max-width: 100% !important;
         box-sizing: border-box !important;
     }
 
     .attr-multiples-card {
-        padding: 4px 6px !important;
+        padding: 6px 8px !important;
         box-shadow: none !important;
         border: 1px solid #CBD5E1 !important;
         page-break-inside: avoid !important;
@@ -2695,6 +2861,7 @@ body {
         overflow: hidden !important;
         display: flex !important;
         flex-direction: column !important;
+        background: #FFFFFF !important;
     }
 
     .attr-multiples-card-header {
@@ -2718,7 +2885,8 @@ body {
     }
 
     .attr-card-name {
-        font-size: 8.5pt !important;
+        font-size: 9pt !important;
+        font-weight: 700 !important;
         overflow: hidden !important;
         text-overflow: ellipsis !important;
         white-space: nowrap !important;
@@ -2740,11 +2908,29 @@ body {
         flex-shrink: 0 !important;
     }
 
+    .attr-stack-bar-wrap {
+        width: 100% !important;
+        margin-bottom: 3px !important;
+    }
+
+    .attr-stack-bar {
+        width: 100% !important;
+        height: 5px !important;
+        display: flex !important;
+        border-radius: 2px !important;
+        overflow: hidden !important;
+        background: #E2E8F0 !important;
+    }
+
+    .attr-stack-segment {
+        height: 100% !important;
+    }
+
     .attr-sub-plot {
         width: 100% !important;
         max-width: 100% !important;
         min-width: 0 !important;
-        height: 145px !important;
+        height: 205px !important;
         overflow: hidden !important;
         box-sizing: border-box !important;
         flex: 1 !important;
@@ -2789,8 +2975,8 @@ body.is-printing .print-only-block {
 
 body.is-printing .attr-multiples-grid {
     display: grid !important;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
-    gap: 6px !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
     width: 100% !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
@@ -2809,15 +2995,28 @@ body.is-printing .attr-sub-plot {
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
-    height: 145px !important;
+    height: 205px !important;
     overflow: hidden !important;
     box-sizing: border-box !important;
     flex: 1 !important;
 }
 
+body.is-printing .cloud-container {
+    height: 330px !important;
+}
+
+body.is-printing .network-plot-container {
+    height: 330px !important;
+}
+
 body.is-printing .attr-sub-plot .print-rasterized-chart {
     width: 100% !important;
     height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    object-fit: contain !important;
+    display: block !important;
+}
     max-width: 100% !important;
     max-height: 100% !important;
     object-fit: contain !important;

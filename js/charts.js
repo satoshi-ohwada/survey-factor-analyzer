@@ -1244,26 +1244,41 @@ const ChartRenderer = {
         container.appendChild(wrapper);
 
         // 4. 各属性のミニ散布図を描画
+        const plotPromises = [];
+
         sortedAttrs.forEach((attrName, idx) => {
             const points = attrGroups[attrName];
             const count = points.length;
 
-            // この属性で最も多いトピックを計算
+            // この属性における全トピックの件数・比率を計算
             const themeCounts = {};
             points.forEach(p => {
                 themeCounts[p.primaryThemeId] = (themeCounts[p.primaryThemeId] || 0) + 1;
             });
+
             let maxThemeId = -1;
             let maxCount = -1;
-            Object.keys(themeCounts).forEach(tid => {
-                if (themeCounts[tid] > maxCount) {
-                    maxCount = themeCounts[tid];
-                    maxThemeId = parseInt(tid, 10);
+            themes.forEach((t) => {
+                const c = themeCounts[t.id] || 0;
+                if (c > maxCount) {
+                    maxCount = c;
+                    maxThemeId = t.id;
                 }
             });
+
             const topTheme = themes[maxThemeId];
             const topThemePct = count > 0 ? Math.round((maxCount / count) * 100) : 0;
             const topColor = topTheme ? this.COLORS[maxThemeId % this.COLORS.length] : '#2563EB';
+
+            // トピック構成比スタックバー（ミニバー）のHTML作成
+            const barSegmentsHtml = themes.map(t => {
+                const c = themeCounts[t.id] || 0;
+                if (c === 0) return '';
+                const pct = Math.round((c / count) * 1000) / 10;
+                const col = this.COLORS[t.id % this.COLORS.length];
+                const cleanLbl = t.label.replace(/^【|】$/g, '');
+                return `<div class="attr-stack-segment" style="width:${pct}%; background:${col};" title="${safeHtml(cleanLbl)}: ${c}件 (${pct}%)"></div>`;
+            }).join('');
 
             // カードDOM
             const cardEl = document.createElement('div');
@@ -1277,10 +1292,13 @@ const ChartRenderer = {
                         <span class="attr-card-count">N=${count}</span>
                     </div>
                     ${topTheme ? `
-                        <span class="attr-card-top-factor" style="color: ${topColor}; background: ${topColor}15; border: 1px solid ${topColor}35;">
+                        <span class="attr-card-top-factor" style="color: ${topColor}; background: ${topColor}18; border: 1px solid ${topColor}40;">
                             最多: ${safeHtml(topTheme.label.replace(/^【|】$/g, ''))} (${topThemePct}%)
                         </span>
                     ` : ''}
+                </div>
+                <div class="attr-stack-bar-wrap" title="各トピックの構成割合">
+                    <div class="attr-stack-bar">${barSegmentsHtml}</div>
                 </div>
                 <div id="${plotId}" class="attr-sub-plot"></div>
             `;
@@ -1295,8 +1313,8 @@ const ChartRenderer = {
                 name: '全体（比較用）',
                 marker: {
                     size: 5,
-                    color: '#CBD5E1',
-                    opacity: 0.4
+                    color: '#E2E8F0',
+                    opacity: 0.6
                 },
                 hoverinfo: 'none',
                 showlegend: false
@@ -1307,7 +1325,7 @@ const ChartRenderer = {
                 x: points.map(p => p.x),
                 y: points.map(p => p.y),
                 text: points.map(p => {
-                    const short = p.text.length > 30 ? p.text.substring(0, 30) + '…' : p.text;
+                    const short = p.text.length > 35 ? p.text.substring(0, 35) + '…' : p.text;
                     return `<b>${p.themeLabel}</b> (${Math.round(p.confidence * 100)}%)<br>${short}`;
                 }),
                 customdata: points,
@@ -1317,16 +1335,19 @@ const ChartRenderer = {
                 marker: {
                     size: 8,
                     color: points.map(p => this.COLORS[p.primaryThemeId % this.COLORS.length]),
-                    opacity: 0.9,
+                    opacity: 0.92,
                     line: { color: '#ffffff', width: 1.2 }
                 },
                 hoverinfo: 'text',
                 showlegend: false
             };
 
+            const isPrinting = document.body.classList.contains('is-printing');
+            const plotHeight = isPrinting ? 205 : 210;
+
             const layout = {
-                margin: { l: 26, r: 8, t: 6, b: 20 },
-                height: 145,
+                margin: { l: 24, r: 8, t: 8, b: 20 },
+                height: plotHeight,
                 autosize: true,
                 paper_bgcolor: 'rgba(0,0,0,0)',
                 plot_bgcolor: '#FAFAFC',
@@ -1335,30 +1356,22 @@ const ChartRenderer = {
                     showgrid: true,
                     gridcolor: '#F1F5F9',
                     zeroline: true,
-                    zerolinecolor: '#E2E8F0',
+                    zerolinecolor: '#CBD5E1',
+                    zerolinewidth: 1,
+                    showticklabels: true,
                     tickfont: { size: 7.5, color: '#94A3B8' },
-                    fixedrange: true,
-                    showspikes: true,
-                    spikemode: 'across',
-                    spikesnap: 'cursor',
-                    spikethickness: 1,
-                    spikedash: 'dot',
-                    spikecolor: '#94A3B8'
+                    fixedrange: true
                 },
                 yaxis: {
                     range: rangeY,
                     showgrid: true,
                     gridcolor: '#F1F5F9',
                     zeroline: true,
-                    zerolinecolor: '#E2E8F0',
+                    zerolinecolor: '#CBD5E1',
+                    zerolinewidth: 1,
+                    showticklabels: true,
                     tickfont: { size: 7.5, color: '#94A3B8' },
-                    fixedrange: true,
-                    showspikes: true,
-                    spikemode: 'across',
-                    spikesnap: 'cursor',
-                    spikethickness: 1,
-                    spikedash: 'dot',
-                    spikecolor: '#94A3B8'
+                    fixedrange: true
                 },
                 hovermode: 'closest',
                 hoverlabel: {
@@ -1374,7 +1387,7 @@ const ChartRenderer = {
                 displayModeBar: false
             };
 
-            Plotly.newPlot(plotId, [ghostTrace, attrTrace], layout, config).then(() => {
+            const p = Plotly.newPlot(plotId, [ghostTrace, attrTrace], layout, config).then(() => {
                 const el = document.getElementById(plotId);
                 if (el && onPointClick) {
                     el.removeAllListeners && el.removeAllListeners('plotly_click');
@@ -1386,7 +1399,10 @@ const ChartRenderer = {
                     });
                 }
             });
+            plotPromises.push(p);
         });
+
+        return Promise.all(plotPromises);
     },
 
     /**
