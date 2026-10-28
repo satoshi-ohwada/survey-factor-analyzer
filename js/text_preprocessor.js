@@ -153,12 +153,12 @@ const TextPreprocessor = {
 
         // 定型スキップ単語・欠損値表記に合致する場合
         if (this.JUNK_RESPONSES.has(cleaned) || this.JUNK_RESPONSES.has(lowerCleaned)) {
-            return { status: 'junk', label: '定型無効', isProblem: true, detail: '「なし」「特になし」「N/A」等の定型回答のため分析対象外です' };
+            return { status: 'junk', label: '定型無効', isProblem: true, detail: '「なし」「特になし」「N/A」等の定型表現のため分析対象外です' };
         }
 
         // 数字のみ（例: 999, 0, 99 などコード番号）
         if (/^[0-9０-９]+$/.test(cleaned)) {
-            return { status: 'junk', label: '数値コード', isProblem: true, detail: 'アンケートコード等の数値のみのため分析対象外です' };
+            return { status: 'junk', label: '数値コード', isProblem: true, detail: 'コード番号等の数値のみのため分析対象外です' };
         }
 
         // 文字数が極端に短い（1文字のみ）
@@ -580,7 +580,7 @@ const TextPreprocessor = {
     generateRulesText(compoundWordsSet, stopWordsSet, synonymRulesMap) {
         const lines = [];
         lines.push("# ========================================================");
-        lines.push("# アンケート自由記述 潜在トピック探索ツール - 辞書・ルール設定ファイル");
+        lines.push("# テキスト・自由記述 潜在トピック探索ツール - 辞書・ルール設定ファイル");
         lines.push("# （text-analysis-test 共通フォーマット）");
         lines.push("#");
         lines.push("# 【使い方】");

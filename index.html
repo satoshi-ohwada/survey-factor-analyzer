@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>アンケート自由記述 潜在トピック探索ツール</title>
+    <title>テキスト・自由記述 潜在トピック探索ツール</title>
     <link rel="icon" type="image/png" href="icon.png">
     <link rel="apple-touch-icon" href="icon.png">
     <link rel="stylesheet" href="css/style.css">
@@ -21,7 +21,7 @@
             <div class="logo-area">
                 <img src="icon.png" alt="FACT" style="width: 34px; height: 34px; border-radius: 7px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); flex-shrink: 0;">
                 <div>
-                    <h1 class="logo-title">アンケート自由記述 潜在トピック探索ツール</h1>
+                    <h1 class="logo-title">テキスト・自由記述 潜在トピック探索ツール</h1>
                 </div>
             </div>
             <div class="header-actions">
@@ -56,8 +56,8 @@
                 <div id="dropZoneWrapper">
                     <div id="dropZone" class="drop-zone" onclick="document.getElementById('csvFileInput').click();">
                         <div class="drop-icon">📁</div>
-                        <div class="drop-text">ここにアンケートファイル (Excel .xlsx / CSV / TSV / TXT) をドラッグ＆ドロップ</div>
-                        <div class="drop-subtext">またはクリックして選択（Excel・CSV・1行1回答のテキストに対応 / UTF-8・Shift_JIS自動判定）</div>
+                        <div class="drop-text">ここにデータファイル (Excel .xlsx / CSV / TSV / TXT) をドラッグ＆ドロップ</div>
+                        <div class="drop-subtext">またはクリックして選択（Excel・CSV・1行1件のテキストに対応 / UTF-8・Shift_JIS自動判定）</div>
                         <input type="file" id="csvFileInput" accept=".csv, .tsv, .txt, .xlsx, .xls" style="display: none;">
                     </div>
                 </div>
@@ -224,7 +224,7 @@
                     <div id="dictionaryBody" class="dict-body" style="display: block;">
                         <div class="dict-intro-bar">
                             <span class="dict-intro-text">
-                                特定の業界用語や新語を1単語として扱ったり、アンケート共通の不要語を除外してトピックの解釈性を高めます。
+                                特定の業界用語や新語を1単語として扱ったり、一般的な不要語を除外してトピックの解釈性を高めます。
                             </span>
                             <div class="dict-toolbar">
                                 <button type="button" id="btnImportRules" class="btn btn-xs btn-outline" title="テキストファイルから設定を読み込みます">
@@ -253,7 +253,7 @@
                                     </div>
                                     <button type="button" id="btnResetStopwords" class="dict-mini-btn" title="標準のストップワードリストに戻します">初期化</button>
                                 </div>
-                                <p class="dict-card-desc">分析から除外したい不要語・前提語（例:「店」「利用」「アンケート」等）</p>
+                                <p class="dict-card-desc">分析から除外したい不要語・前提語（例:「店」「利用」「確認」等）</p>
                                 <div class="dict-input-row">
                                     <input type="text" id="inputNewStopword" class="dict-input" placeholder="除外する単語を入力">
                                     <button type="button" id="btnAddStopword" class="btn btn-xs btn-primary">追加</button>
@@ -315,7 +315,7 @@
                                 <button type="button" id="btnPreviewAll">全行表示</button>
                             </div>
                             <!-- 問題のある行フィルター -->
-                            <button type="button" id="btnFilterWarnings" class="btn btn-xs btn-outline-warning" title="空欄・定型無効回答のみを抽出表示">
+                            <button type="button" id="btnFilterWarnings" class="btn btn-xs btn-outline-warning" title="空欄・定型無効データのみを抽出表示">
                                 ⚠️ 問題のある行のみ (<span id="warningRowCount">0</span>)
                             </button>
                             <button type="button" id="btnAddRow" class="btn btn-xs" title="新しい行を追加">
@@ -328,13 +328,13 @@
                         </div>
                     </div>
 
-                    <!-- 警告・注意アラートバー (空欄や無効回答がある場合に表示) -->
+                    <!-- 警告・注意アラートバー (空欄や無効データがある場合に表示) -->
                     <div id="previewWarningAlert" class="preview-alert preview-alert-warning" style="display: none;">
                         <span style="font-size: 18px; margin-top: 2px;">⚠️</span>
                         <div class="alert-body">
                             <div style="font-weight: 700; margin-bottom: 2px;">分析に影響する可能性のある入力が含まれています</div>
                             <div id="previewWarningDesc">
-                                選択中の自由記述列に、空欄または分析対象外となる回答が <b>0件</b> あります。
+                                選択中の分析対象列に、空欄または分析対象外となるテキストが <b>0件</b> あります。
                             </div>
                         </div>
                     </div>
@@ -397,18 +397,21 @@
         <!-- 分析結果コンテナ（初期非表示） -->
         <section id="resultsContainer" style="display: none;">
             <!-- 印刷用ヘッダー (1ページ目用 / 画面表示時は非表示) -->
-            <div class="print-only" style="margin-bottom: 10px;">
-                <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1E293B; padding-bottom: 6px; margin-bottom: 10px;">
+            <div class="print-only" style="margin-bottom: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1.5px solid #334155; padding-bottom: 5px; margin-bottom: 6px;">
                     <div>
-                        <h1 style="font-size: 16pt; font-weight: 800; color: #1E293B; margin: 0; line-height: 1.2;">アンケート自由記述 潜在トピック探索レポート</h1>
-                        <div style="font-size: 9pt; color: #64748B; margin-top: 3px;">
-                            分析対象: <b id="printFileName" style="color:#1E293B;">-</b> │ 出力日時: <span id="printDate">-</span> │ 有効回答: <b id="printValidCount">-</b> 件 │ 抽出品詞: <b id="printPosList" style="color:#2563EB;">-</b><span id="printFilterWrapper" style="display: none;"> │ 絞り込み条件: <b id="printFilterConditions" style="color:#2563EB;">-</b></span>
-                        </div>
+                        <h1 style="font-size: 14pt; font-weight: 700; color: #0F172A; margin: 0; letter-spacing: 0.5px;">テキスト・自由記述 潜在トピック探索レポート</h1>
                     </div>
-                    <div style="text-align: right;">
-                        <div style="font-size: 9.5pt; font-weight: 700; color: #2563EB;">Survey Topic Explorer</div>
-                        <div id="printPage1Label" style="font-size: 8pt; color: #64748B;">1 / 2 ページ (サマリー)</div>
+                    <div style="text-align: right; display: flex; align-items: baseline; gap: 8px;">
+                        <span style="font-size: 8.5pt; color: #64748B; font-weight: 600;">Topic Explorer</span>
+                        <span id="printPage1Label" style="font-size: 8.5pt; color: #475569; font-weight: 600; background: #F1F5F9; padding: 1px 6px; border-radius: 3px;">1 / 2 ページ</span>
                     </div>
+                </div>
+                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 8.5pt; color: #475569;">
+                    <span>📁 対象: <b id="printFileName" style="color: #0F172A;">-</b></span>
+                    <span>📊 有効データ: <b id="printValidCount" style="color: #0F172A;">-</b></span>
+                    <span>📅 出力: <span id="printDate">-</span></span>
+                    <span id="printFilterWrapper" style="display: none;">🔍 条件: <b id="printFilterConditions" style="color: #2563EB;">-</b></span>
                 </div>
             </div>
 
@@ -427,8 +430,8 @@
             <div class="summary-bar">
                 <div class="summary-stats">
                     <span class="stat-item">分析対象データ件数: <b id="statTotalRows" class="stat-val">0</b> 件<span id="statFilterNote" style="font-size: 11px; color: #2563EB; font-weight: normal; margin-left: 4px;"></span></span>
-                    <span class="stat-item">有効回答（テキスト有）: <b id="statValidRows" class="stat-val">0</b> 件</span>
-                    <span class="stat-item" id="statJunkRowsItem" role="button" tabindex="0" title="クリックして除外された無効・定型回答の一覧を確認" style="cursor: pointer;">除外（定型「なし」等）: <b id="statJunkRows" class="stat-val" style="color:#64748B; text-decoration: underline;">0</b> 件 <span id="statJunkBadge" style="font-size: 10px; background: #E2E8F0; color: #475569; padding: 1px 5px; border-radius: 4px; margin-left: 2px;">確認 🔍</span></span>
+                    <span class="stat-item">有効データ（テキスト有）: <b id="statValidRows" class="stat-val">0</b> 件</span>
+                    <span class="stat-item" id="statJunkRowsItem" role="button" tabindex="0" title="クリックして除外された無効・定型データの一覧を確認" style="cursor: pointer;">除外（定型「なし」等）: <b id="statJunkRows" class="stat-val" style="color:#64748B; text-decoration: underline;">0</b> 件 <span id="statJunkBadge" style="font-size: 10px; background: #E2E8F0; color: #475569; padding: 1px 5px; border-radius: 4px; margin-left: 2px;">確認 🔍</span></span>
                     <span class="stat-item">抽出された主要トピック: <b id="statThemesCount" class="stat-val">0</b> 個</span>
                     <span class="stat-item">抽出品詞: <b id="statPosList" class="stat-val" style="color:#2563EB;">-</b></span>
                 </div>
@@ -453,7 +456,7 @@
                             <div style="font-size: 20px; font-weight: 700; color: var(--text-main); margin-top: 2px;">
                                 <span id="statAvgChars">0</span> <span style="font-size: 12px; font-weight: normal;">文字</span>
                             </div>
-                            <div style="font-size: 10px; color: #64748B; margin-top: 2px;">最長回答: <b id="statMaxChars">0</b> 文字</div>
+                            <div style="font-size: 10px; color: #64748B; margin-top: 2px;">最長テキスト: <b id="statMaxChars">0</b> 文字</div>
                         </div>
                         <div style="background: #F8FAFC; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px 12px;">
                             <div style="font-size: 11px; color: var(--text-muted);">検出された語彙数</div>
@@ -468,20 +471,20 @@
                     <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 14px;">
                         <tbody>
                             <tr style="border-bottom: 1px solid #F1F5F9;">
-                                <td style="padding: 6px 0; color: var(--text-muted);">総アンケート行数</td>
+                                <td style="padding: 6px 0; color: var(--text-muted);">総データ行数</td>
                                 <td style="padding: 6px 0; text-align: right; font-weight: 600;"><span id="tblTotalRows">0</span> 件</td>
                             </tr>
                             <tr style="border-bottom: 1px solid #F1F5F9;">
-                                <td style="padding: 6px 0; color: var(--text-muted);">有効自由記述回答率</td>
+                                <td style="padding: 6px 0; color: var(--text-muted);">有効テキスト率</td>
                                 <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #166534;"><span id="tblValidRate">0%</span> (<span id="tblValidRows">0</span> 件)</td>
                             </tr>
                             <tr style="border-bottom: 1px solid #F1F5F9;">
                                 <td style="padding: 6px 0; color: var(--text-muted);">
-                                    除外された無効・定型回答
+                                    除外された無効・定型データ
                                 </td>
                                 <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #64748B;">
                                     <span id="tblJunkRows">0</span> 件
-                                    <button type="button" id="btnOpenExcludedModal" class="btn btn-xs btn-outline" style="margin-left: 6px; padding: 2px 7px; font-size: 11px; vertical-align: middle; display: none;" title="除外された回答の内訳・一覧をモーダルで確認">
+                                    <button type="button" id="btnOpenExcludedModal" class="btn btn-xs btn-outline" style="margin-left: 6px; padding: 2px 7px; font-size: 11px; vertical-align: middle; display: none;" title="除外されたデータの内訳・一覧をモーダルで確認">
                                         🔍 内訳を確認
                                     </button>
                                 </td>
@@ -520,7 +523,7 @@
                             🎯【図3】トピック空間ポジショニングマップ
                         </div>
                         <div style="display: flex; gap: 4px;">
-                            <button type="button" id="btnMapModeResponses" class="btn btn-sm btn-primary" style="padding: 3px 8px; font-size: 11px;">回答者スコア</button>
+                            <button type="button" id="btnMapModeResponses" class="btn btn-sm btn-primary" style="padding: 3px 8px; font-size: 11px;">テキストスコア</button>
                             <button type="button" id="btnMapModeWords" class="btn btn-sm" style="padding: 3px 8px; font-size: 11px;">語の関連度</button>
                         </div>
                     </div>
@@ -532,7 +535,7 @@
                                 <span>比較する軸（トピック）の切り替え</span>
                             </div>
                             <div class="axis-switch-hint">
-                                ※ 任意の2つのトピックを選んで、相関や回答者の分布を観察できます
+                                ※ 任意の2つのトピックを選んで、相関やテキストの分布を観察できます
                             </div>
                         </div>
                         <div class="axis-switch-controls">
@@ -559,7 +562,7 @@
                     <div id="mapHoverDetailPanel" class="map-hover-detail-panel">
                         <div class="map-hover-detail-placeholder">
                             <span class="placeholder-icon">💡</span>
-                            <span class="placeholder-text">マップ上のデータ点にカーソルを合わせると、回答内容やスコアの詳細がここに表示されます（クリックで詳細モーダル表示）</span>
+                            <span class="placeholder-text">マップ上のデータ点にカーソルを合わせると、テキスト内容やスコアの詳細がここに表示されます（クリックで詳細モーダル表示）</span>
                         </div>
                     </div>
                 </div>
@@ -569,10 +572,10 @@
             <div id="attributeAnalysisSection" style="display: none; margin-bottom: 24px;">
                 <!-- 印刷用改ページ (属性あり時: A4 2ページ目へ) -->
                 <div class="print-page-break"></div>
-                <div class="print-only" style="margin-bottom: 8px;">
+                <div class="print-only" style="margin-bottom: 6px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #CBD5E1; padding-bottom: 4px;">
-                        <span id="printPage2Title" style="font-size: 8.5pt; color: #64748B;">アンケート自由記述 潜在トピック探索レポート - 2 / 3 ページ（属性別クロス集計 ＆ 意見ポジショニング分布）</span>
-                        <span id="printDate2" style="font-size: 8.5pt; color: #64748B;"></span>
+                        <span id="printPage2Title" style="font-size: 8.5pt; font-weight: 600; color: #334155;">テキスト・自由記述 潜在トピック探索レポート - 2 / 3 ページ（属性別クロス集計 ＆ ポジショニングマップ）</span>
+                        <span id="printDate2" style="font-size: 8pt; color: #64748B;"></span>
                     </div>
                 </div>
 
@@ -587,26 +590,26 @@
                 </div>
             </div>
 
-            <!-- 印刷用改ページ (最終ページ: 各トピックの詳細 ＆ 生の声) -->
+            <!-- 印刷用改ページ (最終ページ: 各トピックの詳細 ＆ 文章例) -->
             <div class="print-page-break"></div>
-            <div class="print-only" style="margin-bottom: 8px;">
+            <div class="print-only" style="margin-bottom: 6px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #CBD5E1; padding-bottom: 4px;">
-                    <span id="printLastPageTitle" style="font-size: 8.5pt; color: #64748B;">アンケート自由記述 潜在トピック探索レポート - 2 / 2 ページ（各トピックの詳細 ＆ 生の声）</span>
-                    <span id="printDateLast" style="font-size: 8.5pt; color: #64748B;"></span>
+                    <span id="printLastPageTitle" style="font-size: 8.5pt; font-weight: 600; color: #334155;">テキスト・自由記述 潜在トピック探索レポート - 2 / 2 ページ（各トピックの詳細 ＆ 文章例）</span>
+                    <span id="printDateLast" style="font-size: 8pt; color: #64748B;"></span>
                 </div>
             </div>
 
-            <!-- トピック詳細セクション（各トピックの重要単語 ＆ 代表回答） -->
+            <!-- トピック詳細セクション（各トピックの重要単語 ＆ 代表文章） -->
             <div class="themes-section">
                 <h2 class="themes-section-title">
-                    📋【表2】発見された潜在トピックの詳細（重要単語 ＆ 生の声）
+                    📋【表2】発見された潜在トピックの詳細（重要単語 ＆ 文章例）
                 </h2>
                 <div id="themeCardsList" class="theme-cards-list"></div>
             </div>
         </section>
     </main>
 
-    <!-- モーダルダイアログ（回答詳細・一覧・ヘルプ用） -->
+    <!-- モーダルダイアログ（詳細・一覧・ヘルプ用） -->
     <div id="detailModal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
@@ -659,7 +662,7 @@
                                         <th style="width: 44px; text-align: center;">順位</th>
                                         <th>単語</th>
                                         <th style="width: 130px;">関連度スコア</th>
-                                        <th style="width: 75px; text-align: right;">出現回答</th>
+                                        <th style="width: 75px; text-align: right;">出現件数</th>
                                         <th style="width: 70px; text-align: center;">操作</th>
                                     </tr>
                                 </thead>
@@ -673,20 +676,20 @@
             </div>
             <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
                 <div style="font-size: 11.5px; color: #64748B;">
-                    ※ 単語を除外すると、全トピックの重要度と回答者スコアが自動再計算されます。
+                    ※ 単語を除外すると、全トピックの重要度とテキストスコアが自動再計算されます。
                 </div>
                 <button type="button" class="btn btn-sm" onclick="closeThemeKeywordsModal()">閉じる</button>
             </div>
         </div>
     </div>
 
-    <!-- 除外された無効・定型回答一覧モーダル -->
+    <!-- 除外された無効・定型データ一覧モーダル -->
     <div id="excludedResponsesModal" class="modal-overlay" style="display: none;">
         <div class="modal-content" style="max-width: 960px; width: 95vw; max-height: 90vh; display: flex; flex-direction: column;">
             <div class="modal-header">
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <span style="font-size: 18px;">🚫</span>
-                    <h3 id="excludedModalTitle" class="modal-title" style="margin: 0;">除外された無効・定型回答の一覧</h3>
+                    <h3 id="excludedModalTitle" class="modal-title" style="margin: 0;">除外された無効・定型データの一覧</h3>
                     <span id="excludedModalCountBadge" class="badge-status badge-status-junk" style="font-size: 11px;">0件</span>
                 </div>
                 <button type="button" id="btnExcludedModalClose" class="modal-close" aria-label="閉じる">&times;</button>
@@ -695,11 +698,11 @@
                 <!-- 説明文 ＆ 操作バー -->
                 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
                     <div style="font-size: 12px; color: var(--text-muted); line-height: 1.5;">
-                        アンケート自由記述の分析対象から除外された回答です。<br>
-                        「なし」「特になし」等の定型回答、空欄、または指定品詞の重要語を含まない回答が自動判定されています。
+                        分析対象から除外されたテキストデータです。<br>
+                        「なし」「特になし」等の定型表現、空欄、または指定品詞の重要語を含まない行が自動判定されています。
                     </div>
                     <div style="display: flex; gap: 8px; align-items: center;">
-                        <button type="button" id="btnExportExcludedCsv" class="btn btn-sm btn-outline" style="font-size: 12px; padding: 4px 10px;" title="除外された回答一覧をCSV形式で保存">
+                        <button type="button" id="btnExportExcludedCsv" class="btn btn-sm btn-outline" style="font-size: 12px; padding: 4px 10px;" title="除外されたデータ一覧をCSV形式で保存">
                             📥 CSVダウンロード
                         </button>
                     </div>
@@ -708,7 +711,7 @@
                 <!-- 理由別フィルタータブ -->
                 <div id="excludedFilterTabs" style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;"></div>
 
-                <!-- 回答一覧テーブル -->
+                <!-- データ一覧テーブル -->
                 <div class="theme-responses-table-container" style="max-height: 480px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px;">
                     <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
                         <thead id="excludedThead" style="background: #F8FAFC; position: sticky; top: 0; z-index: 2; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">

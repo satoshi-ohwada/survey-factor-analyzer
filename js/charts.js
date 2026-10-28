@@ -55,7 +55,7 @@ const ChartRenderer = {
                 color: '#FFFFFF',
                 family: 'sans-serif'
             },
-            hovertemplate: '<b>%{label}</b><br>回答数: %{value}件 (%{percent})<extra></extra>',
+            hovertemplate: '<b>%{label}</b><br>件数: %{value}件 (%{percent})<extra></extra>',
             marker: {
                 colors: colors,
                 line: { color: '#ffffff', width: 2 }
@@ -500,7 +500,7 @@ const ChartRenderer = {
             }];
         }
 
-        const modeLabel = mode === 'responses' ? '回答者スコア' : '語の関連度';
+        const modeLabel = mode === 'responses' ? 'テキストスコア' : '語の関連度';
         const layout = {
             title: {
                 text: `<b>【図3】トピック空間ポジショニングマップ（${modeLabel}）</b> <span style="font-size:11px; font-weight:normal; color:#64748B;">[横: トピック${xFactorIdx + 1} × 縦: トピック${yFactorIdx + 1}]</span>`,
@@ -597,7 +597,7 @@ const ChartRenderer = {
                     detailPanel.innerHTML = `
                         <div class="map-hover-detail-placeholder">
                             <span class="placeholder-icon">💡</span>
-                            <span class="placeholder-text">マップ上のデータ点にカーソルを合わせると、回答内容やスコアの詳細がここに表示されます（クリックで詳細モーダル表示）</span>
+                            <span class="placeholder-text">マップ上のデータ点にカーソルを合わせると、テキスト内容やスコアの詳細がここに表示されます（クリックで詳細モーダル表示）</span>
                         </div>
                     `;
                 } else {
@@ -1229,7 +1229,7 @@ const ChartRenderer = {
             </div>
             <div class="attr-multiples-legend">
                 <span class="legend-ghost-item"><span class="legend-dot-ghost"></span> 全体の分布（背景影）</span>
-                <span class="legend-highlight-item"><span class="legend-dot-color"></span> 各属性の回答（トピック色）</span>
+                <span class="legend-highlight-item"><span class="legend-dot-color"></span> 各属性のデータ（トピック色）</span>
                 <span class="legend-axis-info">横軸: トピック${xFactorIdx + 1}【${safeHtml(xClean)}】 │ 縦軸: トピック${yFactorIdx + 1}【${safeHtml(yClean)}】</span>
             </div>
         `;

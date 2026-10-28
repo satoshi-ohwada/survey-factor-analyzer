@@ -1086,7 +1086,7 @@ async function handleFileUpload(file) {
  * デモデータでの実行
  */
 async function handleDemoData() {
-    showLoading('デモ用アンケートデータを準備中...');
+    showLoading('デモデータを準備中...');
     try {
         const parsed = await CsvParser.parse(DEMO_SURVEY_CSV);
         processParsedData(parsed, 'デモアンケート（SaaS利用満足度調査）.csv');
@@ -1268,7 +1268,7 @@ function renderDataPreview() {
         if (warningAlert) warningAlert.style.display = 'flex';
         if (successAlert) successAlert.style.display = 'none';
         if (warningDesc) {
-            warningDesc.innerHTML = `選択中の自由記述列で、空欄や記号・無効回答の <b>${problemCount}件</b> を分析対象から<b>自動的に除外</b>しました（有効な <b>${validCount}件</b> を分析対象とします）。<br><span style="color:#64748B;">※ 自動除外された行（空欄: ${emptyCount}件, 記号・定型等: ${junkCount}件）の内容を確認・編集したい場合は、上の「⚠️ 対象外の行 (${problemCount})」ボタンをクリックしてください。</span>`;
+            warningDesc.innerHTML = `選択中の分析対象列で、空欄や記号・無効データの <b>${problemCount}件</b> を分析対象から<b>自動的に除外</b>しました（有効な <b>${validCount}件</b> を分析対象とします）。<br><span style="color:#64748B;">※ 自動除外された行（空欄: ${emptyCount}件, 記号・定型等: ${junkCount}件）の内容を確認・編集したい場合は、上の「⚠️ 対象外の行 (${problemCount})」ボタンをクリックしてください。</span>`;
         }
         if (btnFilterWarnings) {
             btnFilterWarnings.style.display = 'inline-flex';
@@ -1520,7 +1520,7 @@ function updateRowAndAlertsAfterEdit(rowIdx) {
         if (warningAlert) warningAlert.style.display = 'flex';
         if (successAlert) successAlert.style.display = 'none';
         if (warningDesc) {
-            warningDesc.innerHTML = `選択中の自由記述列で、空欄や記号・無効回答の <b>${problemCount}件</b> を分析対象から<b>自動的に除外</b>しました（有効な <b>${validCount}件</b> を分析対象とします）。<br><span style="color:#64748B;">※ 自動除外された行（空欄: ${emptyCount}件, 記号・定型等: ${junkCount}件）の内容を確認・編集したい場合は、上の「⚠️ 対象外の行 (${problemCount})」ボタンをクリックしてください。</span>`;
+            warningDesc.innerHTML = `選択中の分析対象列で、空欄や記号・無効データの <b>${problemCount}件</b> を分析対象から<b>自動的に除外</b>しました（有効な <b>${validCount}件</b> を分析対象とします）。<br><span style="color:#64748B;">※ 自動除外された行（空欄: ${emptyCount}件, 記号・定型等: ${junkCount}件）の内容を確認・編集したい場合は、上の「⚠️ 対象外の行 (${problemCount})」ボタンをクリックしてください。</span>`;
         }
         if (btnFilterWarnings) {
             btnFilterWarnings.style.display = 'inline-flex';
@@ -1659,7 +1659,7 @@ async function runFullPipeline() {
         // 形態素解析の抽出品詞フィルターをセット
         TextPreprocessor.setPosFilter(AppState.selectedPos);
 
-        showLoading('アンケートテキストを前処理中...');
+        showLoading('テキストデータを前処理中...');
         // 2. 絞り込み条件（オートフィルター）を満たす行を取得
         const filteredItems = getColumnFilteredRowsWithIndex();
         if (filteredItems.length === 0) {
@@ -2099,7 +2099,7 @@ function renderThemeCards(themes) {
                             📊 ワードクラウド・共起ネットワーク ▼
                         </button>
                         <button class="btn btn-sm" onclick="showAllThemeResponses(${theme.id})">
-                            🔍 このトピックの全回答を見る (${theme.count}件)
+                            🔍 このトピックの全文章を見る (${theme.count}件)
                         </button>
                     </div>
                 </div>
@@ -2274,7 +2274,7 @@ function renderThemeCards(themes) {
                 tabCloud.classList.remove('active');
                 paneNetwork.style.display = 'block';
                 paneCloud.style.display = 'none';
-                if (vizHint) vizHint.textContent = '※色分けは単語同士の結びつき（コミュニティ）を表し、線は同じ回答内での共起関係を表します';
+                if (vizHint) vizHint.textContent = '※色分けは単語同士の結びつき（コミュニティ）を表し、線は同じテキスト内での共起関係を表します';
                 setTimeout(() => {
                     drawActiveTab();
                 }, 40);
@@ -2345,7 +2345,7 @@ function showResponseModal(pointData) {
         ? `<span class="badge-attr" style="font-size:12px; padding:4px 8px;">${escapeHtml(AppState.attributeColumn)}: ${escapeHtml(String(rawAttr).trim())}</span>`
         : '';
 
-    modalTitle.textContent = `回答詳細 (ID: ${pointData.id || '-'})`;
+    modalTitle.textContent = `テキスト詳細 (ID: ${pointData.id || '-'})`;
     modalBody.innerHTML = `
         <div style="margin-bottom: 12px; display:flex; align-items:center; flex-wrap:wrap; gap:8px;">
             <span class="badge-rec" style="font-size:12px; padding:4px 8px;">
@@ -2361,7 +2361,7 @@ function showResponseModal(pointData) {
 }
 
 /**
- * テーマ別全回答一覧モーダル
+ * テーマ別全文章一覧モーダル
  */
 window.showAllThemeResponses = function(themeId) {
     const theme = AppState.analysisResult.themes.find(t => t.id === themeId);
@@ -2379,7 +2379,7 @@ window.showAllThemeResponses = function(themeId) {
     const modalTitle = document.getElementById('modalTitle');
     const modalBody = document.getElementById('modalBody');
 
-    modalTitle.textContent = `${theme.label} の全回答一覧（${matchedResponses.length}件）`;
+    modalTitle.textContent = `${theme.label} の全文章一覧（${matchedResponses.length}件）`;
 
     const hasAttr = !!AppState.attributeColumn;
     const attrHeaderHtml = hasAttr ? `<th style="padding:10px 8px; width:120px;">${escapeHtml(AppState.attributeColumn)}</th>` : '';
@@ -2412,7 +2412,7 @@ window.showAllThemeResponses = function(themeId) {
                     <tr>
                         <th style="padding:10px 8px; width:45px;">#</th>
                         ${attrHeaderHtml}
-                        <th style="padding:10px 8px;">回答文</th>
+                        <th style="padding:10px 8px;">テキスト本文</th>
                         <th style="padding:10px 8px; width:85px; text-align:right;">適合度</th>
                     </tr>
                 </thead>
@@ -2426,7 +2426,7 @@ window.showAllThemeResponses = function(themeId) {
 };
 
 /**
- * テーマ回答のCSV出力
+ * テーマ文章のCSV出力
  */
 window.exportThemeCsv = function(themeId) {
     const theme = AppState.analysisResult.themes.find(t => t.id === themeId);
@@ -2444,7 +2444,7 @@ window.exportThemeCsv = function(themeId) {
     const hasAttr = !!(AppState.attributeColumn && AppState.headers.includes(AppState.attributeColumn));
     const headerRow = ['No', 'ID', 'トピック名'];
     if (hasAttr) headerRow.push(AppState.attributeColumn);
-    headerRow.push('適合度(%)', '回答本文');
+    headerRow.push('適合度(%)', 'テキスト本文');
 
     const csvData = [
         headerRow.map(escapeCsv)
@@ -2469,7 +2469,7 @@ window.exportThemeCsv = function(themeId) {
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     const cleanFileName = theme.label.replace(/[【】\\/:*?"<>|]/g, '');
-    link.download = `トピック_${cleanFileName}_回答一覧.csv`;
+    link.download = `トピック_${cleanFileName}_テキスト一覧.csv`;
     link.click();
 };
 
@@ -2477,7 +2477,7 @@ window.exportThemeCsv = function(themeId) {
  * 印刷用ヘッダーメタ情報の更新
  */
 function updatePrintMetaInfo() {
-    const fileName = AppState.loadedFileName || 'アンケートデータ';
+    const fileName = AppState.loadedFileName || 'テキストデータ';
     const nowStr = new Date().toLocaleString('ja-JP', {
         year: 'numeric', month: 'long', day: 'numeric',
         hour: '2-digit', minute: '2-digit'
@@ -2532,13 +2532,13 @@ function updatePrintMetaInfo() {
     }
 
     if (printPage1Label) {
-        printPage1Label.textContent = `1 / ${totalPages} ページ (サマリー)`;
+        printPage1Label.textContent = `1 / ${totalPages} ページ`;
     }
     if (printPage2Title) {
-        printPage2Title.textContent = `アンケート自由記述 潜在トピック探索レポート - 2 / ${totalPages} ページ（属性別クロス集計 ＆ 意見ポジショニング分布）`;
+        printPage2Title.textContent = `テキスト・自由記述 潜在トピック探索レポート - 2 / ${totalPages} ページ（属性別クロス集計 ＆ ポジショニングマップ）`;
     }
     if (printLastPageTitle) {
-        printLastPageTitle.textContent = `アンケート自由記述 潜在トピック探索レポート - ${totalPages} / ${totalPages} ページ（各トピックの詳細 ＆ 生の声）`;
+        printLastPageTitle.textContent = `テキスト・自由記述 潜在トピック探索レポート - ${totalPages} / ${totalPages} ページ（トピック詳細 ＆ 文章例）`;
     }
 }
 
@@ -2682,23 +2682,23 @@ function showHelpModal() {
     const modalTitle = document.getElementById('modalTitle');
     const modalBody = document.getElementById('modalBody');
 
-    modalTitle.textContent = '📖 アンケート自由記述 潜在トピック探索ツールの見方と使い方';
+    modalTitle.textContent = '📖 テキスト・自由記述 潜在トピック探索ツールの見方と使い方';
     modalBody.innerHTML = `
         <div style="line-height:1.7;">
             <h4 style="margin-bottom:6px; color:#1E293B;">■ このツールについて</h4>
-            <p style="margin-bottom:12px;">アンケートの自由記述テキストから、統計の難しい知識がなくてもワンクリックで背後にある「潜在的なトピック（話題・テーマ）」を発見し、パス図やトピック空間マップで可視化するツールです。</p>
+            <p style="margin-bottom:12px;">自由記述テキストから、統計の難しい知識がなくてもワンクリックで背後にある「潜在的なトピック（話題・テーマ）」を発見し、パス図やトピック空間マップで可視化するツールです。</p>
             
             <h4 style="margin-bottom:6px; color:#1E293B;">■ 各図の見方</h4>
             <ul style="margin-left:20px; margin-bottom:14px;">
-                <li><b>【図1】トピック構成比ドーナツ:</b> 各潜在トピックが回答全体の何％を占めているかをひと目で把握できます。</li>
+                <li><b>【図1】トピック構成比ドーナツ:</b> 各潜在トピックがデータ全体の何％を占めているかをひと目で把握できます。</li>
                 <li><b>【図2】パス図:</b> 各トピック（楕円）から重要単語（四角）へ伸びる矢印の太さと数値が<b>関連度（関連の強さ、最大1.00）</b>を表します。</li>
                 <li><b>【図3】トピック空間ポジショニングマップ:</b>
                     <ul>
-                        <li><b>回答者スコア:</b> 各回答者が2つのトピックをどれくらい強く持っているかをプロット。ホバーで回答文が読めます。</li>
+                        <li><b>テキストスコア:</b> 各テキストが2つのトピックをどれくらい強く持っているかをプロット。ホバーで文章が読めます。</li>
                         <li><b>語の関連度:</b> 単語ごとの布置図。各語がどのトピック軸と強く関連しているか（語同士の近さ）が分かります。</li>
                     </ul>
                 </li>
-                <li><b>【図4】属性別クロス集計:</b> 年代や満足度ごとのトピック比率を比較できます。</li>
+                <li><b>【図4】属性別クロス集計:</b> 年代や満足度などの属性ごとのトピック比率を比較できます。</li>
             </ul>
         </div>
     `;
@@ -3484,7 +3484,7 @@ window.closeThemeKeywordsModal = closeThemeKeywordsModal;
 function exportThemeKeywordsCsv(theme) {
     if (!theme || !theme.keywords) return;
     const rows = [
-        ['順位', '単語', '関連度スコア', '出現回答件数']
+        ['順位', '単語', '関連度スコア', '出現件数']
     ];
     theme.keywords.forEach((k, idx) => {
         rows.push([
@@ -3604,7 +3604,7 @@ function renderExcludedModal() {
 
     if (filtered.length === 0) {
         const colSpan = hasAttr ? 7 : 6;
-        tbody.innerHTML = `<tr><td colspan="${colSpan}" style="text-align: center; color: #94A3B8; padding: 30px;">除外された回答はありません</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${colSpan}" style="text-align: center; color: #94A3B8; padding: 30px;">除外されたデータはありません</td></tr>`;
         return;
     }
 
@@ -3700,7 +3700,7 @@ window.jumpToPreviewRow = jumpToPreviewRow;
 function exportExcludedResponsesCsv() {
     const excluded = AppState.excludedResponses || [];
     if (excluded.length === 0) {
-        alert('除外された回答データがありません');
+        alert('除外されたデータがありません');
         return;
     }
 
@@ -3709,7 +3709,7 @@ function exportExcludedResponsesCsv() {
     if (hasAttr) {
         headerRow.push(AppState.attributeColumn);
     }
-    headerRow.push('自由記述回答', '除外区分', '除外理由・詳細');
+    headerRow.push('自由記述テキスト', '除外区分', '除外理由・詳細');
 
     const escapeCsv = (val) => {
         const str = (val === null || val === undefined) ? '' : String(val);
@@ -3740,7 +3740,7 @@ function exportExcludedResponsesCsv() {
     link.href = url;
     const now = new Date();
     const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
-    link.download = `除外回答一覧_${dateStr}.csv`;
+    link.download = `除外データ一覧_${dateStr}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
