@@ -2931,7 +2931,7 @@ function setupDictionaryEventListeners() {
         inputCompound.value = '';
         saveCustomRulesToStorage();
         renderCustomRulesUI();
-        showToast(`複合語に「${word}」を追加しました`);
+        showToast(`複合語に「${word}」を追加しました（「分析スタート」で再計算）`);
         markDataDirty();
     };
     if (btnAddCompound) btnAddCompound.addEventListener('click', addCompoundAction);

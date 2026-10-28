@@ -179,8 +179,21 @@ const TextPreprocessor = {
     },
 
     /**
+     * 単語マッチング用の正規化（空白除去、全角英数の半角化、小文字化）
+     * @param {string} str 
+     * @returns {string}
+     */
+    _normalizeForMatch(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/\s+/g, '')
+            .replace(/[！-～]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0))
+            .toLowerCase();
+    },
+
+    /**
      * カスタム複合語の一致および表記ゆれ（同義語）の置換をトークン列に適用
-     * 最長一致優先で結合・置換を行う
+     * 最長一致優先で結合・置換を行う（全角半角・大文字小文字・スペース差を吸収）
      * @param {Array<object>} tokens 
      * @returns {Array<object>}
      */
@@ -196,36 +209,48 @@ const TextPreprocessor = {
             ...(hasSynonyms ? Array.from(this.customSynonymRules.keys()) : [])
         ]));
 
-        // 最長一致のため文字列長降順でソート
-        const searchStrings = searchKeys.sort((a, b) => b.length - a.length);
+        const searchItems = searchKeys.map(key => ({
+            rawKey: key,
+            normKey: this._normalizeForMatch(key),
+            isSynonym: hasSynonyms && this.customSynonymRules.has(key),
+            targetWord: (hasSynonyms && this.customSynonymRules.has(key))
+                ? this.customSynonymRules.get(key)
+                : key
+        })).filter(item => item.normKey.length > 0);
+
+        // 最長一致のため正規化文字列長降順でソート
+        searchItems.sort((a, b) => b.normKey.length - a.normKey.length);
 
         const mergedTokens = [];
         let i = 0;
         while (i < tokens.length) {
             let matched = false;
-            for (const cw of searchStrings) {
-                let combinedStr = "";
+            for (const item of searchItems) {
+                let combinedNorm = "";
                 let j = i;
                 while (j < tokens.length) {
-                    combinedStr += tokens[j].surface_form;
+                    const tokenNorm = this._normalizeForMatch(tokens[j].surface_form);
+                    // 空白トークン（スペースのみ）はスキップして次へ
+                    if (tokenNorm.length === 0) {
+                        j++;
+                        continue;
+                    }
+                    combinedNorm += tokenNorm;
                     j++;
-                    if (combinedStr === cw) {
+                    if (combinedNorm === item.normKey) {
                         break;
                     }
-                    if (!cw.startsWith(combinedStr)) {
+                    if (!item.normKey.startsWith(combinedNorm)) {
                         break;
                     }
                 }
 
-                if (combinedStr === cw || combinedStr.replace(/\s+/g, '') === cw.replace(/\s+/g, '')) {
-                    const isSynonym = hasSynonyms && this.customSynonymRules.has(cw);
-                    const targetWord = isSynonym ? this.customSynonymRules.get(cw) : cw;
-
+                if (combinedNorm === item.normKey) {
                     mergedTokens.push({
-                        surface_form: targetWord,
+                        surface_form: item.targetWord,
                         pos: '名詞',
-                        pos_detail_1: isSynonym ? '同義語' : '複合語',
-                        basic_form: targetWord
+                        pos_detail_1: item.isSynonym ? '同義語' : '複合語',
+                        basic_form: item.targetWord
                     });
                     i = j;
                     matched = true;
@@ -292,10 +317,12 @@ const TextPreprocessor = {
             // ユーザー登録の複合語または同義語置換されたトークンの場合（独立した1単語として確定）
             if (posDetail === '複合語' || posDetail === '同義語') {
                 flushCompoundNoun();
-                // 複合語・同義語は名詞扱い（名詞が有効な場合に抽出）
-                if (filter.noun) {
-                    const word = basicForm;
-                    if (word.length >= 2 && !this.isStopWord(word)) {
+                const word = basicForm;
+                if (word && word.length >= 1) {
+                    // 複合語（強制抽出ワード）は、品詞フィルター設定やデフォルトストップワードによる除外を免除して最優先で抽出
+                    // （ユーザーが明示的にカスタム除外ワードに同語を登録している場合のみ除外）
+                    const isCustomExcluded = this.customStopWords && this.customStopWords.has(word);
+                    if (!isCustomExcluded) {
                         resultWords.push(word);
                     }
                 }
@@ -386,7 +413,17 @@ const TextPreprocessor = {
         const minDf = N >= 20 ? 2 : 1;
         const maxDf = N <= 10 ? N : Math.max(3, Math.floor(N * 0.85));
 
+        // ユーザーが明示的に登録した複合語および同義語の置換先（強制抽出ワードSet）
+        const forceWords = new Set([
+            ...(this.customCompoundWords ? Array.from(this.customCompoundWords) : []),
+            ...(this.customSynonymRules ? Array.from(this.customSynonymRules.values()) : [])
+        ]);
+
         let candidateWords = Object.keys(docFreq).filter(w => {
+            // ユーザー登録の複合語・同義語は、1回以上出現していれば minDf / maxDf の足切りを免除して必ず含める
+            if (forceWords.has(w)) {
+                return docFreq[w] >= 1;
+            }
             const df = docFreq[w];
             return df >= minDf && df <= maxDf;
         });
@@ -407,7 +444,9 @@ const TextPreprocessor = {
                     tfSum += (1 + Math.log(count));
                 }
             });
-            wordScores[w] = tfSum * idf;
+            // 強制抽出ワードには優先重みボーナスを付与（最大語彙数の足切りから確実に保護）
+            const priorityBonus = forceWords.has(w) ? 10000 : 0;
+            wordScores[w] = (tfSum * idf) + priorityBonus;
         });
 
         const sortedVocab = candidateWords
