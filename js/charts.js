@@ -1060,18 +1060,20 @@ const ChartRenderer = {
                 name: `トピック${tIdx + 1}: ${cleanTitle}`,
                 type: 'bar',
                 orientation: 'h',
-                text: percentages.map(p => p >= 4 ? `${p}%` : ''),
+                text: percentages.map(p => p >= 4 ? `<b>${p}%</b>` : ''),
                 textposition: 'inside',
                 insidetextanchor: 'middle',
                 textfont: {
-                    size: 12,
+                    size: 14,
                     color: '#FFFFFF',
-                    family: 'sans-serif'
+                    family: 'sans-serif',
+                    weight: 700
                 },
                 insidetextfont: {
-                    size: 12,
+                    size: 14,
                     color: '#FFFFFF',
-                    family: 'sans-serif'
+                    family: 'sans-serif',
+                    weight: 700
                 },
                 constraintext: 'inside',
                 marker: {
