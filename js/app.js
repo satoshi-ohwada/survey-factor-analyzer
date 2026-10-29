@@ -3301,7 +3301,9 @@ async function rasterizeChartsForPrint() {
         const isSubPlot = plotEl.classList.contains('attr-sub-plot');
         const isKwChart = plotEl.id && plotEl.id.startsWith('chart-kw-');
         const isNetworkPlot = plotEl.classList.contains('network-plot-container') || (plotEl.id && plotEl.id.startsWith('network-plot-'));
-        const isCrossTab = (plotEl.id === 'chartCrossTab');
+        const isCrossTab = (plotEl.id === 'chartCrossTab') || (plotEl.id && plotEl.id.startsWith('chartCrossTab_multi_'));
+        const isFactorSpace = (plotEl.id === 'chartFactorSpace');
+        const isDonut = (plotEl.id === 'chartDonut');
 
         const defaultW = isSubPlot ? 320 : (isKwChart ? 280 : (isNetworkPlot ? 480 : 600));
         const defaultH = isSubPlot ? 205 : (isKwChart ? 240 : (isNetworkPlot ? 350 : 350));
@@ -3318,12 +3320,42 @@ async function rasterizeChartsForPrint() {
             height = 205;
         } else if (isCrossTab) {
             // 図4がA4 2ページ目の下端からあふれて空ページを誘発するのを防止
-            height = Math.min(height, 380);
+            height = Math.min(height, 360);
+        } else if (isFactorSpace) {
+            // レポート出力時は図3の高さを以前と同じ位（335px）におさめ、表1〜図3をA4 1枚目に確実に収める
+            height = 335;
+        } else if (isDonut) {
+            // 図1ドーナツも1枚目に確実に収まるよう高さをコンパクトに制限
+            height = Math.min(height, 335);
         }
 
         if (width <= 0 || height <= 0) return;
 
         try {
+            // 図3（ポジショニングマップ）は印刷用に一時的にコンパクトなレイアウトへ更新
+            if (isFactorSpace) {
+                try {
+                    await Plotly.relayout(plotEl, {
+                        height: 335,
+                        'margin.t': 45,
+                        'margin.b': 45,
+                        'legend.y': 1.06,
+                        'legend.font.size': 9.5
+                    });
+                } catch (e) {}
+
+                restoreTasks.push(async () => {
+                    try {
+                        await Plotly.relayout(plotEl, {
+                            height: 490,
+                            'margin.t': 55,
+                            'margin.b': 55,
+                            'legend.y': 1.05,
+                            'legend.font.size': 10.5
+                        });
+                    } catch (e) {}
+                });
+            }
             const dataUrl = await Plotly.toImage(plotEl, {
                 format: 'png',
                 width: width,
@@ -3362,6 +3394,18 @@ async function rasterizeChartsForPrint() {
     });
 
     await Promise.all(tasks);
+
+    // パス図（図2）のSVG高さを印刷用にコンパクト（335px）に一時調整し、A4 1枚目に確実に収める
+    const pathSvg = document.querySelector('#chartPathDiagram svg');
+    if (pathSvg) {
+        const origSvgHeight = pathSvg.getAttribute('height');
+        pathSvg.setAttribute('height', '335');
+        restoreTasks.push(() => {
+            if (origSvgHeight) {
+                pathSvg.setAttribute('height', origSvgHeight);
+            }
+        });
+    }
 
     return () => {
         restoreTasks.forEach(task => task());

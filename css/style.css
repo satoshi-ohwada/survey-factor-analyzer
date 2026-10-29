@@ -2917,8 +2917,8 @@ body {
         border: 1px solid #CBD5E1 !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
-        padding: 8px 12px !important;
-        margin-bottom: 8px !important;
+        padding: 6px 10px !important;
+        margin-bottom: 6px !important;
         background: #FFFFFF !important;
     }
 
@@ -2926,12 +2926,49 @@ body {
     .charts-grid {
         display: grid !important;
         grid-template-columns: 1fr 1fr !important;
-        gap: 8px !important;
-        margin-bottom: 8px !important;
+        gap: 6px !important;
+        margin-bottom: 6px !important;
     }
 
     .chart-card {
         min-height: auto !important;
+    }
+
+    /* A4 1枚目の中段（図2 パス図 ＆ 図3 ポジショニングマップ）を以前のコンパクトな高さ（335px）におさめ、1枚目に確実に収める */
+    #chartFactorSpace {
+        height: 335px !important;
+        max-height: 335px !important;
+        overflow: hidden !important;
+    }
+
+    #chartFactorSpace .print-rasterized-chart {
+        height: 335px !important;
+        max-height: 335px !important;
+        object-fit: contain !important;
+    }
+
+    #chartPathDiagram {
+        height: 335px !important;
+        max-height: 335px !important;
+        overflow: hidden !important;
+    }
+
+    #chartPathDiagram svg {
+        height: 335px !important;
+        max-height: 335px !important;
+        width: 100% !important;
+    }
+
+    /* A4 1枚目の表1（基本統計）の余白をスリム化して図1ドーナツと高さを揃える */
+    #statsCard [style*="margin-bottom: 14px"],
+    #statsCard [style*="margin-bottom: 16px"] {
+        margin-bottom: 6px !important;
+    }
+    #statsCard table {
+        margin-bottom: 6px !important;
+    }
+    #statsCard table td {
+        padding: 3px 0 !important;
     }
 
     .cross-tab-insights-container {
@@ -3424,6 +3461,19 @@ body.is-printing .container {
 
 body.is-printing .print-only-block {
     display: block !important;
+}
+
+body.is-printing #chartFactorSpace,
+body.is-printing #chartPathDiagram {
+    height: 335px !important;
+    max-height: 335px !important;
+    overflow: hidden !important;
+}
+
+body.is-printing #chartPathDiagram svg {
+    height: 335px !important;
+    max-height: 335px !important;
+    width: 100% !important;
 }
 
 body.is-printing .attr-multiples-grid {
