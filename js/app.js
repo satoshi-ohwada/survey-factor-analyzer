@@ -2054,19 +2054,50 @@ function renderTextStatsProfile(validResponses, junkCount, tfidfData, analyzedRo
         statJunkBadge.style.display = junkCount > 0 ? 'inline' : 'none';
     }
 
-    // 最頻出単語 TOP 5
+    // 最頻出単語 TOP 10（表1）
     const topKeywordsContainer = document.getElementById('topKeywordsPills');
-    topKeywordsContainer.innerHTML = '';
-    const sortedWords = Object.entries(tfidfData.wordDocCounts || {})
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5);
+    if (topKeywordsContainer) {
+        topKeywordsContainer.innerHTML = '';
+        const sortedWords = Object.entries(tfidfData.wordDocCounts || {})
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10);
 
-    sortedWords.forEach(([word, count], i) => {
-        const pill = document.createElement('span');
-        pill.style.cssText = 'font-size: 11px; background: #F1F5F9; border: 1px solid #CBD5E1; color: #1E293B; padding: 3px 8px; border-radius: 12px; font-weight: 500;';
-        pill.innerHTML = `<b>${i + 1}.</b> ${escapeHtml(word)} <span style="color:#64748B;">(${count}件)</span>`;
-        topKeywordsContainer.appendChild(pill);
-    });
+        if (sortedWords.length === 0) {
+            topKeywordsContainer.innerHTML = '<div style="font-size: 11px; color: #94A3B8; padding: 4px 0;">検出された単語はありません</div>';
+        } else {
+            const maxCount = sortedWords[0][1] || 1;
+            const mid = Math.ceil(sortedWords.length / 2);
+            const leftWords = sortedWords.slice(0, mid);
+            const rightWords = sortedWords.slice(mid);
+
+            const renderCol = (words, startIndex) => {
+                const col = document.createElement('div');
+                col.className = 'top-keywords-col';
+                words.forEach(([word, count], idx) => {
+                    const rank = startIndex + idx + 1;
+                    const percent = Math.min(100, Math.round((count / maxCount) * 100));
+                    const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : '';
+
+                    const item = document.createElement('div');
+                    item.className = 'top-keyword-item';
+                    item.title = `${rank}位: ${word} (${count}件出現)`;
+                    item.innerHTML = `
+                        <div class="top-keyword-bar" style="width: ${percent}%;"></div>
+                        <span class="top-keyword-rank ${rankClass}">${rank}</span>
+                        <span class="top-keyword-word">${escapeHtml(word)}</span>
+                        <span class="top-keyword-count">${count}件</span>
+                    `;
+                    col.appendChild(item);
+                });
+                return col;
+            };
+
+            topKeywordsContainer.appendChild(renderCol(leftWords, 0));
+            if (rightWords.length > 0) {
+                topKeywordsContainer.appendChild(renderCol(rightWords, mid));
+            }
+        }
+    }
 }
 
 /**

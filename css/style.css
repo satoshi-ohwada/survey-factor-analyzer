@@ -2845,6 +2845,139 @@ body {
 }
 
 /* ========================================================
+   表1：全体重要単語 TOP 10 ランキング（2列カラムレイアウト）
+   ======================================================== */
+.top-keywords-section {
+    margin-top: 10px;
+}
+
+.top-keywords-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    padding-bottom: 2px;
+}
+
+.top-keywords-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: -0.01em;
+}
+
+.top-keywords-sub {
+    font-size: 10px;
+    color: #94A3B8;
+}
+
+.top-keywords-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 10px;
+}
+
+.top-keywords-col {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.top-keyword-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: 3px 6px;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 5px;
+    font-size: 11px;
+    line-height: 1.3;
+    overflow: hidden;
+    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.top-keyword-item:hover {
+    background: #F1F5F9;
+    border-color: #CBD5E1;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* 頻度比率インジケーターバー（左から右への薄いブルーの帯） */
+.top-keyword-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, rgba(37, 99, 235, 0.12), rgba(37, 99, 235, 0.04));
+    pointer-events: none;
+    border-radius: 4px 0 0 4px;
+}
+
+/* 順位バッジ */
+.top-keyword-rank {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 3px;
+    margin-right: 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    flex-shrink: 0;
+    background: #F1F5F9;
+    color: #475569;
+    border: 1px solid #CBD5E1;
+}
+
+.top-keyword-rank.rank-1 {
+    background: #1E40AF;
+    color: #FFFFFF;
+    border: none;
+}
+
+.top-keyword-rank.rank-2 {
+    background: #2563EB;
+    color: #FFFFFF;
+    border: none;
+}
+
+.top-keyword-rank.rank-3 {
+    background: #3B82F6;
+    color: #FFFFFF;
+    border: none;
+}
+
+/* 単語テキスト */
+.top-keyword-word {
+    position: relative;
+    z-index: 1;
+    font-weight: 600;
+    color: #1E293B;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-grow: 1;
+    margin-right: 4px;
+}
+
+/* 出現件数 */
+.top-keyword-count {
+    position: relative;
+    z-index: 1;
+    font-size: 10px;
+    font-weight: 600;
+    color: #64748B;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* ========================================================
    印刷・A4レポート出力用スタイル (@media print)
    ======================================================== */
 
@@ -3001,6 +3134,103 @@ body {
     }
     #statsCard table td {
         padding: 3px 0 !important;
+    }
+
+    /* 表1: 全体最頻出重要単語 TOP 10 のレポート印刷デザイン */
+    .top-keywords-section {
+        margin-top: 4px !important;
+    }
+
+    .top-keywords-header {
+        margin-bottom: 2px !important;
+        padding-bottom: 0 !important;
+    }
+
+    .top-keywords-title {
+        font-size: 8pt !important;
+        font-weight: 700 !important;
+        color: #1E293B !important;
+    }
+
+    .top-keywords-sub {
+        font-size: 7pt !important;
+        color: #64748B !important;
+    }
+
+    .top-keywords-grid {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 2px 6px !important;
+    }
+
+    .top-keywords-col {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 2px !important;
+    }
+
+    .top-keyword-item {
+        padding: 1.5px 5px !important;
+        background: #F8FAFC !important;
+        border: 1px solid #CBD5E1 !important;
+        border-radius: 3px !important;
+        font-size: 7.5pt !important;
+        line-height: 1.2 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .top-keyword-bar {
+        background: linear-gradient(90deg, rgba(37, 99, 235, 0.14), rgba(37, 99, 235, 0.04)) !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .top-keyword-rank {
+        min-width: 13px !important;
+        height: 13px !important;
+        padding: 0 1px !important;
+        margin-right: 4px !important;
+        font-size: 7pt !important;
+        border-radius: 2px !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .top-keyword-rank.rank-1 {
+        background: #1E40AF !important;
+        color: #FFFFFF !important;
+        border: none !important;
+    }
+
+    .top-keyword-rank.rank-2 {
+        background: #2563EB !important;
+        color: #FFFFFF !important;
+        border: none !important;
+    }
+
+    .top-keyword-rank.rank-3 {
+        background: #3B82F6 !important;
+        color: #FFFFFF !important;
+        border: none !important;
+    }
+
+    .top-keyword-rank:not(.rank-1):not(.rank-2):not(.rank-3) {
+        background: #F1F5F9 !important;
+        color: #334155 !important;
+        border: 1px solid #CBD5E1 !important;
+    }
+
+    .top-keyword-word {
+        font-size: 7.5pt !important;
+        color: #0F172A !important;
+        font-weight: 600 !important;
+    }
+
+    .top-keyword-count {
+        font-size: 7pt !important;
+        color: #475569 !important;
+        font-weight: 600 !important;
     }
 
     .cross-tab-insights-container {
