@@ -114,13 +114,17 @@
 
                         <div class="form-group form-group-highlight">
                             <label class="form-label" for="selectAttrCol">
-                                <span class="form-label-text">② 属性の列（年代・満足度など）</span>
-                                <span class="badge-opt">任意</span>
+                                <span class="form-label-text">② 比較する属性の列（年代・地域など）</span>
+                                <span class="badge-opt">任意・最大5つ</span>
                             </label>
-                            <select id="selectAttrCol" class="form-select form-select-lg">
-                                <option value="">（指定しない）</option>
-                            </select>
-                            <span class="form-hint">クロス集計・属性比較を行う列</span>
+                            <!-- 複数属性チップ/バッジ選択コンテナ -->
+                            <div id="attrChipsWrapper" class="attr-chips-wrapper">
+                                <div id="attrChipsList" class="attr-chips-list">
+                                    <span class="attr-chips-empty">ファイル読込後に選択できます</span>
+                                </div>
+                            </div>
+                            <select id="selectAttrCol" class="form-select" style="display: none;" multiple></select>
+                            <span class="form-hint" id="attrColHint">クロス集計で比較したい列（クリックで選択・解除、最大5つまで）</span>
                         </div>
 
                         <div class="form-group form-group-highlight">
@@ -585,9 +589,29 @@
 
                     <!-- 図4: 属性別クロス集計（画面およびレポートで表示） -->
                     <div id="crossTabCard" class="chart-card">
-                        <div id="chartCrossTab"></div>
-                        <!-- 属性別特徴トピック・ハイライトサマリー -->
-                        <div id="crossTabHighlights" class="cross-tab-insights-container" style="display: none;"></div>
+                        <!-- 複数属性ナビゲーションバー（タブ切り替え ＆ 全属性一括展開トグル） -->
+                        <div id="crossTabNav" class="crosstab-nav-container" style="display: none;">
+                            <div class="crosstab-tabs-group">
+                                <span class="crosstab-nav-label">比較する属性:</span>
+                                <div id="crossTabAttrTabs" class="crosstab-tabs-list"></div>
+                            </div>
+                            <div class="crosstab-actions-group">
+                                <button type="button" id="btnToggleAllAttrs" class="btn btn-sm btn-outline btn-crosstab-toggle" title="指定したすべての属性のクロス集計を一度に並べて比較します">
+                                    <span class="toggle-icon">👥</span>
+                                    <span class="toggle-text">全属性を並べて比較</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 単一属性表示領域（タブ選択時） -->
+                        <div id="crossTabSingleView">
+                            <div id="chartCrossTab"></div>
+                            <!-- 属性別特徴トピック・ハイライトサマリー -->
+                            <div id="crossTabHighlights" class="cross-tab-insights-container" style="display: none;"></div>
+                        </div>
+
+                        <!-- 全属性一括展開表示領域（一括展開時） -->
+                        <div id="crossTabMultiView" style="display: none;" class="crosstab-multi-grid"></div>
                     </div>
                 </div>
 

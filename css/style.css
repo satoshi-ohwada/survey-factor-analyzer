@@ -1697,6 +1697,194 @@ body {
     color: #94A3B8;
 }
 
+/* ========================================================
+   複数属性比較（チップ選択 ＆ クロス集計タブ・一括展開）
+   ======================================================== */
+.attr-chips-wrapper {
+    margin-top: 4px;
+}
+
+.attr-chips-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 42px;
+    padding: 6px 8px;
+    background: #FFFFFF;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    align-items: center;
+}
+
+.attr-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+    background: #F1F5F9;
+    border: 1px solid #CBD5E1;
+    border-radius: 16px;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.15s ease;
+}
+
+.attr-chip:hover {
+    background: #E2E8F0;
+    color: #1E293B;
+    border-color: #94A3B8;
+    transform: translateY(-1px);
+}
+
+.attr-chip.is-selected {
+    background: #EFF6FF;
+    color: #1D4ED8;
+    border-color: #3B82F6;
+    box-shadow: 0 1px 3px rgba(37, 99, 235, 0.15);
+}
+
+.attr-chip-check {
+    font-size: 10px;
+    width: 14px;
+    height: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #CBD5E1;
+    color: #FFFFFF;
+    font-weight: 700;
+    transition: all 0.15s ease;
+}
+
+.attr-chip.is-selected .attr-chip-check {
+    background: #2563EB;
+}
+
+.attr-chips-empty {
+    font-size: 12px;
+    color: var(--text-muted);
+    padding: 4px 6px;
+}
+
+/* 図4内 複数属性ナビゲーションバー */
+.crosstab-nav-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 14px;
+    padding: 8px 12px;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: var(--radius-sm);
+}
+
+.crosstab-tabs-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.crosstab-nav-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #475569;
+    white-space: nowrap;
+}
+
+.crosstab-tabs-list {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.crosstab-tab-btn {
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+    background: #FFFFFF;
+    border: 1px solid #CBD5E1;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.crosstab-tab-btn:hover {
+    color: #1E293B;
+    background: #F1F5F9;
+    border-color: #94A3B8;
+}
+
+.crosstab-tab-btn.is-active {
+    color: #FFFFFF;
+    background: #2563EB;
+    border-color: #1D4ED8;
+    box-shadow: 0 1px 3px rgba(37, 99, 235, 0.3);
+}
+
+.btn-crosstab-toggle {
+    font-size: 11.5px;
+    padding: 5px 12px;
+    font-weight: 600;
+    background: #FFFFFF;
+    border-color: #CBD5E1;
+    color: #334155;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+}
+
+.btn-crosstab-toggle:hover {
+    background: #F1F5F9;
+    color: #1E293B;
+    border-color: #94A3B8;
+}
+
+.btn-crosstab-toggle.is-active {
+    background: #EEF2FF;
+    border-color: #6366F1;
+    color: #4338CA;
+}
+
+/* 一括展開時のマルチグリッド */
+.crosstab-multi-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.crosstab-multi-card {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.crosstab-multi-card-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1E293B;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #F1F5F9;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
 .theme-share-badge {
     font-size: 12px;
     font-weight: 700;
@@ -2708,6 +2896,7 @@ body {
     .theme-title span,
     .axis-switch-panel,
     .map-hover-detail-panel,
+    .crosstab-nav-container,
     .stepper,
     .btn-toggle-group,
     .btn-rename-topic,

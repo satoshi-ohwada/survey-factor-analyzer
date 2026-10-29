@@ -10,7 +10,10 @@ const AppState = {
     validResponses: [],
     excludedResponses: [], // 分析対象外（除外）となった回答オブジェクトの一覧
     textColumn: null,
-    attributeColumn: null,
+    attributeColumn: null, // 互換性維持用（常に activeAttributeColumn と同期）
+    attributeColumns: [], // 選択された比較属性列リスト（最大5個まで指定可能）
+    activeAttributeColumn: null, // 現在タブ選択されているアクティブな属性列
+    crossTabDisplayMode: 'tab', // 'tab' (タブ切り替え表示) または 'all' (全属性一括並列表示)
     kCount: 3,
     analysisResult: null,
     tfidfData: null, // TF-IDF データ（単語リスト・語彙・文書別単語）
@@ -143,11 +146,31 @@ function setupEventListeners() {
         AppState.textColumn = e.target.value;
         renderDataPreview();
     });
-    selectAttrCol.addEventListener('change', (e) => {
-        AppState.attributeColumn = e.target.value || null;
-        AppState.mapAttrFilter = '';
-        renderDataPreview();
-    });
+    if (selectAttrCol) {
+        selectAttrCol.addEventListener('change', (e) => {
+            const selectedVal = e.target.value || null;
+            if (selectedVal) {
+                AppState.attributeColumns = [selectedVal];
+                AppState.activeAttributeColumn = selectedVal;
+                AppState.attributeColumn = selectedVal;
+            } else {
+                AppState.attributeColumns = [];
+                AppState.activeAttributeColumn = null;
+                AppState.attributeColumn = null;
+            }
+            AppState.mapAttrFilter = '';
+            syncAttributeChipsUI();
+            renderDataPreview();
+        });
+    }
+
+    // 図4: 全属性一括並列比較トグル
+    const btnToggleAllAttrs = document.getElementById('btnToggleAllAttrs');
+    if (btnToggleAllAttrs) {
+        btnToggleAllAttrs.addEventListener('click', () => {
+            toggleCrossTabAllView();
+        });
+    }
 
     // テーマ数の増減
     btnDecK.addEventListener('click', () => {
@@ -1145,14 +1168,6 @@ function processParsedData(parsed, fileName) {
         selectTextCol.appendChild(opt);
     });
 
-    selectAttrCol.innerHTML = '<option value="">（指定しない）</option>';
-    parsed.headers.forEach(h => {
-        const opt = document.createElement('option');
-        opt.value = h;
-        opt.textContent = h;
-        selectAttrCol.appendChild(opt);
-    });
-
     // 自由記述列の推測
     const guessedTextCol = CsvParser.guessTextColumn(parsed.headers, parsed.rows);
     if (guessedTextCol) {
@@ -1165,15 +1180,9 @@ function processParsedData(parsed, fileName) {
         }
     }
 
-    // 属性列の推測
+    // 属性列の推測と複数属性チップ選択コンテナのセットアップ
     const guessedAttrCols = CsvParser.guessAttributeColumns(parsed.headers, parsed.rows, AppState.textColumn);
-    if (guessedAttrCols.length > 0) {
-        selectAttrCol.value = guessedAttrCols[0];
-        AppState.attributeColumn = guessedAttrCols[0];
-    } else {
-        selectAttrCol.value = '';
-        AppState.attributeColumn = null;
-    }
+    setupAttributeChipsSelector(parsed.headers, parsed.rows, guessedAttrCols);
 
     // 以前の分析結果コンテナを非表示・リセット
     const resultsContainer = document.getElementById('resultsContainer');
@@ -1212,6 +1221,153 @@ function processParsedData(parsed, fileName) {
     if (btnFilterWarnings) btnFilterWarnings.classList.remove('active');
 
     renderDataPreview();
+}
+
+/**
+ * 比較属性選択チップの初期化と生成
+ * @param {string[]} headers 
+ * @param {object[]} rows 
+ * @param {string[]} guessedAttrCols 
+ */
+function setupAttributeChipsSelector(headers, rows, guessedAttrCols = []) {
+    const container = document.getElementById('attrChipsList');
+    const selectAttrCol = document.getElementById('selectAttrCol');
+    if (!container) return;
+
+    // 候補列の選定: テキスト列やID列以外の列
+    const textCol = AppState.textColumn;
+    const candidateCols = headers.filter(h => {
+        if (h === textCol) return false;
+        if (/^id$|^no$|^番号$/i.test(h.trim())) return false;
+        return true;
+    });
+
+    // 推測された属性列を優先して先頭に配置
+    const guessedSet = new Set(guessedAttrCols);
+    candidateCols.sort((a, b) => {
+        const aGuessed = guessedSet.has(a);
+        const bGuessed = guessedSet.has(b);
+        if (aGuessed && !bGuessed) return -1;
+        if (!aGuessed && bGuessed) return 1;
+        return 0;
+    });
+
+    // 初期選択: 推測された属性列のうち最大3つを自動選択
+    const initialSelected = guessedAttrCols.slice(0, 3);
+    AppState.attributeColumns = initialSelected;
+    AppState.activeAttributeColumn = initialSelected.length > 0 ? initialSelected[0] : null;
+    AppState.attributeColumn = AppState.activeAttributeColumn;
+
+    // ドロップダウン（フォールバック用）の更新
+    if (selectAttrCol) {
+        selectAttrCol.innerHTML = '<option value="">（指定しない）</option>';
+        candidateCols.forEach(h => {
+            const opt = document.createElement('option');
+            opt.value = h;
+            opt.textContent = h;
+            if (initialSelected.includes(h)) opt.selected = true;
+            selectAttrCol.appendChild(opt);
+        });
+    }
+
+    if (candidateCols.length === 0) {
+        container.innerHTML = '<span class="attr-chips-empty">比較可能な属性列が見つかりませんでした</span>';
+        updateAttrColHint();
+        return;
+    }
+
+    container.innerHTML = '';
+    candidateCols.forEach(colName => {
+        const isGuessed = guessedSet.has(colName);
+        const chip = document.createElement('div');
+        chip.className = 'attr-chip' + (AppState.attributeColumns.includes(colName) ? ' is-selected' : '');
+        chip.dataset.column = colName;
+        chip.innerHTML = `
+            <span class="attr-chip-check">✓</span>
+            <span class="attr-chip-label">${escapeHtml(colName)}</span>
+            ${isGuessed ? '<span style="font-size:10px; opacity:0.8; margin-left:1px;">★</span>' : ''}
+        `;
+
+        chip.addEventListener('click', () => {
+            toggleAttributeColumnSelection(colName);
+        });
+
+        container.appendChild(chip);
+    });
+
+    updateAttrColHint();
+}
+
+/**
+ * 属性列の選択・解除トグル（最大5つまで）
+ * @param {string} colName 
+ */
+function toggleAttributeColumnSelection(colName) {
+    const idx = AppState.attributeColumns.indexOf(colName);
+    if (idx !== -1) {
+        // 選択解除
+        AppState.attributeColumns.splice(idx, 1);
+        if (AppState.activeAttributeColumn === colName) {
+            AppState.activeAttributeColumn = AppState.attributeColumns.length > 0 ? AppState.attributeColumns[0] : null;
+            AppState.attributeColumn = AppState.activeAttributeColumn;
+        }
+    } else {
+        // 新規選択（上限5個チェック）
+        if (AppState.attributeColumns.length >= 5) {
+            alert('比較する属性は最大5つまで選択できます。他の属性を解除してから選択してください。');
+            return;
+        }
+        AppState.attributeColumns.push(colName);
+        if (!AppState.activeAttributeColumn) {
+            AppState.activeAttributeColumn = colName;
+            AppState.attributeColumn = colName;
+        }
+    }
+
+    AppState.mapAttrFilter = '';
+    syncAttributeChipsUI();
+    renderDataPreview();
+}
+
+/**
+ * 属性チップのUI選択状態をAppStateと同期
+ */
+function syncAttributeChipsUI() {
+    const chips = document.querySelectorAll('.attr-chip');
+    chips.forEach(chip => {
+        const col = chip.dataset.column;
+        if (AppState.attributeColumns.includes(col)) {
+            chip.classList.add('is-selected');
+        } else {
+            chip.classList.remove('is-selected');
+        }
+    });
+
+    // select要素も同期
+    const selectAttrCol = document.getElementById('selectAttrCol');
+    if (selectAttrCol) {
+        Array.from(selectAttrCol.options).forEach(opt => {
+            opt.selected = AppState.attributeColumns.includes(opt.value);
+        });
+    }
+
+    updateAttrColHint();
+}
+
+/**
+ * 属性選択ヒントテキストの更新
+ */
+function updateAttrColHint() {
+    const hint = document.getElementById('attrColHint');
+    if (!hint) return;
+    const count = AppState.attributeColumns.length;
+    if (count === 0) {
+        hint.innerHTML = '比較したい属性列をクリックして選択（指定なしでも分析可能、最大5つまで）';
+        hint.style.color = 'var(--text-muted)';
+    } else {
+        hint.innerHTML = `現在 <b>${count}個</b> の属性を選択中: [ <b>${AppState.attributeColumns.map(escapeHtml).join('</b>, <b>')}</b> ] (最大5つまで)`;
+        hint.style.color = '#1D4ED8';
+    }
 }
 
 /**
@@ -1624,18 +1780,20 @@ function addNewRow() {
 async function runFullPipeline() {
     // UIの最新の選択状態とAppStateを確実に同期
     const selectTextCol = document.getElementById('selectTextCol');
-    const selectAttrCol = document.getElementById('selectAttrCol');
     if (selectTextCol) {
         AppState.textColumn = selectTextCol.value || null;
     }
-    if (selectAttrCol) {
-        AppState.attributeColumn = selectAttrCol.value || null;
-    }
 
-    // 属性列が現在のデータのヘッダーに存在しない場合は無効化
-    if (AppState.attributeColumn && !AppState.headers.includes(AppState.attributeColumn)) {
+    // 属性列リストを現在のヘッダーで検証・サニタイズ
+    AppState.attributeColumns = (AppState.attributeColumns || []).filter(c => AppState.headers.includes(c));
+    if (AppState.attributeColumns.length > 0) {
+        if (!AppState.activeAttributeColumn || !AppState.attributeColumns.includes(AppState.activeAttributeColumn)) {
+            AppState.activeAttributeColumn = AppState.attributeColumns[0];
+        }
+        AppState.attributeColumn = AppState.activeAttributeColumn;
+    } else {
+        AppState.activeAttributeColumn = null;
         AppState.attributeColumn = null;
-        if (selectAttrCol) selectAttrCol.value = '';
     }
 
     if (!AppState.textColumn || !AppState.headers.includes(AppState.textColumn)) {
@@ -1822,13 +1980,13 @@ function renderResults(validResponses, junkCount, result, tfidfData, analyzedRow
 
     // 属性別分析セクション（属性列が指定されている場合: 図4クロス集計 ＆ 図5スモールマルチプルズ）
     const attrSection = document.getElementById('attributeAnalysisSection');
-    const hasValidAttrCol = !!(AppState.attributeColumn && AppState.headers.includes(AppState.attributeColumn));
-    if (hasValidAttrCol) {
+    const hasValidAttrCols = (AppState.attributeColumns && AppState.attributeColumns.length > 0);
+    if (hasValidAttrCols) {
         if (attrSection) attrSection.style.display = 'block';
-        updateCrossTabSection(result.themes, result.responsesWithTheme, AppState.attributeColumn);
+        updateCrossTabSection(result.themes, result.responsesWithTheme, AppState.attributeColumns, AppState.activeAttributeColumn);
     } else {
         if (attrSection) attrSection.style.display = 'none';
-        updateCrossTabSection([], [], null);
+        updateCrossTabSection([], [], [], null);
         const multiplesEl = document.getElementById('chartAttrMultiples');
         if (multiplesEl) multiplesEl.innerHTML = '';
     }
@@ -2005,41 +2163,189 @@ function setupAttrFilterSelector() {
 }
 
 /**
- * 属性別クロス集計チャート（図4）および特徴トピックハイライトサマリーを更新
+ * 属性別クロス集計セクション（図4）および特徴トピックハイライトサマリーを更新
+ * （複数属性タブ切り替え ＆ 全属性並列比較対応）
  * @param {any[]} themes 
  * @param {any[]} responsesWithTheme 
- * @param {string|null} attributeCol 
+ * @param {string[]|string|null} attributeCols 
+ * @param {string|null} [activeCol] 
  */
-function updateCrossTabSection(themes, responsesWithTheme, attributeCol) {
+function updateCrossTabSection(themes, responsesWithTheme, attributeCols, activeCol = null) {
+    // 互換性吸収: attributeCols が単一文字列で渡された場合も配列化
+    let cols = [];
+    if (Array.isArray(attributeCols)) {
+        cols = attributeCols.filter(c => c && AppState.headers.includes(c));
+    } else if (typeof attributeCols === 'string' && attributeCols && AppState.headers.includes(attributeCols)) {
+        cols = [attributeCols];
+    } else if (AppState.attributeColumns && AppState.attributeColumns.length > 0) {
+        cols = AppState.attributeColumns.filter(c => c && AppState.headers.includes(c));
+    }
+
+    let currentActive = activeCol || AppState.activeAttributeColumn;
+    if (!currentActive || !cols.includes(currentActive)) {
+        currentActive = cols.length > 0 ? cols[0] : null;
+    }
+    AppState.activeAttributeColumn = currentActive;
+    AppState.attributeColumn = currentActive;
+
+    const navContainer = document.getElementById('crossTabNav');
+    const tabsList = document.getElementById('crossTabAttrTabs');
+    const btnToggleAll = document.getElementById('btnToggleAllAttrs');
+    const singleView = document.getElementById('crossTabSingleView');
+    const multiView = document.getElementById('crossTabMultiView');
     const crossTabEl = document.getElementById('chartCrossTab');
     const highlightsEl = document.getElementById('crossTabHighlights');
-    const hasValidAttrCol = !!(attributeCol && AppState.headers.includes(attributeCol));
 
-    if (!hasValidAttrCol || !responsesWithTheme || responsesWithTheme.length === 0 || !themes || themes.length === 0) {
+    if (cols.length === 0 || !responsesWithTheme || responsesWithTheme.length === 0 || !themes || themes.length === 0) {
         if (crossTabEl) crossTabEl.innerHTML = '';
         if (highlightsEl) {
             highlightsEl.innerHTML = '';
             highlightsEl.style.display = 'none';
         }
+        if (navContainer) navContainer.style.display = 'none';
+        if (multiView) {
+            multiView.innerHTML = '';
+            multiView.style.display = 'none';
+        }
         return;
     }
 
-    // 1. Plotlyクロス集計チャートの描画
-    ChartRenderer.renderCrossTabChart('chartCrossTab', responsesWithTheme, themes, attributeCol, (themeIndex) => {
-        scrollToThemeCard(themeIndex);
-    });
+    // 1. 複数属性ナビゲーションバー（タブ ＆ 一括展開ボタン）の制御
+    if (cols.length > 1) {
+        if (navContainer) navContainer.style.display = 'flex';
+        if (tabsList) {
+            tabsList.innerHTML = '';
+            cols.forEach(colName => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'crosstab-tab-btn' + (colName === currentActive ? ' is-active' : '');
+                btn.innerHTML = `<span>👤</span><span>${escapeHtml(colName)}</span>`;
+                btn.title = `「${colName}」ごとのトピック構成比に切り替えます`;
+                btn.addEventListener('click', () => {
+                    switchCrossTabActiveAttribute(colName);
+                });
+                tabsList.appendChild(btn);
+            });
+        }
+    } else {
+        if (navContainer) navContainer.style.display = 'none';
+    }
 
-    // 2. 属性別特徴トピック（際立ち度）の計算とレンダリング
-    if (highlightsEl) {
-        const insightsHtml = renderAttributeHighlightsHtml(responsesWithTheme, themes, attributeCol);
-        if (insightsHtml) {
-            highlightsEl.innerHTML = insightsHtml;
-            highlightsEl.style.display = 'block';
-        } else {
-            highlightsEl.innerHTML = '';
-            highlightsEl.style.display = 'none';
+    // 2. 表示モードに応じた描画
+    if (AppState.crossTabDisplayMode === 'all' && cols.length > 1) {
+        // --- 一括並列展開モード ---
+        if (singleView) singleView.style.display = 'none';
+        if (multiView) {
+            multiView.style.display = 'flex';
+            multiView.innerHTML = '';
+
+            cols.forEach((colName, idx) => {
+                const card = document.createElement('div');
+                card.className = 'crosstab-multi-card';
+                card.innerHTML = `
+                    <div class="crosstab-multi-card-title">
+                        <span style="color:#2563EB;">📊</span>
+                        <span><b>【${escapeHtml(colName)}】</b> ごとのトピック構成比</span>
+                    </div>
+                    <div id="chartCrossTab_multi_${idx}"></div>
+                    <div id="crossTabHighlights_multi_${idx}" class="cross-tab-insights-container" style="display:none;"></div>
+                `;
+                multiView.appendChild(card);
+
+                // 各属性のチャートを描画
+                ChartRenderer.renderCrossTabChart(`chartCrossTab_multi_${idx}`, responsesWithTheme, themes, colName, (themeIndex) => {
+                    scrollToThemeCard(themeIndex);
+                });
+
+                // 各属性のハイライトを描画
+                const hlEl = document.getElementById(`crossTabHighlights_multi_${idx}`);
+                if (hlEl) {
+                    const insightsHtml = renderAttributeHighlightsHtml(responsesWithTheme, themes, colName);
+                    if (insightsHtml) {
+                        hlEl.innerHTML = insightsHtml;
+                        hlEl.style.display = 'block';
+                    }
+                }
+            });
+        }
+
+        if (btnToggleAll) {
+            btnToggleAll.classList.add('is-active');
+            btnToggleAll.innerHTML = `<span class="toggle-icon">📱</span><span class="toggle-text">選択した属性のみ表示</span>`;
+        }
+    } else {
+        // --- 単一タブ表示モード ---
+        if (singleView) singleView.style.display = 'block';
+        if (multiView) {
+            multiView.style.display = 'none';
+            multiView.innerHTML = '';
+        }
+
+        if (btnToggleAll) {
+            btnToggleAll.classList.remove('is-active');
+            btnToggleAll.innerHTML = `<span class="toggle-icon">👥</span><span class="toggle-text">全属性を並べて比較</span>`;
+        }
+
+        // Plotlyクロス集計チャートの描画
+        ChartRenderer.renderCrossTabChart('chartCrossTab', responsesWithTheme, themes, currentActive, (themeIndex) => {
+            scrollToThemeCard(themeIndex);
+        });
+
+        // 属性別特徴トピック（際立ち度）の計算とレンダリング
+        if (highlightsEl) {
+            const insightsHtml = renderAttributeHighlightsHtml(responsesWithTheme, themes, currentActive);
+            if (insightsHtml) {
+                highlightsEl.innerHTML = insightsHtml;
+                highlightsEl.style.display = 'block';
+            } else {
+                highlightsEl.innerHTML = '';
+                highlightsEl.style.display = 'none';
+            }
         }
     }
+}
+
+/**
+ * クロス集計のアクティブ属性を切り替え
+ * @param {string} colName 
+ */
+function switchCrossTabActiveAttribute(colName) {
+    if (!colName) return;
+
+    AppState.activeAttributeColumn = colName;
+    AppState.attributeColumn = colName;
+    AppState.crossTabDisplayMode = 'tab'; // タブクリック時は単一表示モードに戻す
+
+    // 図4更新
+    updateCrossTabSection(
+        AppState.analysisResult.themes,
+        AppState.analysisResult.responsesWithTheme,
+        AppState.attributeColumns,
+        AppState.activeAttributeColumn
+    );
+
+    // 図3の属性絞り込みドロップダウン（selectMapAttrFilter）も新しい属性の値リストに再構築＆連動！
+    setupAttrFilterSelector();
+    updateFactorSpaceMap();
+}
+
+/**
+ * 全属性一括展開ビューのトグル切り替え
+ */
+function toggleCrossTabAllView() {
+    if (!AppState.analysisResult) return;
+    if (AppState.crossTabDisplayMode === 'all') {
+        AppState.crossTabDisplayMode = 'tab';
+    } else {
+        AppState.crossTabDisplayMode = 'all';
+    }
+
+    updateCrossTabSection(
+        AppState.analysisResult.themes,
+        AppState.analysisResult.responsesWithTheme,
+        AppState.attributeColumns,
+        AppState.activeAttributeColumn
+    );
 }
 
 /**
@@ -2182,7 +2488,7 @@ function syncAllThemeVisualizations() {
     updateFactorSpaceMap();
 
     // 5. 図4: 属性別クロス集計 ＆ 属性別特徴トピックハイライト更新
-    updateCrossTabSection(themes, AppState.analysisResult.responsesWithTheme, AppState.attributeColumn);
+    updateCrossTabSection(themes, AppState.analysisResult.responsesWithTheme, AppState.attributeColumns, AppState.activeAttributeColumn);
 
     // 6. 印刷メタ情報更新
     updatePrintMetaInfo();
