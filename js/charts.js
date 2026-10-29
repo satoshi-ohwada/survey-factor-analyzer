@@ -44,8 +44,8 @@ const ChartRenderer = {
             type: 'pie',
             labels: labels,
             values: values,
-            hole: 0.46,
-            domain: { x: [0, 1], y: [0.14, 1] },
+            hole: 0.42,
+            domain: { x: [0, 1], y: [0.06, 1] },
             sort: false,
             direction: 'clockwise',
             rotation: 0,
@@ -53,7 +53,7 @@ const ChartRenderer = {
             textposition: 'inside',
             insidetextorientation: 'horizontal',
             insidetextfont: {
-                size: 14,
+                size: 15,
                 color: '#FFFFFF',
                 family: 'sans-serif'
             },
@@ -67,19 +67,19 @@ const ChartRenderer = {
         // ドーナツ中央に合計と件数をバランス良く配置（上段に「合計」ラベル、下段に「件数」を分離して上下の重心・間隔を最適化）
         const annotations = [
             {
-                font: { size: 12, color: '#64748B', family: 'sans-serif' },
+                font: { size: 13, color: '#64748B', family: 'sans-serif' },
                 showarrow: false,
                 text: '合計',
                 x: 0.5,
-                y: 0.605,
+                y: 0.585,
                 xanchor: 'center',
                 yanchor: 'middle'
             },
             {
                 showarrow: false,
-                text: `<b style="font-size:20px; color:#0F172A; font-family:sans-serif;">${totalCount.toLocaleString()}</b><span style="font-size:12px; font-weight:600; color:#475569;"> 件</span>`,
+                text: `<b style="font-size:24px; color:#0F172A; font-family:sans-serif;">${totalCount.toLocaleString()}</b><span style="font-size:13px; font-weight:600; color:#475569;"> 件</span>`,
                 x: 0.5,
-                y: 0.540,
+                y: 0.515,
                 xanchor: 'center',
                 yanchor: 'middle'
             }
@@ -87,7 +87,7 @@ const ChartRenderer = {
 
         // トピック数に応じた凡例の高さ計算（ドーナツが小さくならないよう十分な高さを確保）
         const legendRows = Math.ceil(themes.length / 2);
-        const dynamicHeight = Math.max(430, 370 + legendRows * 30);
+        const dynamicHeight = Math.max(480, 410 + legendRows * 32);
 
         const layout = {
             title: {
@@ -101,7 +101,7 @@ const ChartRenderer = {
                 orientation: 'h',
                 x: 0.5,
                 xanchor: 'center',
-                y: -0.06,
+                y: -0.05,
                 font: { size: 11, color: '#334155' },
                 bgcolor: 'rgba(255, 255, 255, 0.7)',
                 bordercolor: '#E2E8F0',
@@ -512,11 +512,12 @@ const ChartRenderer = {
         const modeLabel = mode === 'responses' ? 'テキストスコア' : '語の関連度';
         const layout = {
             title: {
-                text: `<b>【図3】トピック空間ポジショニングマップ（${modeLabel}）</b> <span style="font-size:11px; font-weight:normal; color:#64748B;">[横: トピック${xFactorIdx + 1} × 縦: トピック${yFactorIdx + 1}]</span>`,
-                font: { size: 12.5, color: '#1E293B' },
+                text: `<span style="font-size:11.5px; font-weight:600; color:#475569;">[横軸: トピック${xFactorIdx + 1} × 縦軸: トピック${yFactorIdx + 1} (${modeLabel})]</span>`,
+                font: { size: 11.5, color: '#475569' },
                 x: 0.02,
                 xanchor: 'left',
-                y: 0.98
+                y: 0.99,
+                yanchor: 'top'
             },
             showlegend: mode === 'responses',
             hovermode: 'closest',
@@ -547,13 +548,13 @@ const ChartRenderer = {
                 spikedash: 'dot',
                 spikecolor: '#6366F1'
             },
-            margin: { l: 60, r: 25, t: 55, b: 55 },
+            margin: { l: 60, r: 25, t: 75, b: 55 },
             height: 490,
             paper_bgcolor: 'rgba(0,0,0,0)',
             plot_bgcolor: '#FAFAFC',
             legend: {
                 orientation: 'h',
-                y: 1.05,
+                y: 1.03,
                 yanchor: 'bottom',
                 x: 0.5,
                 xanchor: 'center',
@@ -1081,21 +1082,30 @@ const ChartRenderer = {
             };
         });
 
-        // 凡例行数に応じた動的高さおよび下余白の計算（X軸タイトルとの重なり防止）
+        // 凡例行数に応じた上余白の計算（プロット上部に配置し、X軸の「割合(%)」との重なりを完全解消）
         const legendRows = Math.ceil(themes.length / 2);
-        const dynamicMarginB = Math.max(80, 60 + legendRows * 22);
-        const dynamicHeight = Math.max(290, sortedAttrs.length * 52 + 80 + legendRows * 28);
+        const dynamicMarginT = Math.max(68, 48 + legendRows * 20);
+
+        // A4 1枚に2つのグラフを表示することを基本(標準約390px)としつつ、内訳が多い場合でも1行あたり最低38pxを確保して帯の太さを維持
+        const minRowHeight = 38;
+        const dynamicHeight = Math.max(390, sortedAttrs.length * minRowHeight + dynamicMarginT + 48);
 
         const layout = {
             barmode: 'stack',
+            bargap: 0.20,
             title: {
                 text: `<b>【図4】属性別トピック傾向（${attributeCol} ごとのトピック内訳）</b>`,
-                font: { size: 15, color: '#1E293B' }
+                font: { size: 14, color: '#1E293B' },
+                x: 0.02,
+                xanchor: 'left',
+                y: 0.99,
+                yanchor: 'top'
             },
             xaxis: {
                 title: {
                     text: '割合 (%)',
-                    font: { size: 12, color: '#475569' }
+                    font: { size: 11.5, color: '#475569' },
+                    standoff: 8
                 },
                 range: [0, 100],
                 ticksuffix: '%',
@@ -1104,20 +1114,23 @@ const ChartRenderer = {
             yaxis: {
                 autorange: 'reversed',
                 automargin: true,
-                tickfont: { size: 12, color: '#334155' },
+                tickfont: { size: 11.5, color: '#334155' },
                 fixedrange: true
             },
-            margin: { l: dynamicMarginL, r: 30, t: 50, b: dynamicMarginB },
+            margin: { l: dynamicMarginL, r: 25, t: dynamicMarginT, b: 48 },
             height: dynamicHeight,
             paper_bgcolor: 'rgba(0,0,0,0)',
             plot_bgcolor: '#FAFAFC',
             legend: {
                 orientation: 'h',
-                yanchor: 'top',
-                y: -0.34,
+                y: 1.04,
+                yanchor: 'bottom',
                 x: 0.5,
                 xanchor: 'center',
-                font: { size: 11, color: '#334155' },
+                font: { size: 10.5, color: '#334155' },
+                bgcolor: 'rgba(255, 255, 255, 0.85)',
+                bordercolor: '#CBD5E1',
+                borderwidth: 1,
                 itemclick: false,
                 itemdoubleclick: false,
                 traceorder: 'normal'

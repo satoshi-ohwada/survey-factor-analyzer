@@ -3319,28 +3319,31 @@ async function rasterizeChartsForPrint() {
         } else if (isSubPlot) {
             height = 205;
         } else if (isCrossTab) {
-            // 図4がA4 2ページ目の下端からあふれて空ページを誘発するのを防止
-            height = Math.min(height, 360);
+            // 図4: A4 1枚に2つのグラフを表示することを基本（約385px〜390px）としつつ、
+            // 内訳（カテゴリ数）が多い場合でも帯の太さ・フォント可読性を維持するため、
+            // 動的高さ（dynamicHeight）を尊重して帯が潰れないようにする
+            height = Math.max(385, Math.min(height, 680));
         } else if (isFactorSpace) {
             // レポート出力時は図3の高さを以前と同じ位（335px）におさめ、表1〜図3をA4 1枚目に確実に収める
             height = 335;
         } else if (isDonut) {
-            // 図1ドーナツも1枚目に確実に収まるよう高さをコンパクトに制限
-            height = Math.min(height, 335);
+            // 1枚目下部の余裕を活用し、図1ドーナツをより大きく堂々と表示（390px）
+            height = Math.min(height, 390);
         }
 
         if (width <= 0 || height <= 0) return;
 
         try {
-            // 図3（ポジショニングマップ）は印刷用に一時的にコンパクトなレイアウトへ更新
+            // 図3（ポジショニングマップ）は印刷用に一時的にコンパクトなレイアウトへ更新（タイトルと凡例の重なりを完全防止）
             if (isFactorSpace) {
                 try {
                     await Plotly.relayout(plotEl, {
                         height: 335,
-                        'margin.t': 45,
-                        'margin.b': 45,
-                        'legend.y': 1.06,
-                        'legend.font.size': 9.5
+                        'margin.t': 68,
+                        'margin.b': 42,
+                        'legend.y': 1.03,
+                        'legend.yanchor': 'bottom',
+                        'legend.font.size': 9.0
                     });
                 } catch (e) {}
 
@@ -3348,9 +3351,10 @@ async function rasterizeChartsForPrint() {
                     try {
                         await Plotly.relayout(plotEl, {
                             height: 490,
-                            'margin.t': 55,
+                            'margin.t': 75,
                             'margin.b': 55,
-                            'legend.y': 1.05,
+                            'legend.y': 1.03,
+                            'legend.yanchor': 'bottom',
                             'legend.font.size': 10.5
                         });
                     } catch (e) {}

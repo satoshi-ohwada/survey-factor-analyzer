@@ -2959,6 +2959,19 @@ body {
         width: 100% !important;
     }
 
+    /* A4 1枚目上段（図1 ドーナツチャート）を下部余裕を活かして大きく堂々と表示（390px） */
+    #chartDonut {
+        height: 390px !important;
+        max-height: 390px !important;
+        overflow: hidden !important;
+    }
+
+    #chartDonut .print-rasterized-chart {
+        height: 390px !important;
+        max-height: 390px !important;
+        object-fit: contain !important;
+    }
+
     /* A4 1枚目の表1（基本統計）の余白をスリム化して図1ドーナツと高さを揃える */
     #statsCard [style*="margin-bottom: 14px"],
     #statsCard [style*="margin-bottom: 16px"] {
@@ -3032,6 +3045,33 @@ body {
 
     .attr-print-page .chart-card {
         margin-bottom: 0 !important;
+    }
+
+    /* 図4: 複数属性一括展開時、A4 1枚に2つのグラフを表示することを基本とするレイアウト */
+    .crosstab-multi-grid {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 10px !important;
+    }
+
+    .crosstab-multi-card {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        padding: 8px 12px !important;
+        margin-bottom: 8px !important;
+        box-sizing: border-box !important;
+        border: 1px solid #CBD5E1 !important;
+    }
+
+    /* 2つ目のグラフカードごとに改ページを挿入し、A4 1枚に2つのグラフを整然と配置 */
+    .crosstab-multi-card:nth-child(2n) {
+        page-break-after: always !important;
+        break-after: page !important;
+    }
+
+    .crosstab-multi-card:last-child {
+        page-break-after: avoid !important;
+        break-after: avoid !important;
     }
 
     /* 汎用改ページクラス */
