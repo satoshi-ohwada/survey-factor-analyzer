@@ -2959,17 +2959,36 @@ body {
         width: 100% !important;
     }
 
-    /* A4 1枚目上段（図1 ドーナツチャート）を下部余裕を活かして大きく堂々と表示（390px） */
+    /* A4 1枚目上段（図1 ドーナツチャート）を下部余裕を活かして大きく表示しつつ、1枚目のオーバーフローを確実に防止（360px） */
     #chartDonut {
-        height: 390px !important;
-        max-height: 390px !important;
+        height: 360px !important;
+        max-height: 360px !important;
         overflow: hidden !important;
     }
 
     #chartDonut .print-rasterized-chart {
-        height: 390px !important;
-        max-height: 390px !important;
+        height: 360px !important;
+        max-height: 360px !important;
         object-fit: contain !important;
+    }
+
+    /* 1ページ目の要素余白を最適化し、2ページ目への微小溢れ（空白ページの原因）を完全根絶 */
+    .charts-grid:nth-of-type(2) {
+        margin-bottom: 0 !important;
+    }
+
+    /* 図3カード内のヘッダー余白をスリム化 */
+    .charts-grid > .chart-card > div[style*="justify-content: space-between"] {
+        margin-bottom: 4px !important;
+        padding-bottom: 4px !important;
+    }
+
+    /* 属性分析セクションの外側余白を除去 */
+    #attributeAnalysisSection {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
     }
 
     /* A4 1枚目の表1（基本統計）の余白をスリム化して図1ドーナツと高さを揃える */
@@ -3039,8 +3058,10 @@ body {
         break-before: page !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
+        margin-top: 0 !important;
         margin-bottom: 0 !important;
-        padding: 0 !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
     }
 
     .attr-print-page .chart-card {
@@ -3048,7 +3069,11 @@ body {
     }
 
     /* 図4: 複数属性一括展開時、A4 1枚に2つのグラフを表示することを基本とするレイアウト */
-    .crosstab-multi-grid {
+    #crossTabMultiView[style*="display: none"] {
+        display: none !important;
+    }
+
+    #crossTabMultiView:not([style*="display: none"]) {
         display: flex !important;
         flex-direction: column !important;
         gap: 10px !important;
@@ -3507,6 +3532,12 @@ body.is-printing #chartFactorSpace,
 body.is-printing #chartPathDiagram {
     height: 335px !important;
     max-height: 335px !important;
+    overflow: hidden !important;
+}
+
+body.is-printing #chartDonut {
+    height: 360px !important;
+    max-height: 360px !important;
     overflow: hidden !important;
 }
 

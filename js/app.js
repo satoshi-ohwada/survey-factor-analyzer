@@ -3327,8 +3327,8 @@ async function rasterizeChartsForPrint() {
             // レポート出力時は図3の高さを以前と同じ位（335px）におさめ、表1〜図3をA4 1枚目に確実に収める
             height = 335;
         } else if (isDonut) {
-            // 1枚目下部の余裕を活用し、図1ドーナツをより大きく堂々と表示（390px）
-            height = Math.min(height, 390);
+            // A4 1枚目のオーバーフロー（空白ページの誘発）を完全に防ぎつつ、下部余裕を活かして大きく表示（360px）
+            height = Math.min(height, 360);
         }
 
         if (width <= 0 || height <= 0) return;
