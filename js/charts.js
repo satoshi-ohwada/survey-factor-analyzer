@@ -150,8 +150,8 @@ const ChartRenderer = {
         container.innerHTML = '';
 
         const K = themes.length;
-        // 高さの動的計算（トピック数に応じて調整）
-        const height = Math.max(380, K * 75 + 40);
+        // 高さの動的計算（トピック数に応じて調整、図3のポジショニングマップと高さを揃えて調和）
+        const height = Math.max(490, K * 85 + 40);
         const width = 520;
 
         // SVG要素の作成
@@ -414,6 +414,8 @@ const ChartRenderer = {
                 themes.forEach((theme, tIdx) => {
                     const matched = allResponsePoints.filter(p => p.themeId === theme.id && p.attrVal === filterAttrVal);
                     if (matched.length > 0) {
+                        const cleanLabel = theme.label.replace(/^【|】$/g, '');
+                        const shortLabel = cleanLabel.length > 11 ? cleanLabel.substring(0, 10) + '…' : cleanLabel;
                         traces.push({
                             x: matched.map(p => p.x),
                             y: matched.map(p => p.y),
@@ -424,7 +426,7 @@ const ChartRenderer = {
                             customdata: matched,
                             mode: 'markers',
                             type: 'scatter',
-                            name: `トピック${tIdx + 1}: ${theme.label.replace(/^【|】$/g, '')} (${matched.length}件)`,
+                            name: `トピック${tIdx + 1}: ${shortLabel} (${matched.length})`,
                             marker: {
                                 size: 9.5,
                                 color: this.COLORS[tIdx % this.COLORS.length],
@@ -439,6 +441,8 @@ const ChartRenderer = {
                 // 通常時: テーマごとに全回答を色分け
                 traces = themes.map((theme, tIdx) => {
                     const matched = allResponsePoints.filter(p => p.themeId === theme.id);
+                    const cleanLabel = theme.label.replace(/^【|】$/g, '');
+                    const shortLabel = cleanLabel.length > 12 ? cleanLabel.substring(0, 11) + '…' : cleanLabel;
                     return {
                         x: matched.map(p => p.x),
                         y: matched.map(p => p.y),
@@ -449,7 +453,7 @@ const ChartRenderer = {
                         customdata: matched,
                         mode: 'markers',
                         type: 'scatter',
-                        name: `トピック${tIdx + 1}: ${theme.label.replace(/^【|】$/g, '')}`,
+                        name: `トピック${tIdx + 1}: ${shortLabel}`,
                         marker: {
                             size: 9,
                             color: this.COLORS[tIdx % this.COLORS.length],
@@ -518,7 +522,7 @@ const ChartRenderer = {
             hovermode: 'closest',
             hoverdistance: 25,
             xaxis: {
-                title: { text: xTitle, font: { size: 11, color: '#475569' } },
+                title: { text: xTitle, font: { size: 11.5, color: '#475569' }, standoff: 10 },
                 showgrid: true,
                 zeroline: true,
                 zerolinecolor: '#CBD5E1',
@@ -531,7 +535,7 @@ const ChartRenderer = {
                 spikecolor: '#6366F1'
             },
             yaxis: {
-                title: { text: yTitle, font: { size: 11, color: '#475569' } },
+                title: { text: yTitle, font: { size: 11.5, color: '#475569' }, standoff: 10 },
                 showgrid: true,
                 zeroline: true,
                 zerolinecolor: '#CBD5E1',
@@ -543,16 +547,21 @@ const ChartRenderer = {
                 spikedash: 'dot',
                 spikecolor: '#6366F1'
             },
-            margin: { l: 55, r: 20, t: 40, b: 50 },
-            height: 350,
+            margin: { l: 60, r: 25, t: 55, b: 55 },
+            height: 490,
             paper_bgcolor: 'rgba(0,0,0,0)',
             plot_bgcolor: '#FAFAFC',
             legend: {
                 orientation: 'h',
-                y: -0.22,
+                y: 1.05,
+                yanchor: 'bottom',
                 x: 0.5,
                 xanchor: 'center',
-                font: { size: 10 }
+                font: { size: 10.5, color: '#334155' },
+                bgcolor: 'rgba(255, 255, 255, 0.9)',
+                bordercolor: '#CBD5E1',
+                borderwidth: 1,
+                itemgap: 10
             },
             hoverlabel: {
                 bgcolor: 'rgba(15, 23, 42, 0.92)',
@@ -568,8 +577,8 @@ const ChartRenderer = {
             toImageButtonOptions: {
                 format: 'png',
                 filename: `【図3】トピック空間ポジショニングマップ（トピック${xFactorIdx + 1}×トピック${yFactorIdx + 1}_${modeLabel}）`,
-                height: 550,
-                width: 750,
+                height: 650,
+                width: 800,
                 scale: 2
             },
             modeBarButtonsToRemove: ['lasso2d', 'select2d']
