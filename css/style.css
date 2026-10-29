@@ -3052,12 +3052,12 @@ body {
         font-size: 7pt !important;
     }
 
-    /* 属性別分析ページの印刷時改ページ設定（空要素を介さず確実に1回改ページ） */
+    /* 属性別分析ページの印刷時改ページ設定（Firefox等の複数ページまたぎ対応で内部分割を許可） */
     .attr-print-page {
         page-break-before: always !important;
         break-before: page !important;
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
+        page-break-inside: auto !important;
+        break-inside: auto !important;
         margin-top: 0 !important;
         margin-bottom: 0 !important;
         padding-top: 0 !important;
@@ -3068,24 +3068,44 @@ body {
         margin-bottom: 0 !important;
     }
 
+    /* 図4 親カード: 複数属性表示時にページをまたげるよう分割を許可（Firefoxでの直前空ページ送りを完全防止） */
+    #crossTabCard {
+        page-break-inside: auto !important;
+        break-inside: auto !important;
+        border: none !important;
+        padding: 0 !important;
+        background: transparent !important;
+    }
+
+    /* 単一属性表示時は独立カード枠線を付与 */
+    #crossTabSingleView {
+        border: 1px solid #CBD5E1 !important;
+        padding: 6px 10px !important;
+        background: #FFFFFF !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+
     /* 図4: 複数属性一括展開時、A4 1枚に2つのグラフを表示することを基本とするレイアウト */
     #crossTabMultiView[style*="display: none"] {
         display: none !important;
     }
 
+    /* FirefoxのFlexbox印刷バグ（内部改ページが無視される・直前に空白が入る）を防ぐためblock指定 */
     #crossTabMultiView:not([style*="display: none"]) {
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 10px !important;
+        display: block !important;
+        width: 100% !important;
     }
 
     .crosstab-multi-card {
+        display: block !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
         padding: 8px 12px !important;
-        margin-bottom: 8px !important;
+        margin-bottom: 12px !important;
         box-sizing: border-box !important;
         border: 1px solid #CBD5E1 !important;
+        background: #FFFFFF !important;
     }
 
     /* 2つ目のグラフカードごとに改ページを挿入し、A4 1枚に2つのグラフを整然と配置 */
