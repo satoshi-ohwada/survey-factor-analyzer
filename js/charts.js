@@ -44,7 +44,7 @@ const ChartRenderer = {
             type: 'pie',
             labels: labels,
             values: values,
-            hole: 0.42,
+            hole: 0.52,
             domain: { x: [0, 1], y: [0.06, 1] },
             sort: false,
             direction: 'clockwise',
@@ -53,7 +53,7 @@ const ChartRenderer = {
             textposition: 'inside',
             insidetextorientation: 'horizontal',
             insidetextfont: {
-                size: 15,
+                size: 13,
                 color: '#FFFFFF',
                 family: 'sans-serif'
             },
@@ -64,22 +64,27 @@ const ChartRenderer = {
             }
         }];
 
-        // ドーナツ中央に合計と件数をバランス良く配置（上段に「合計」ラベル、下段に「件数」を分離して上下の重心・間隔を最適化）
+        // ドーナツ中央に合計と件数をバランス良く配置（穴比率0.52と桁数別フォントサイズ最適化ではみ出しを完全防止）
+        const countStr = totalCount.toLocaleString();
+        const numFontSize = countStr.length >= 6 ? 18 : (countStr.length >= 5 ? 19 : 21);
+        const unitFontSize = 12;
+        const labelFontSize = 12;
+
         const annotations = [
             {
-                font: { size: 13, color: '#64748B', family: 'sans-serif' },
+                font: { size: labelFontSize, color: '#64748B', family: 'sans-serif' },
                 showarrow: false,
                 text: '合計',
                 x: 0.5,
-                y: 0.585,
+                y: 0.575,
                 xanchor: 'center',
                 yanchor: 'middle'
             },
             {
                 showarrow: false,
-                text: `<b style="font-size:24px; color:#0F172A; font-family:sans-serif;">${totalCount.toLocaleString()}</b><span style="font-size:13px; font-weight:600; color:#475569;"> 件</span>`,
+                text: `<b style="font-size:${numFontSize}px; color:#0F172A; font-family:sans-serif;">${countStr}</b><span style="font-size:${unitFontSize}px; font-weight:600; color:#475569;"> 件</span>`,
                 x: 0.5,
-                y: 0.515,
+                y: 0.505,
                 xanchor: 'center',
                 yanchor: 'middle'
             }

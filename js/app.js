@@ -3391,6 +3391,69 @@ async function rasterizeChartsForPrint() {
                     } catch (e) {}
                 });
             }
+
+            // 図1（ドーナツチャート）は印刷用（高さ360px）にレイアウト・中央文字サイズを最適化し、件数のはみ出しを完全防止
+            if (isDonut) {
+                let totalCount = 0;
+                if (plotEl.data && plotEl.data[0] && Array.isArray(plotEl.data[0].values)) {
+                    totalCount = plotEl.data[0].values.reduce((s, v) => s + (Number(v) || 0), 0);
+                }
+                const countStr = totalCount > 0 ? totalCount.toLocaleString() : '';
+                const printNumSize = countStr.length >= 6 ? 14 : (countStr.length >= 5 ? 15 : 16.5);
+                const printUnitSize = 10.5;
+                const printLabelSize = 10;
+
+                const origLayout = {
+                    height: plotEl.layout.height,
+                    margin: plotEl.layout.margin ? { ...plotEl.layout.margin } : undefined,
+                    legend: plotEl.layout.legend ? { ...plotEl.layout.legend } : undefined,
+                    annotations: plotEl.layout.annotations ? JSON.parse(JSON.stringify(plotEl.layout.annotations)) : []
+                };
+
+                const printAnnotations = countStr ? [
+                    {
+                        font: { size: printLabelSize, color: '#64748B', family: 'sans-serif' },
+                        showarrow: false,
+                        text: '合計',
+                        x: 0.5,
+                        y: 0.58,
+                        xanchor: 'center',
+                        yanchor: 'middle'
+                    },
+                    {
+                        showarrow: false,
+                        text: `<b style="font-size:${printNumSize}px; color:#0F172A; font-family:sans-serif;">${countStr}</b><span style="font-size:${printUnitSize}px; font-weight:600; color:#475569;"> 件</span>`,
+                        x: 0.5,
+                        y: 0.51,
+                        xanchor: 'center',
+                        yanchor: 'middle'
+                    }
+                ] : (plotEl.layout.annotations || []);
+
+                try {
+                    await Plotly.relayout(plotEl, {
+                        height: 360,
+                        'margin.t': 36,
+                        'margin.b': 20,
+                        'margin.l': 10,
+                        'margin.r': 10,
+                        'legend.y': -0.06,
+                        'legend.font.size': 9.0,
+                        annotations: printAnnotations
+                    });
+                } catch (e) {}
+
+                restoreTasks.push(async () => {
+                    try {
+                        await Plotly.relayout(plotEl, {
+                            height: origLayout.height,
+                            margin: origLayout.margin,
+                            legend: origLayout.legend,
+                            annotations: origLayout.annotations
+                        });
+                    } catch (e) {}
+                });
+            }
             const dataUrl = await Plotly.toImage(plotEl, {
                 format: 'png',
                 width: width,
