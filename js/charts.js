@@ -33,6 +33,40 @@ const ChartRenderer = {
     },
 
     /**
+     * WebGL（GPU描画）が利用可能か判定
+     * @returns {boolean}
+     */
+    isWebGLSupported() {
+        if (this._webglSupported !== undefined) return this._webglSupported;
+        try {
+            if (typeof window === 'undefined' || !window.WebGLRenderingContext) {
+                this._webglSupported = false;
+                return false;
+            }
+            const canvas = document.createElement('canvas');
+            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            this._webglSupported = Boolean(gl && gl instanceof WebGLRenderingContext);
+        } catch (e) {
+            this._webglSupported = false;
+        }
+        return this._webglSupported;
+    },
+
+    /**
+     * データ件数とWebGL対応状況に応じて scatter / scattergl を自動判定
+     * （1,500件未満は高品質ベクターSVG、1,500件以上はGPU高速WebGL）
+     * @param {number} pointCount プロット点数
+     * @param {number} [threshold=1500] 切り替え閾値
+     * @returns {'scatter'|'scattergl'}
+     */
+    getScatterType(pointCount, threshold = 1500) {
+        if (pointCount >= threshold && this.isWebGLSupported()) {
+            return 'scattergl';
+        }
+        return 'scatter';
+    },
+
+    /**
      * テーマ構成比ドーナツチャート（図1）を描画
      * @param {string} containerId 
      * @param {any[]} themes 
@@ -417,13 +451,16 @@ const ChartRenderer = {
                 });
             }
 
+            const totalResponseCount = allResponsePoints.length;
+            const scatterType = this.getScatterType(totalResponseCount, 1500);
+
             if (isFiltered) {
                 // 属性絞り込み時: 背景に全回答のゴーストプロットを敷き、該当属性のみトピック色でハイライト
                 const ghostTrace = {
                     x: allResponsePoints.map(p => p.x),
                     y: allResponsePoints.map(p => p.y),
                     mode: 'markers',
-                    type: 'scatter',
+                    type: scatterType,
                     name: '全体（比較用）',
                     marker: {
                         size: 5.5,
@@ -450,7 +487,7 @@ const ChartRenderer = {
                             }),
                             customdata: matched,
                             mode: 'markers',
-                            type: 'scatter',
+                            type: scatterType,
                             name: `トピック${tIdx + 1}: ${shortLabel} (${matched.length})`,
                             marker: {
                                 size: 9.5,
@@ -477,7 +514,7 @@ const ChartRenderer = {
                         }),
                         customdata: matched,
                         mode: 'markers',
-                        type: 'scatter',
+                        type: scatterType,
                         name: `トピック${tIdx + 1}: ${shortLabel}`,
                         marker: {
                             size: 9,
@@ -1370,13 +1407,14 @@ const ChartRenderer = {
             gridEl.appendChild(cardEl);
 
             const subPlotEl = cardEl.querySelector('.attr-sub-plot');
+            const subScatterType = this.getScatterType(allPoints.length, 1000);
 
             // トレース1: 全体ゴーストプロット（薄いグレーの背景影）
             const ghostTrace = {
                 x: allPoints.map(p => p.x),
                 y: allPoints.map(p => p.y),
                 mode: 'markers',
-                type: 'scatter',
+                type: subScatterType,
                 name: '全体（比較用）',
                 marker: {
                     size: 5,
@@ -1397,7 +1435,7 @@ const ChartRenderer = {
                 }),
                 customdata: points,
                 mode: 'markers',
-                type: 'scatter',
+                type: subScatterType,
                 name: attrName,
                 marker: {
                     size: 8,
