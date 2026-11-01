@@ -25,6 +25,10 @@
                 </div>
             </div>
             <div class="header-actions">
+                <button id="btnLoadProjectJson" class="btn" title="以前保存した分析結果ファイル (.json) を読み込んで瞬時にダッシュボードを復元します">
+                    📂 分析結果を開く (.json)
+                </button>
+                <input type="file" id="projectJsonFileInput" accept=".json" style="display: none;">
                 <button id="btnDemoData" class="btn" title="すぐに試せるサンプルデータをロード">
                     💡 デモデータで試す
                 </button>
@@ -56,9 +60,9 @@
                 <div id="dropZoneWrapper">
                     <div id="dropZone" class="drop-zone" onclick="document.getElementById('csvFileInput').click();">
                         <div class="drop-icon">📁</div>
-                        <div class="drop-text">ここにデータファイル (Excel .xlsx / CSV / TSV / TXT) をドラッグ＆ドロップ</div>
-                        <div class="drop-subtext">またはクリックして選択（Excel・CSV・1行1件のテキストに対応 / UTF-8・Shift_JIS自動判定）</div>
-                        <input type="file" id="csvFileInput" accept=".csv, .tsv, .txt, .xlsx, .xls" style="display: none;">
+                        <div class="drop-text">ここにデータファイル (Excel .xlsx / CSV / TSV / TXT / 分析結果 .json) をドラッグ＆ドロップ</div>
+                        <div class="drop-subtext">またはクリックして選択（Excel・CSV・1行1件テキスト・保存した分析結果.jsonに対応 / UTF-8・Shift_JIS自動判定）</div>
+                        <input type="file" id="csvFileInput" accept=".csv, .tsv, .txt, .xlsx, .xls, .json" style="display: none;">
                     </div>
                 </div>
 
@@ -440,12 +444,34 @@
                     <span class="stat-item">抽出された主要トピック: <b id="statThemesCount" class="stat-val">0</b> 個</span>
                     <span class="stat-item">抽出品詞: <b id="statPosList" class="stat-val" style="color:#2563EB;">-</b></span>
                 </div>
-                <div class="summary-actions-wrap" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <div class="summary-actions-wrap" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                     <span style="font-size: 11.5px; color: var(--text-muted);">※トピック名はクリックで編集可</span>
                     <button id="btnExportAllWithTopics" class="btn btn-sm btn-outline" type="button" style="background:#FFFFFF; font-weight:600; color:#1D4ED8; border-color:#93C5FD;" title="分析結果（判定トピック・適合度）を元データ全件に付与したCSVを出力（Focus Explorer連携やExcelでの活用に最適です）">
                         📥 トピック判定付き全データCSV
                     </button>
+                    <button id="btnSaveProjectJson" class="btn btn-sm btn-outline" type="button" style="background:#FFFFFF; font-weight:600; color:#059669; border-color:#6EE7B7;" title="現在の分析結果・トピック構造・辞書設定をプロジェクトファイル (.json) として保存します（次回瞬時に復元可能）">
+                        💾 分析結果を保存 (.json)
+                    </button>
                 </div>
+            </div>
+
+            <!-- 高頻度共通語（ノイズ候補）のサジェストバナー -->
+            <div id="noiseWordsSuggestionBanner" class="noise-suggestion-banner" style="display: none;">
+                <div class="noise-suggestion-header">
+                    <span class="noise-suggestion-icon">💡</span>
+                    <div class="noise-suggestion-text-wrap">
+                        <div class="noise-suggestion-title">
+                            高頻度共通語（ノイズ候補）を検出しました
+                        </div>
+                        <div class="noise-suggestion-desc">
+                            以下の単語は回答の多く（30%以上）に出現しているため、各トピックの差別化を弱めている可能性があります。除外することで潜在テーマがより鮮明に浮き彫りになります。
+                        </div>
+                    </div>
+                    <button type="button" id="btnExcludeAllNoiseWords" class="btn btn-sm btn-primary" style="white-space: nowrap; font-size: 11.5px; padding: 5px 12px;">
+                        ✕ まとめて除外して再分析
+                    </button>
+                </div>
+                <div id="noiseWordsChipsList" class="noise-chips-list"></div>
             </div>
 
             <!-- 上段グリッド：【表1】テキスト全体の基本統計・特性 ＆ 【図1】トピック構成比 -->

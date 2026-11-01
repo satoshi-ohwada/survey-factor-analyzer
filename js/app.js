@@ -264,6 +264,28 @@ function setupEventListeners() {
         });
     }
 
+    // 分析結果プロジェクトJSON保存
+    const btnSaveProjectJson = document.getElementById('btnSaveProjectJson');
+    if (btnSaveProjectJson) {
+        btnSaveProjectJson.addEventListener('click', () => {
+            exportProjectJson();
+        });
+    }
+
+    // 分析結果プロジェクトJSON読込
+    const btnLoadProjectJson = document.getElementById('btnLoadProjectJson');
+    const projectJsonFileInput = document.getElementById('projectJsonFileInput');
+    if (btnLoadProjectJson && projectJsonFileInput) {
+        btnLoadProjectJson.addEventListener('click', () => {
+            projectJsonFileInput.click();
+        });
+        projectJsonFileInput.addEventListener('change', async (e) => {
+            if (e.target.files && e.target.files.length > 0) {
+                await importProjectJson(e.target.files[0]);
+            }
+        });
+    }
+
     // 印刷前後のPlotlyグラフ自動リサイズ・カード展開
     window.addEventListener('beforeprint', async () => {
         if (!document.body.classList.contains('is-printing')) {
@@ -1153,6 +1175,17 @@ function hideLoading() {
  * ファイルアップロードの処理
  */
 async function handleFileUpload(file) {
+    if (!file) return;
+
+    // 分析結果プロジェクトJSONファイルの場合は即時復元へルーティング
+    const lowerName = (file.name || '').toLowerCase();
+    if (lowerName.endsWith('.json')) {
+        await importProjectJson(file);
+        const fileInput = document.getElementById('csvFileInput');
+        if (fileInput) fileInput.value = '';
+        return;
+    }
+
     showLoading('ファイルを読み込み中...');
     const fileInput = document.getElementById('csvFileInput');
     try {
@@ -1160,7 +1193,7 @@ async function handleFileUpload(file) {
         processParsedData(parsed, file.name);
     } catch (err) {
         console.error('ファイルの読み込みエラー詳細:', err);
-        alert(`ファイルの読み込みに失敗しました:\n${err.message}\n\n※ 対応形式: Excel (.xlsx, .xls), CSV, TSV, テキスト (.txt)\n※ 文字コードは UTF-8 および Shift_JIS (CP932) に対応しています。`);
+        alert(`ファイルの読み込みに失敗しました:\n${err.message}\n\n※ 対応形式: Excel (.xlsx, .xls), CSV, TSV, テキスト (.txt), 分析結果 (.json)\n※ 文字コードは UTF-8 および Shift_JIS (CP932) に対応しています。`);
     } finally {
         hideLoading();
         if (fileInput) fileInput.value = '';
@@ -2055,6 +2088,9 @@ function renderResults(validResponses, junkCount, result, tfidfData, analyzedRow
     if (statPosList) statPosList.textContent = posNamesText || 'なし';
     const printPosList = document.getElementById('printPosList');
     if (printPosList) printPosList.textContent = posNamesText || 'なし';
+
+    // 高頻度共通語（ノイズ候補）の自動検知とサジェストバナーの描画
+    renderNoiseWordsSuggestions(validResponses, tfidfData);
 
     // 【表】テキスト全体の基本統計・特性プロファイルの描画
     renderTextStatsProfile(validResponses, junkCount, tfidfData, analyzedRowsCount);
@@ -4881,6 +4917,286 @@ function exportExcludedResponsesCsv() {
     URL.revokeObjectURL(url);
 }
 window.exportExcludedResponsesCsv = exportExcludedResponsesCsv;
+
+/**
+ * 高頻度共通語（ノイズ候補）の自動検知とサジェストバナーの描画
+ */
+function renderNoiseWordsSuggestions(validResponses, tfidfData) {
+    const banner = document.getElementById('noiseWordsSuggestionBanner');
+    const chipsList = document.getElementById('noiseWordsChipsList');
+    const btnExcludeAll = document.getElementById('btnExcludeAllNoiseWords');
+    if (!banner || !chipsList) return;
+
+    const N = validResponses ? validResponses.length : 0;
+    if (N < 12 || !tfidfData || !tfidfData.wordDocCounts) {
+        banner.style.display = 'none';
+        return;
+    }
+
+    const docFreq = tfidfData.wordDocCounts;
+    // ユーザー定義の強制語（複合語・同義語）
+    const forceWords = new Set([
+        ...(AppState.customCompoundWords ? Array.from(AppState.customCompoundWords) : []),
+        ...(AppState.customSynonymRules ? Array.from(AppState.customSynonymRules.values()) : [])
+    ]);
+
+    // 判定閾値: データ件数に応じて 30%〜35% 以上に出現する単語
+    const thresholdRatio = N >= 50 ? 0.30 : 0.35;
+    const minThresholdCount = Math.max(4, Math.ceil(N * thresholdRatio));
+
+    const candidates = [];
+    for (const word in docFreq) {
+        const count = docFreq[word];
+        const ratio = count / N;
+        if (count >= minThresholdCount && ratio >= thresholdRatio) {
+            // すでにカスタム除外ワードにあるか、ユーザー強制登録語なら除外
+            if (AppState.customStopWords.has(word)) continue;
+            if (forceWords.has(word)) continue;
+            if (TextPreprocessor.DEFAULT_STOPWORDS.has(word)) continue;
+            // 1文字の語や数値・記号は除外
+            if (word.length <= 1) continue;
+            if (/^[0-9０-９]+$/.test(word)) continue;
+
+            candidates.push({
+                word,
+                count,
+                ratio: Math.round(ratio * 100)
+            });
+        }
+    }
+
+    // 出現件数降順で上位10語を提案
+    candidates.sort((a, b) => b.count - a.count);
+    const topCandidates = candidates.slice(0, 10);
+
+    if (topCandidates.length === 0) {
+        banner.style.display = 'none';
+        return;
+    }
+
+    chipsList.innerHTML = '';
+    topCandidates.forEach(item => {
+        const chip = document.createElement('span');
+        chip.className = 'noise-chip';
+        chip.title = `「${escapeHtml(item.word)}」を除外ワードに追加して再分析`;
+        chip.innerHTML = `
+            <span>${escapeHtml(item.word)}</span>
+            <span class="noise-chip-count">(${item.count}件 / ${item.ratio}%)</span>
+            <span class="noise-chip-del" title="除外">✕</span>
+        `;
+        chip.addEventListener('click', async () => {
+            AppState.customStopWords.add(item.word);
+            saveCustomRulesToStorage();
+            renderCustomRulesUI();
+            showToast(`除外ワードに「${item.word}」を追加して再分析中...`);
+            await runFullPipeline();
+        });
+        chipsList.appendChild(chip);
+    });
+
+    if (btnExcludeAll) {
+        btnExcludeAll.onclick = async () => {
+            const addedWords = [];
+            topCandidates.forEach(item => {
+                if (!AppState.customStopWords.has(item.word)) {
+                    AppState.customStopWords.add(item.word);
+                    addedWords.push(item.word);
+                }
+            });
+            if (addedWords.length > 0) {
+                saveCustomRulesToStorage();
+                renderCustomRulesUI();
+                showToast(`高頻度共通語 ${addedWords.length}語 を除外に追加して再分析中...`);
+                await runFullPipeline();
+            }
+        };
+    }
+
+    banner.style.display = 'block';
+}
+window.renderNoiseWordsSuggestions = renderNoiseWordsSuggestions;
+
+/**
+ * 現在の分析結果・設定・データをプロジェクトJSONとして保存（エクスポート）
+ */
+function exportProjectJson() {
+    if (!AppState.analysisResult) {
+        alert('保存する分析結果がありません。まず分析を実行してください。');
+        return;
+    }
+
+    try {
+        const projectData = {
+            appName: 'survey-factor-analyzer',
+            version: '1.0',
+            exportedAt: new Date().toISOString(),
+            fileName: AppState.loadedFileName || 'survey_analysis',
+            headers: AppState.headers || [],
+            rawRows: AppState.rawRows || [],
+            textColumn: AppState.textColumn,
+            attributeColumn: AppState.attributeColumn,
+            attributeColumns: AppState.attributeColumns || [],
+            activeAttributeColumn: AppState.activeAttributeColumn,
+            kCount: AppState.kCount || 3,
+            selectedPos: AppState.selectedPos,
+            customStopWords: Array.from(AppState.customStopWords || []),
+            customCompoundWords: Array.from(AppState.customCompoundWords || []),
+            customSynonymRules: Array.from((AppState.customSynonymRules || new Map()).entries()),
+            analysisResult: AppState.analysisResult,
+            tfidfData: {
+                vocabulary: AppState.tfidfData ? AppState.tfidfData.vocabulary : [],
+                wordDocCounts: AppState.tfidfData ? AppState.tfidfData.wordDocCounts : {},
+                docWordLists: AppState.tfidfData ? AppState.tfidfData.docWordLists : []
+            },
+            validResponses: AppState.validResponses || [],
+            excludedResponses: AppState.excludedResponses || [],
+            mapMode: AppState.mapMode || 'responses',
+            mapAxisX: AppState.mapAxisX || 0,
+            mapAxisY: AppState.mapAxisY || 1
+        };
+
+        const jsonStr = JSON.stringify(projectData, null, 2);
+        const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+
+        const now = new Date();
+        const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+
+        const baseName = (AppState.loadedFileName || 'survey_analysis').replace(/\.[^/.]+$/, '');
+        const outFileName = `分析結果_${baseName}_K${AppState.kCount}_${dateStr}.json`;
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = outFileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showToast(`💾 分析結果を保存しました: ${outFileName}`);
+    } catch (err) {
+        console.error('プロジェクト保存エラー:', err);
+        alert('分析結果の保存中にエラーが発生しました: ' + err.message);
+    }
+}
+window.exportProjectJson = exportProjectJson;
+
+/**
+ * 保存されたプロジェクトJSONファイルを読み込んで瞬時にダッシュボードを復元
+ * @param {File|Blob|string} input 
+ */
+async function importProjectJson(input) {
+    showLoading('分析結果プロジェクトを読み込み中...');
+    try {
+        let jsonText = '';
+        if (typeof input === 'string') {
+            jsonText = input;
+        } else if (input instanceof Blob || (input && typeof input.text === 'function')) {
+            jsonText = await input.text();
+        } else {
+            throw new Error('サポートされていないファイル形式です');
+        }
+
+        const project = JSON.parse(jsonText);
+        if (!project || project.appName !== 'survey-factor-analyzer' || !project.analysisResult) {
+            throw new Error('本ツールの有効な分析結果JSONファイルではありません。');
+        }
+
+        // AppState にデータを復元
+        AppState.loadedFileName = project.fileName || (input.name || '復元された分析結果.json');
+        AppState.headers = project.headers || [];
+        AppState.rawRows = project.rawRows || [];
+        AppState.textColumn = project.textColumn || null;
+        AppState.attributeColumn = project.attributeColumn || null;
+        AppState.attributeColumns = project.attributeColumns || (project.attributeColumn ? [project.attributeColumn] : []);
+        AppState.activeAttributeColumn = project.activeAttributeColumn || project.attributeColumn || null;
+        AppState.kCount = project.kCount || 3;
+        AppState.selectedPos = Object.assign({}, AppState.selectedPos, project.selectedPos || {});
+        AppState.customStopWords = new Set(project.customStopWords || []);
+        AppState.customCompoundWords = new Set(project.customCompoundWords || []);
+        AppState.customSynonymRules = new Map(project.customSynonymRules || []);
+        AppState.analysisResult = project.analysisResult;
+        AppState.tfidfData = project.tfidfData || { vocabulary: [], wordDocCounts: {}, docWordLists: [] };
+        AppState.validResponses = project.validResponses || [];
+        AppState.excludedResponses = project.excludedResponses || [];
+        AppState.mapMode = project.mapMode || 'responses';
+        AppState.mapAxisX = project.mapAxisX || 0;
+        AppState.mapAxisY = project.mapAxisY || 1;
+
+        // UI表示の復元
+        const fileNameDisplay = document.getElementById('fileNameDisplay');
+        const fileStatusBar = document.getElementById('fileStatusBar');
+        if (fileNameDisplay) {
+            fileNameDisplay.textContent = `📄 ${AppState.loadedFileName} (${AppState.rawRows.length.toLocaleString()}件のデータ・復元プロジェクト)`;
+        }
+        if (fileStatusBar) fileStatusBar.style.display = 'flex';
+
+        // 設定フォームの復元
+        const selectTextCol = document.getElementById('selectTextCol');
+        if (selectTextCol) {
+            selectTextCol.innerHTML = '';
+            AppState.headers.forEach(h => {
+                const opt = document.createElement('option');
+                opt.value = h;
+                opt.textContent = h;
+                selectTextCol.appendChild(opt);
+            });
+            if (AppState.textColumn) {
+                selectTextCol.value = AppState.textColumn;
+            }
+        }
+
+        setupAttributeChipsSelector(AppState.headers, AppState.rawRows, AppState.attributeColumns);
+        syncAttributeChipsUI();
+
+        const inputK = document.getElementById('inputK');
+        if (inputK && AppState.kCount) {
+            inputK.value = AppState.kCount;
+        }
+
+        // 品詞チェックボックスの復元
+        ['posNoun', 'posVerb', 'posAdj', 'posAdv', 'posIntj'].forEach(id => {
+            const el = document.getElementById(id);
+            const key = id.replace('pos', '').toLowerCase();
+            if (el && AppState.selectedPos[key] !== undefined) {
+                el.checked = AppState.selectedPos[key];
+            }
+        });
+
+        const configGrid = document.getElementById('configGrid');
+        if (configGrid) configGrid.style.display = 'block';
+        const dictSection = document.getElementById('dictionarySection');
+        if (dictSection) dictSection.style.display = 'block';
+        const runActionArea = document.getElementById('runActionArea');
+        if (runActionArea) runActionArea.style.display = 'flex';
+
+        // 辞書・ルール件数の復元
+        saveCustomRulesToStorage();
+        renderCustomRulesUI();
+
+        // プレビュー表示
+        renderDataPreview();
+
+        // 分析結果ダッシュボードを0秒で一瞬描画！
+        renderResults(
+            AppState.validResponses,
+            AppState.excludedResponses.length,
+            AppState.analysisResult,
+            AppState.tfidfData,
+            AppState.rawRows.length
+        );
+
+        showToast(`✅ 保存された分析結果を復元しました（全 ${AppState.validResponses.length.toLocaleString()} 件）`, 4500);
+    } catch (err) {
+        console.error('プロジェクト読み込みエラー:', err);
+        alert('分析結果JSONの読み込みに失敗しました:\n' + err.message);
+    } finally {
+        hideLoading();
+        const jsonInput = document.getElementById('projectJsonFileInput');
+        if (jsonInput) jsonInput.value = '';
+    }
+}
+window.importProjectJson = importProjectJson;
 
 
 

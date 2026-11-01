@@ -1416,6 +1416,92 @@ body {
     margin-bottom: 20px;
 }
 
+/* 高頻度共通語（ノイズ候補）サジェストバナー */
+.noise-suggestion-banner {
+    background: #FFFBEB;
+    border: 1px solid #FDE68A;
+    border-left: 5px solid #F59E0B;
+    border-radius: var(--radius-md);
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(245, 158, 11, 0.1);
+    animation: fadeIn 0.3s ease;
+}
+
+.noise-suggestion-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.noise-suggestion-icon {
+    font-size: 22px;
+    flex-shrink: 0;
+}
+
+.noise-suggestion-text-wrap {
+    flex: 1;
+    min-width: 260px;
+}
+
+.noise-suggestion-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #92400E;
+    margin-bottom: 2px;
+}
+
+.noise-suggestion-desc {
+    font-size: 12px;
+    color: #B45309;
+    line-height: 1.45;
+}
+
+.noise-chips-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.noise-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #FFFFFF;
+    border: 1px solid #FCD34D;
+    color: #92400E;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.noise-chip:hover {
+    background: #FEF3C7;
+    border-color: #F59E0B;
+    color: #78350F;
+    transform: translateY(-1px);
+}
+
+.noise-chip-count {
+    font-size: 10.5px;
+    font-weight: 500;
+    color: #B45309;
+}
+
+.noise-chip-del {
+    font-size: 11px;
+    color: #EF4444;
+    font-weight: 700;
+    margin-left: 2px;
+}
+
 .summary-stats {
     display: flex;
     flex-wrap: wrap;
@@ -3051,6 +3137,7 @@ body {
     .btn,
     select,
     .summary-bar,
+    .noise-suggestion-banner,
     .data-changed-banner,
     .badge-rec,
     .theme-title span,
