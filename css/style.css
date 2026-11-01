@@ -1428,6 +1428,21 @@ body {
     animation: fadeIn 0.3s ease;
 }
 
+.noise-suggestion-banner-clean {
+    background: #F0FDF4;
+    border-color: #BBF7D0;
+    border-left-color: #10B981;
+    box-shadow: 0 1px 2px rgba(16, 185, 129, 0.08);
+}
+
+.noise-suggestion-banner-clean .noise-suggestion-title {
+    color: #166534;
+}
+
+.noise-suggestion-banner-clean .noise-suggestion-desc {
+    color: #15803D;
+}
+
 .noise-suggestion-header {
     display: flex;
     align-items: center;
@@ -3016,6 +3031,32 @@ body {
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
+.top-keyword-item:hover .btn-top-kw-exclude {
+    opacity: 1;
+}
+
+.btn-top-kw-exclude {
+    position: relative;
+    z-index: 2;
+    background: none;
+    border: none;
+    color: #94A3B8;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0 3px;
+    margin-left: 2px;
+    border-radius: 3px;
+    opacity: 0.5;
+    transition: all 0.15s ease;
+}
+
+.btn-top-kw-exclude:hover {
+    color: #EF4444;
+    background: #FEE2E2;
+    opacity: 1;
+}
+
 /* 頻度比率インジケーターバー（左から右への薄いブルーの帯） */
 .top-keyword-bar {
     position: absolute;
@@ -3138,6 +3179,7 @@ body {
     select,
     .summary-bar,
     .noise-suggestion-banner,
+    .btn-top-kw-exclude,
     .data-changed-banner,
     .badge-rec,
     .theme-title span,

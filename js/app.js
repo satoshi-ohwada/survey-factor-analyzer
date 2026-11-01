@@ -2216,6 +2216,7 @@ function renderTextStatsProfile(validResponses, junkCount, tfidfData, analyzedRo
                         <span class="top-keyword-rank ${rankClass}">${rank}</span>
                         <span class="top-keyword-word">${escapeHtml(word)}</span>
                         <span class="top-keyword-count">${count}件</span>
+                        <button type="button" class="btn-top-kw-exclude" data-word="${escapeHtml(word)}" title="「${escapeHtml(word)}」を除外ワードに追加して再分析">✕</button>
                     `;
                     col.appendChild(item);
                 });
@@ -2226,6 +2227,23 @@ function renderTextStatsProfile(validResponses, junkCount, tfidfData, analyzedRo
             if (rightWords.length > 0) {
                 topKeywordsContainer.appendChild(renderCol(rightWords, mid));
             }
+
+            // 最頻出単語の除外ボタンハンドラ
+            const excludeBtns = topKeywordsContainer.querySelectorAll('.btn-top-kw-exclude');
+            excludeBtns.forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const word = btn.getAttribute('data-word');
+                    if (!word) return;
+                    if (confirm(`最頻出単語「${word}」を除外ワード（ストップワード）に追加して再分析しますか？\n（全体に渡る共通語を除外することで各トピックの特徴が際立ちます）`)) {
+                        AppState.customStopWords.add(word);
+                        saveCustomRulesToStorage();
+                        renderCustomRulesUI();
+                        showToast(`「${word}」を除外ワードに追加して再計算中...`);
+                        await runFullPipeline();
+                    }
+                });
+            });
         }
     }
 }
@@ -4928,7 +4946,7 @@ function renderNoiseWordsSuggestions(validResponses, tfidfData) {
     if (!banner || !chipsList) return;
 
     const N = validResponses ? validResponses.length : 0;
-    if (N < 12 || !tfidfData || !tfidfData.wordDocCounts) {
+    if (N < 8 || !tfidfData || !tfidfData.wordDocCounts) {
         banner.style.display = 'none';
         return;
     }
@@ -4940,9 +4958,9 @@ function renderNoiseWordsSuggestions(validResponses, tfidfData) {
         ...(AppState.customSynonymRules ? Array.from(AppState.customSynonymRules.values()) : [])
     ]);
 
-    // 判定閾値: データ件数に応じて 30%〜35% 以上に出現する単語
-    const thresholdRatio = N >= 50 ? 0.30 : 0.35;
-    const minThresholdCount = Math.max(4, Math.ceil(N * thresholdRatio));
+    // 判定閾値: 出現率15%〜20%以上、かつ最低3件以上の高頻度語を検出
+    const thresholdRatio = N >= 60 ? 0.18 : 0.15;
+    const minThresholdCount = Math.max(3, Math.ceil(N * thresholdRatio));
 
     const candidates = [];
     for (const word in docFreq) {
@@ -4965,14 +4983,28 @@ function renderNoiseWordsSuggestions(validResponses, tfidfData) {
         }
     }
 
-    // 出現件数降順で上位10語を提案
+    // 出現件数降順で上位12語を提案
     candidates.sort((a, b) => b.count - a.count);
-    const topCandidates = candidates.slice(0, 10);
+    const topCandidates = candidates.slice(0, 12);
+
+    const titleEl = banner.querySelector('.noise-suggestion-title');
+    const descEl = banner.querySelector('.noise-suggestion-desc');
 
     if (topCandidates.length === 0) {
-        banner.style.display = 'none';
+        // 突出したノイズ語が存在しない場合も正常動作が分かるよう控えめに表示
+        banner.className = 'noise-suggestion-banner noise-suggestion-banner-clean';
+        if (titleEl) titleEl.textContent = '高頻度共通語（ノイズ）チェック完了';
+        if (descEl) descEl.textContent = `回答全体に極端に偏った共通ノイズ語（出現率${Math.round(thresholdRatio * 100)}%以上）は検出されませんでした。各トピックの特徴がバランスよく現れています。`;
+        chipsList.innerHTML = '';
+        if (btnExcludeAll) btnExcludeAll.style.display = 'none';
+        banner.style.display = 'flex';
         return;
     }
+
+    banner.className = 'noise-suggestion-banner';
+    if (titleEl) titleEl.textContent = `高頻度共通語（ノイズ候補）を ${topCandidates.length}語 検出しました`;
+    if (descEl) descEl.textContent = `以下の単語は回答の多く（${Math.round(thresholdRatio * 100)}%以上）に出現しているため、各トピックの差別化を弱めている可能性があります。除外することで潜在テーマがより鮮明に浮き彫りになります。`;
+    if (btnExcludeAll) btnExcludeAll.style.display = 'inline-flex';
 
     chipsList.innerHTML = '';
     topCandidates.forEach(item => {
