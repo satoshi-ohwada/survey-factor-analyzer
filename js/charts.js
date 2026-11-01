@@ -1740,6 +1740,51 @@ const ChartRenderer = {
     },
 
     /**
+     * コミュニティ（群）ごとに明確に異なる色相（Hue）のカラーパレットを生成
+     * 同一図内で同じ色の濃淡や同系色が重複して別群に割り当てられるのを完全に防止
+     * @param {string} baseHex 基本トピックカラー
+     * @param {number} count 必要色数
+     * @returns {string[]}
+     */
+    _generateCommunityPalette(baseHex, count = 8) {
+        let c = (baseHex || '#2563EB').replace('#', '');
+        if (c.length === 3) c = c.split('').map(x => x + x).join('');
+        const num = parseInt(c, 16);
+        const r = (num >> 16) & 255;
+        const g = (num >> 8) & 255;
+        const b = num & 255;
+
+        const rNorm = r / 255, gNorm = g / 255, bNorm = b / 255;
+        const max = Math.max(rNorm, gNorm, bNorm), min = Math.min(rNorm, gNorm, bNorm);
+        let h = 0;
+        if (max !== min) {
+            const d = max - min;
+            switch (max) {
+                case rNorm: h = (gNorm - bNorm) / d + (gNorm < bNorm ? 6 : 0); break;
+                case gNorm: h = (bNorm - rNorm) / d + 2; break;
+                case bNorm: h = (rNorm - gNorm) / d + 4; break;
+            }
+            h /= 6;
+        }
+        const baseHue = Math.round(h * 360);
+
+        // 第1群はトピックの基本色を維持
+        const palette = [baseHex || '#2563EB'];
+
+        // 第2群以降は黄金比角度 (137.5度) で色相環を大きくジャンプさせて生成
+        // これにより隣接する群が常に互いに明確に異なる色相（対照色・補色寄り）となり、
+        // 同一色の濃淡や同系色が混在する現象を完全に防止する
+        const goldenAngle = 137.5;
+        for (let i = 1; i < count; i++) {
+            const hue = Math.round((baseHue + i * goldenAngle) % 360);
+            // 白背景と白文字・白ボーダーに映えるよう彩度と明度を最適化
+            palette.push(`hsl(${hue}, 82%, 46%)`);
+        }
+
+        return palette;
+    },
+
+    /**
      * トピック別共起ネットワークの描画
      */
     renderCooccurrenceNetwork(plotId, theme, responsesWithTheme, docWordLists, baseColor = '#2563EB') {
@@ -1818,17 +1863,8 @@ const ChartRenderer = {
         // 4. コミュニティ検出（モジュラリティ最大化法）
         const { communities, nodeCommunityMap } = this._detectCommunities(wordList, finalEdges);
 
-        // コミュニティカラーパレット
-        const COMMUNITY_PALETTE = [
-            baseColor || '#2563EB',
-            '#059669', // エメラルドグリーン
-            '#D97706', // アンバー
-            '#7C3AED', // パープル
-            '#E11D48', // ローズ
-            '#0891B2', // シアン
-            '#4F46E5', // インディゴ
-            '#EA580C'  // オレンジ
-        ];
+        // コミュニティカラーパレット（同一図内での同系色・濃淡重複を完全に防止）
+        const COMMUNITY_PALETTE = this._generateCommunityPalette(baseColor || '#2563EB', Math.max(8, communities.length));
 
         // 5. 力学モデル（Force-directed Simulation: ノード間隔を広めに確保）
         const N = wordList.length;
