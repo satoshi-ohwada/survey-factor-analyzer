@@ -21,12 +21,14 @@ const FactorEngine = {
     /**
      * NMF (非負値行列因子分解) を実行
      * 行列 V (N x M) を W (N x K) と H (K x M) に分解する
+     * （非同期実行対応＆進捗コールバックによりUIフリーズを防止）
      * @param {number[][]} V 入力TF-IDF行列 (N x M)
      * @param {number} K トピック数
-     * @param {number} maxIter 最大反復回数 (デフォルト100)
-     * @returns {{ W: number[][], H: number[][] }}
+     * @param {number} maxIter 最大反復回数 (デフォルト80)
+     * @param {Function} [onProgress] 進捗コールバック (percent: number) => void
+     * @returns {Promise<{ W: number[][], H: number[][] }>}
      */
-    runNMF(V, K, maxIter = 100) {
+    async runNMF(V, K, maxIter = 80, onProgress = null) {
         const N = V.length;
         if (N === 0) return { W: [], H: [] };
         const M = V[0].length;
@@ -61,6 +63,8 @@ const FactorEngine = {
         }
 
         // Lee & Seung 乗法更新
+        const progressInterval = Math.max(5, Math.floor(maxIter / 10));
+
         for (let iter = 0; iter < maxIter; iter++) {
             // --- H の更新: H = H .* (W^T * V) ./ (W^T * W * H + eps) ---
             // 1. W^T * V (K x M)
@@ -143,6 +147,21 @@ const FactorEngine = {
                     W[i][k] *= (VHt[i][k] / (denom + eps));
                 }
             }
+
+            // 中間配列の参照をクリア
+            WtV.length = 0;
+            WtW.length = 0;
+            VHt.length = 0;
+            HHt.length = 0;
+
+            // 定期的にUIスレッドに制御を戻し進捗を通知
+            if ((iter + 1) % progressInterval === 0 || iter === maxIter - 1) {
+                if (typeof onProgress === 'function') {
+                    const percent = Math.round(((iter + 1) / maxIter) * 100);
+                    onProgress(percent);
+                }
+                await new Promise(resolve => setTimeout(resolve, 0));
+            }
         }
 
         // 各テーマ H[k] のL1正規化と W のスケール調整
@@ -171,9 +190,10 @@ const FactorEngine = {
      * @param {number[][]} V TF-IDF行列
      * @param {number} K テーマ数
      * @param {Record<string, number>} [wordDocCounts] 単語の出現回答数マップ
-     * @returns {object} 分析結果オブジェクト
+     * @param {Function} [onProgress] NMF進捗コールバック
+     * @returns {Promise<object>} 分析結果オブジェクト
      */
-    analyze(responses, vocabulary, V, K, wordDocCounts = {}) {
+    async analyze(responses, vocabulary, V, K, wordDocCounts = {}, onProgress = null) {
         const N = responses.length;
         const M = vocabulary.length;
 
@@ -185,8 +205,8 @@ const FactorEngine = {
             };
         }
 
-        // 1. NMFの実行
-        const { W, H } = this.runNMF(V, K, 80);
+        // 1. NMFの実行（非同期・進捗通知付き）
+        const { W, H } = await this.runNMF(V, K, 80, onProgress);
 
         // 2. 各テーマの重要単語（上位30単語）を抽出
         const themes = [];

@@ -17,6 +17,22 @@ const ChartRenderer = {
     ],
 
     /**
+     * 指定したコンテナの既存プロットやイベントリスナーを破棄してメモリを解放
+     * @param {string|HTMLElement} container 
+     */
+    purge(container) {
+        if (!container) return;
+        const el = typeof container === 'string' ? document.getElementById(container) : container;
+        if (el && typeof Plotly !== 'undefined' && Plotly.purge) {
+            try {
+                Plotly.purge(el);
+            } catch (e) {
+                // 無視
+            }
+        }
+    },
+
+    /**
      * テーマ構成比ドーナツチャート（図1）を描画
      * @param {string} containerId 
      * @param {any[]} themes 
@@ -26,6 +42,8 @@ const ChartRenderer = {
         if (!themes || themes.length === 0) return;
         const container = document.getElementById(containerId);
         if (!container) return;
+
+        this.purge(container);
 
         const totalCount = themes.reduce((sum, t) => sum + (t.count || 0), 0);
 
@@ -344,6 +362,8 @@ const ChartRenderer = {
     renderFactorSpaceMap(containerId, options) {
         const container = document.getElementById(containerId);
         if (!container) return;
+
+        this.purge(container);
 
         const {
             mode = 'responses', // 'responses' (回答者スコア) または 'words' (語の関連度)
@@ -975,6 +995,8 @@ const ChartRenderer = {
     renderCrossTabChart(containerId, responsesWithTheme, themes, attributeCol, onBarClick) {
         const container = document.getElementById(containerId);
         if (!container) return;
+
+        this.purge(container);
         if (!attributeCol || !responsesWithTheme || responsesWithTheme.length === 0) {
             container.innerHTML = '';
             return;

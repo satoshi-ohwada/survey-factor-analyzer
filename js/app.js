@@ -1089,15 +1089,64 @@ function showColumnFilterMenu(triggerBtn, colName) {
 /**
  * ローディング表示の切り替え
  */
-function showLoading(text = '分析を実行中...') {
+/**
+ * ローディング表示の切り替え（詳細進捗バー対応）
+ */
+function showLoading(text = '分析を実行中...', subText = '', percent = null) {
     const overlay = document.getElementById('loadingOverlay');
     const loadingText = document.getElementById('loadingText');
-    loadingText.textContent = text;
-    overlay.style.display = 'flex';
+    const loadingSubText = document.getElementById('loadingSubText');
+    const progressContainer = document.getElementById('loadingProgressContainer');
+    const progressBar = document.getElementById('loadingProgressBar');
+
+    if (loadingText) loadingText.textContent = text;
+
+    if (loadingSubText) {
+        if (subText) {
+            loadingSubText.textContent = subText;
+            loadingSubText.style.display = 'block';
+        } else {
+            loadingSubText.style.display = 'none';
+        }
+    }
+
+    if (progressContainer && progressBar) {
+        if (percent !== null && percent !== undefined) {
+            progressContainer.style.display = 'block';
+            progressBar.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+        } else {
+            progressContainer.style.display = 'none';
+            progressBar.style.width = '0%';
+        }
+    }
+
+    if (overlay) overlay.style.display = 'flex';
+}
+
+function updateLoadingProgress(percent, text = null, subText = null) {
+    const loadingText = document.getElementById('loadingText');
+    const loadingSubText = document.getElementById('loadingSubText');
+    const progressContainer = document.getElementById('loadingProgressContainer');
+    const progressBar = document.getElementById('loadingProgressBar');
+
+    if (text !== null && loadingText) loadingText.textContent = text;
+    if (subText !== null && loadingSubText) {
+        loadingSubText.textContent = subText;
+        loadingSubText.style.display = subText ? 'block' : 'none';
+    }
+    if (progressContainer && progressBar) {
+        progressContainer.style.display = 'block';
+        progressBar.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+    }
 }
 
 function hideLoading() {
-    document.getElementById('loadingOverlay').style.display = 'none';
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) overlay.style.display = 'none';
+    const progressContainer = document.getElementById('loadingProgressContainer');
+    const loadingSubText = document.getElementById('loadingSubText');
+    if (progressContainer) progressContainer.style.display = 'none';
+    if (loadingSubText) loadingSubText.style.display = 'none';
 }
 
 /**
@@ -1815,8 +1864,14 @@ async function runFullPipeline() {
     if (btnRun) btnRun.disabled = true;
     if (btnRunTop) btnRunTop.disabled = true;
 
-    showLoading('形態素解析と日本語辞書を読み込み中...');
+    showLoading('形態素解析と日本語辞書を準備中...', '辞書データをロードしています...', 0);
     try {
+        // メモリクリーンアップ: 前回の巨大な分析結果オブジェクトの参照を解放
+        AppState.analysisResult = null;
+        AppState.tfidfData = null;
+        AppState.validResponses = null;
+        AppState.excludedResponses = null;
+
         // 1. Kuromojiの初期化
         await TextPreprocessor.init();
 
@@ -1830,7 +1885,6 @@ async function runFullPipeline() {
         // 形態素解析の抽出品詞フィルターをセット
         TextPreprocessor.setPosFilter(AppState.selectedPos);
 
-        showLoading('テキストデータを前処理中...');
         // 2. 絞り込み条件（オートフィルター）を満たす行を取得
         const filteredItems = getColumnFilteredRowsWithIndex();
         if (filteredItems.length === 0) {
@@ -1838,10 +1892,17 @@ async function runFullPipeline() {
             return;
         }
 
+        const totalItems = filteredItems.length;
         const validResponses = [];
         const excludedResponses = [];
 
-        filteredItems.forEach(({ row: r, idx }) => {
+        // チャンク分割による非同期形態素解析（ブラウザのフリーズ防止＆進捗バー更新）
+        // データ件数に応じてチャンクサイズを動的に調整（20件〜80件）
+        const chunkSize = Math.max(15, Math.min(80, Math.floor(totalItems / 40)));
+        updateLoadingProgress(0, 'テキストデータを形態素解析中...', `0 / ${totalItems.toLocaleString()} 件 (0%)`);
+
+        for (let i = 0; i < totalItems; i++) {
+            const { row: r, idx } = filteredItems[i];
             const rawText = r[AppState.textColumn];
             const textStr = (rawText !== undefined && rawText !== null) ? String(rawText).trim() : '';
             const rowId = r.ID || r.id || r.No || (idx + 1);
@@ -1878,11 +1939,23 @@ async function runFullPipeline() {
                         id: rowId,
                         rawIndex: idx,
                         text: textStr,
+                        words: tokens, // ★抽出済み単語をキャッシュしてTF-IDF側での二重解析を防止
                         row: r
                     });
                 }
             }
-        });
+
+            // チャンクごとにUIを描画更新しイベントループに制御を戻す
+            if ((i + 1) % chunkSize === 0 || i === totalItems - 1) {
+                const percent = Math.round(((i + 1) / totalItems) * 100);
+                updateLoadingProgress(
+                    percent,
+                    'テキストデータを形態素解析中...',
+                    `${(i + 1).toLocaleString()} / ${totalItems.toLocaleString()} 件完了 (${percent}%)`
+                );
+                await new Promise(resolve => setTimeout(resolve, 0));
+            }
+        }
 
         if (validResponses.length < 5) {
             alert('有効な自由記述テキストが少なすぎます（最低5件以上必要です）');
@@ -1893,8 +1966,10 @@ async function runFullPipeline() {
         AppState.excludedResponses = excludedResponses;
         const junkCount = excludedResponses.length;
 
-        showLoading('重要キーワードと潜在トピックを計算中...');
-        // 3. TF-IDF 行列の構築（指定された品詞に基づく）
+        // 3. TF-IDF 行列の構築（キャッシュされた単語リストを利用して超高速に実行）
+        updateLoadingProgress(100, '重要キーワードを抽出中 (TF-IDF)...', '特徴語の重みと出現頻度を集計しています...');
+        await new Promise(resolve => setTimeout(resolve, 0));
+
         const tfidfData = TextPreprocessor.buildTfIdfMatrix(validResponses, 70, AppState.selectedPos);
 
         if (tfidfData.vocabulary.length < 3) {
@@ -1902,16 +1977,35 @@ async function runFullPipeline() {
             return;
         }
 
-        // 4. 潜在トピック探索の実行 (NMF)
+        // 4. 潜在トピック探索の実行 (NMF 非同期＆収束進捗表示)
         const K = parseInt(document.getElementById('inputK').value, 10) || 3;
         AppState.kCount = K;
 
-        const result = FactorEngine.analyze(validResponses, tfidfData.vocabulary, tfidfData.matrix, K, tfidfData.wordDocCounts);
+        updateLoadingProgress(0, '潜在トピックを反復計算中 (NMF)...', '因子行列を最適化しています...');
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        const result = await FactorEngine.analyze(
+            validResponses,
+            tfidfData.vocabulary,
+            tfidfData.matrix,
+            K,
+            tfidfData.wordDocCounts,
+            (nmfPercent) => {
+                updateLoadingProgress(
+                    nmfPercent,
+                    '潜在トピックを反復計算中 (NMF)...',
+                    `因子分解の収束計算: ${nmfPercent}% 完了`
+                );
+            }
+        );
+
         AppState.analysisResult = result;
         AppState.tfidfData = tfidfData;
 
-        showLoading('図とパス図を描画中...');
         // 5. 結果のレンダリング
+        updateLoadingProgress(100, '図とレポートを描画中...', 'ダッシュボードを生成しています...');
+        await new Promise(resolve => setTimeout(resolve, 10));
+
         renderResults(validResponses, junkCount, result, tfidfData, filteredItems.length);
 
     } catch (err) {

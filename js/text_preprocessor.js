@@ -379,7 +379,8 @@ const TextPreprocessor = {
 
     /**
      * 全回答のテキストを処理し、文書-単語行列およびTF-IDFを計算する
-     * @param {Array<{id: any, text: string, row: object}>} validResponses 
+     * （事前抽出済みの単語リスト r.words があれば再形態素解析をスキップして高速化）
+     * @param {Array<{id: any, text: string, words?: string[], row: object}>} validResponses 
      * @param {number} maxVocabSize 最大語彙数（デフォルト60）
      * @param {object} [posFilter] 品詞フィルター設定
      * @returns {{
@@ -397,17 +398,30 @@ const TextPreprocessor = {
 
         const filter = posFilter || this.posFilter;
 
-        // 1. 各回答の単語リストを抽出
-        const docWordLists = validResponses.map(r => this.tokenize(r.text, filter));
-
-        // 2. 単語の文書頻度 (DF) をカウント
-        const docFreq = {};
-        docWordLists.forEach(words => {
-            const uniqueWords = new Set(words);
-            uniqueWords.forEach(w => {
-                docFreq[w] = (docFreq[w] || 0) + 1;
-            });
+        // 1. 各回答の単語リストを取得（キャッシュがあれば最優先で再利用し形態素解析の重複を完全排除）
+        const docWordLists = validResponses.map(r => {
+            if (r.words && Array.isArray(r.words)) {
+                return r.words;
+            }
+            return this.tokenize(r.text, filter);
         });
+
+        // 2. 単語の文書頻度 (DF) および各文書内の単語頻度マップを高速構築
+        const docFreq = {};
+        const docWordFreqMaps = new Array(N);
+
+        for (let i = 0; i < N; i++) {
+            const words = docWordLists[i];
+            const freqMap = {};
+            for (let j = 0; j < words.length; j++) {
+                const w = words[j];
+                freqMap[w] = (freqMap[w] || 0) + 1;
+            }
+            docWordFreqMaps[i] = freqMap;
+            for (const w in freqMap) {
+                docFreq[w] = (docFreq[w] || 0) + 1;
+            }
+        }
 
         // 3. 語彙の選定（稀な単語や全文書に渡る一般的すぎる単語をフィルタ）
         const minDf = N >= 20 ? 2 : 1;
@@ -433,61 +447,65 @@ const TextPreprocessor = {
             candidateWords = Object.keys(docFreq);
         }
 
-        // TF-IDF スコアの総和で単語をランキングして上位 maxVocabSize を選ぶ
+        // TF-IDF スコアの総和で単語をランキングして上位 maxVocabSize を選ぶ（Map参照による超高速化）
         const wordScores = {};
-        candidateWords.forEach(w => {
+        for (let c = 0; c < candidateWords.length; c++) {
+            const w = candidateWords[c];
             const idf = Math.log(N / (docFreq[w] + 1)) + 1;
             let tfSum = 0;
-            docWordLists.forEach(words => {
-                const count = words.filter(word => word === w).length;
-                if (count > 0) {
+            for (let i = 0; i < N; i++) {
+                const count = docWordFreqMaps[i][w];
+                if (count) {
                     tfSum += (1 + Math.log(count));
                 }
-            });
+            }
             // 強制抽出ワードには優先重みボーナスを付与（最大語彙数の足切りから確実に保護）
             const priorityBonus = forceWords.has(w) ? 10000 : 0;
             wordScores[w] = (tfSum * idf) + priorityBonus;
-        });
+        }
 
         const sortedVocab = candidateWords
             .sort((a, b) => (wordScores[b] || 0) - (wordScores[a] || 0))
             .slice(0, maxVocabSize);
 
+        const vocabLen = sortedVocab.length;
         const vocabIndexMap = new Map();
-        sortedVocab.forEach((w, idx) => vocabIndexMap.set(w, idx));
+        for (let idx = 0; idx < vocabLen; idx++) {
+            vocabIndexMap.set(sortedVocab[idx], idx);
+        }
 
-        // 4. TF-IDF 行列を構築
+        // 4. TF-IDF 行列を構築（事前集計済みマップを利用）
         const matrix = [];
         for (let i = 0; i < N; i++) {
-            const rowVec = new Array(sortedVocab.length).fill(0);
-            const words = docWordLists[i];
-            const wordCounts = {};
-            words.forEach(w => {
-                if (vocabIndexMap.has(w)) {
-                    wordCounts[w] = (wordCounts[w] || 0) + 1;
-                }
-            });
-
+            const rowVec = new Array(vocabLen).fill(0);
+            const freqMap = docWordFreqMaps[i];
             let normSq = 0;
-            Object.entries(wordCounts).forEach(([w, count]) => {
-                const colIdx = vocabIndexMap.get(w);
-                const tf = 1 + Math.log(count);
-                const idf = Math.log(N / (docFreq[w] + 1)) + 1;
-                const tfidf = tf * idf;
-                rowVec[colIdx] = tfidf;
-                normSq += tfidf * tfidf;
-            });
+
+            for (let j = 0; j < vocabLen; j++) {
+                const w = sortedVocab[j];
+                const count = freqMap[w];
+                if (count) {
+                    const tf = 1 + Math.log(count);
+                    const idf = Math.log(N / (docFreq[w] + 1)) + 1;
+                    const tfidf = tf * idf;
+                    rowVec[j] = tfidf;
+                    normSq += tfidf * tfidf;
+                }
+            }
 
             // L2正規化
             const norm = Math.sqrt(normSq);
             if (norm > 0) {
-                for (let j = 0; j < rowVec.length; j++) {
+                for (let j = 0; j < vocabLen; j++) {
                     rowVec[j] /= norm;
                 }
             }
 
             matrix.push(rowVec);
         }
+
+        // 不要になった中間巨大配列のメモリを明示的に解放
+        docWordFreqMaps.length = 0;
 
         return {
             vocabulary: sortedVocab,
